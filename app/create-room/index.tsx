@@ -1,21 +1,39 @@
 import * as ImagePicker from 'expo-image-picker';
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { ActivityIndicator, Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Image,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AuthRequired } from '../../src/components/auth-required';
 import { useAuth } from '../../src/providers/auth-provider';
 import { uploadImageAsset } from '../../src/services/media';
 import type { UploadedMediaAsset } from '../../src/services/media';
+import { createRoom } from '../../src/services/rooms';
 
 export default function CreateRoomScreen() {
   const { session } = useAuth();
+  const [bookTitle, setBookTitle] = useState('');
+  const [author, setAuthor] = useState('');
+  const [roomTitle, setRoomTitle] = useState('');
+  const [roomSubtitle, setRoomSubtitle] = useState('');
+  const [roomDescription, setRoomDescription] = useState('');
+  const [firstQuestion, setFirstQuestion] = useState('');
   const [coverAsset, setCoverAsset] = useState<ImagePicker.ImagePickerAsset | null>(null);
   const [coverUri, setCoverUri] = useState<string | null>(null);
   const [uploadedCover, setUploadedCover] = useState<UploadedMediaAsset | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [isCreating, setIsCreating] = useState(false);
+  const [createError, setCreateError] = useState<string | null>(null);
 
   const pickCover = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -40,17 +58,7 @@ export default function CreateRoomScreen() {
     setUploadError(null);
 
     try {
-      const media = await uploadImageAsset({
-        kind: 'room-cover',
-        entityId: `draft-${session.user.id}`,
-        uri: coverAsset.uri,
-        ownerId: session.user.id,
-        mimeType: coverAsset.mimeType,
-        width: coverAsset.width,
-        height: coverAsset.height,
-        fileName: coverAsset.fileName,
-      });
-
+      const media = await uploadSelectedCover();
       setUploadedCover(media);
     } catch (error) {
       setUploadError(error instanceof Error ? error.message : '커버 업로드에 실패했습니다.');
@@ -59,16 +67,71 @@ export default function CreateRoomScreen() {
     }
   };
 
+  const uploadSelectedCover = async () => {
+    if (!session || !coverAsset?.uri) {
+      throw new Error('업로드할 커버 이미지가 없습니다.');
+    }
+
+    return uploadImageAsset({
+      kind: 'room-cover',
+      entityId: `draft-${session.user.id}`,
+      uri: coverAsset.uri,
+      ownerId: session.user.id,
+      mimeType: coverAsset.mimeType,
+      width: coverAsset.width,
+      height: coverAsset.height,
+      fileName: coverAsset.fileName,
+    });
+  };
+
+  const createReadingRoom = async () => {
+    if (!session) return;
+
+    if (!bookTitle.trim() || !author.trim() || !firstQuestion.trim()) {
+      setCreateError('책 제목, 저자, 첫 질문은 꼭 필요합니다.');
+      return;
+    }
+
+    setIsCreating(true);
+    setCreateError(null);
+
+    try {
+      const cover =
+        uploadedCover ?? (coverAsset?.uri ? await uploadSelectedCover() : null);
+
+      if (cover) {
+        setUploadedCover(cover);
+      }
+
+      const room = await createRoom({
+        bookTitle,
+        author,
+        roomTitle: roomTitle || bookTitle,
+        roomSubtitle,
+        roomDescription,
+        firstQuestion,
+        founderId: session.user.id,
+        coverPath: cover?.objectPath ?? null,
+      });
+
+      router.replace(`/room/${room.slug}`);
+    } catch (error) {
+      setCreateError(error instanceof Error ? error.message : '리딩룸 생성에 실패했습니다.');
+    } finally {
+      setIsCreating(false);
+    }
+  };
+
   return (
     <SafeAreaView style={styles.safeArea}>
-      <View style={styles.content}>
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <Pressable onPress={() => router.back()} style={styles.backButton}>
           <Text style={styles.backText}>Back</Text>
         </Pressable>
 
         <Text style={styles.title}>당신이 사랑하는 책의 첫 번째 방장이 되어보세요.</Text>
         <Text style={styles.copy}>
-          책을 검색하거나 ISBN을 스캔한 뒤, Room 소개와 첫 질문을 등록하는 흐름으로 확장합니다.
+          첫 버전은 직접 입력으로 Room을 만들고, 이후 책 검색과 ISBN 스캔 흐름으로 확장합니다.
         </Text>
 
         {!session ? (
@@ -80,6 +143,56 @@ export default function CreateRoomScreen() {
 
         {session ? (
           <>
+            <View style={styles.formPanel}>
+              <Text style={styles.label}>Book</Text>
+              <TextInput
+                onChangeText={setBookTitle}
+                placeholder="책 제목"
+                placeholderTextColor="#A49B8D"
+                style={styles.input}
+                value={bookTitle}
+              />
+              <TextInput
+                onChangeText={setAuthor}
+                placeholder="저자"
+                placeholderTextColor="#A49B8D"
+                style={styles.input}
+                value={author}
+              />
+
+              <Text style={[styles.label, styles.spacedLabel]}>Room</Text>
+              <TextInput
+                onChangeText={setRoomTitle}
+                placeholder="Room 제목"
+                placeholderTextColor="#A49B8D"
+                style={styles.input}
+                value={roomTitle}
+              />
+              <TextInput
+                onChangeText={setRoomSubtitle}
+                placeholder="짧은 부제"
+                placeholderTextColor="#A49B8D"
+                style={styles.input}
+                value={roomSubtitle}
+              />
+              <TextInput
+                multiline
+                onChangeText={setRoomDescription}
+                placeholder="Room 소개"
+                placeholderTextColor="#A49B8D"
+                style={[styles.input, styles.textArea]}
+                value={roomDescription}
+              />
+              <TextInput
+                multiline
+                onChangeText={setFirstQuestion}
+                placeholder="첫 질문"
+                placeholderTextColor="#A49B8D"
+                style={[styles.input, styles.textArea]}
+                value={firstQuestion}
+              />
+            </View>
+
             <Pressable onPress={pickCover} style={styles.coverPicker}>
               {coverUri ? (
                 <Image source={{ uri: coverUri }} style={styles.coverImage} />
@@ -117,19 +230,25 @@ export default function CreateRoomScreen() {
                 <Text style={styles.errorCopy}>{uploadError}</Text>
               </View>
             ) : null}
+
+            <Pressable
+              disabled={isCreating}
+              onPress={createReadingRoom}
+              style={[styles.createButton, isCreating ? styles.uploadButtonDisabled : null]}
+            >
+              {isCreating ? <ActivityIndicator color="#FFFFFF" /> : null}
+              <Text style={styles.createButtonText}>리딩룸 생성</Text>
+            </Pressable>
+
+            {createError ? (
+              <View style={[styles.statusPanel, styles.errorPanel]}>
+                <Text style={styles.errorTitle}>생성 실패</Text>
+                <Text style={styles.errorCopy}>{createError}</Text>
+              </View>
+            ) : null}
           </>
         ) : null}
-
-        {session ? (
-        <View style={styles.formPreview}>
-          <Text style={styles.label}>Room setup</Text>
-          <Text style={styles.previewLine}>책 검색</Text>
-          <Text style={styles.previewLine}>Room 소개</Text>
-          <Text style={styles.previewLine}>첫 질문</Text>
-          <Text style={styles.previewLine}>Host 운영 규칙</Text>
-        </View>
-        ) : null}
-      </View>
+      </ScrollView>
     </SafeAreaView>
   );
 }
@@ -140,8 +259,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#F7F2EA',
   },
   content: {
-    flex: 1,
     padding: 20,
+    paddingBottom: 42,
   },
   backButton: {
     alignSelf: 'flex-start',
@@ -177,6 +296,34 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     padding: 28,
   },
+  formPanel: {
+    backgroundColor: '#FFFFFF',
+    borderColor: '#E5DED1',
+    borderRadius: 24,
+    borderWidth: 1,
+    gap: 12,
+    marginTop: 24,
+    padding: 18,
+  },
+  spacedLabel: {
+    marginTop: 10,
+  },
+  input: {
+    backgroundColor: '#F7F2EA',
+    borderColor: '#E6DDCF',
+    borderRadius: 16,
+    borderWidth: 1,
+    color: '#142326',
+    fontSize: 16,
+    fontWeight: '700',
+    minHeight: 50,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+  },
+  textArea: {
+    minHeight: 92,
+    textAlignVertical: 'top',
+  },
   coverImage: {
     height: '100%',
     width: '100%',
@@ -198,6 +345,22 @@ const styles = StyleSheet.create({
   uploadButtonText: {
     color: '#FFFFFF',
     fontSize: 16,
+    fontWeight: '900',
+  },
+  createButton: {
+    alignItems: 'center',
+    backgroundColor: '#142326',
+    borderRadius: 18,
+    flexDirection: 'row',
+    gap: 10,
+    justifyContent: 'center',
+    marginTop: 18,
+    minHeight: 58,
+    paddingHorizontal: 18,
+  },
+  createButtonText: {
+    color: '#FFFFFF',
+    fontSize: 17,
     fontWeight: '900',
   },
   statusPanel: {
@@ -249,28 +412,11 @@ const styles = StyleSheet.create({
     marginTop: 10,
     textAlign: 'center',
   },
-  formPreview: {
-    backgroundColor: '#FFFFFF',
-    borderColor: '#E5DED1',
-    borderRadius: 24,
-    borderWidth: 1,
-    gap: 14,
-    marginTop: 22,
-    padding: 20,
-  },
   label: {
     color: '#116653',
     fontSize: 13,
     fontWeight: '900',
     marginBottom: 4,
     textTransform: 'uppercase',
-  },
-  previewLine: {
-    borderBottomColor: '#EEE7DA',
-    borderBottomWidth: 1,
-    color: '#142326',
-    fontSize: 18,
-    fontWeight: '800',
-    paddingBottom: 12,
   },
 });
