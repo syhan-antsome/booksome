@@ -1,0 +1,21 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "booksome-media-api",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-04-23",
+  "observability": {
+    "enabled": true,
+    "head_sampling_rate": 1
+  },
+  "vars": {
+    "APP_ENV": "development",
+    "UPLOAD_MAX_BYTES": "8388608",
+    "ALLOWED_ORIGIN": "http://localhost:8081"
+  },
+  "r2_buckets": [
+    {
+      "binding": "BOOKSOME_MEDIA",
+      "bucket_name": "booksome-media-dev"
+    }
+  ]
+}

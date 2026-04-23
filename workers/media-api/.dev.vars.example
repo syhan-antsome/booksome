@@ -1,0 +1,5 @@
+# Local-only secrets for wrangler dev if needed later.
+# Keep real values in .dev.vars, never commit them.
+
+SUPABASE_URL=
+SUPABASE_SERVICE_ROLE_KEY=
