@@ -57,6 +57,7 @@ Then run the SQL files in Supabase SQL Editor in this order:
 ```text
 supabase/schema.sql
 supabase/rls.sql
+supabase/functions.sql
 supabase/seed.sql
 ```
 

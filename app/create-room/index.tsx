@@ -61,7 +61,7 @@ export default function CreateRoomScreen() {
       const media = await uploadSelectedCover();
       setUploadedCover(media);
     } catch (error) {
-      setUploadError(error instanceof Error ? error.message : '커버 업로드에 실패했습니다.');
+      setUploadError(getErrorMessage(error, '커버 업로드에 실패했습니다.'));
     } finally {
       setIsUploading(false);
     }
@@ -116,7 +116,7 @@ export default function CreateRoomScreen() {
 
       router.replace(`/room/${room.slug}`);
     } catch (error) {
-      setCreateError(error instanceof Error ? error.message : '리딩룸 생성에 실패했습니다.');
+      setCreateError(getErrorMessage(error, '리딩룸 생성에 실패했습니다.'));
     } finally {
       setIsCreating(false);
     }
@@ -251,6 +251,21 @@ export default function CreateRoomScreen() {
       </ScrollView>
     </SafeAreaView>
   );
+}
+
+function getErrorMessage(error: unknown, fallback: string) {
+  if (error instanceof Error && error.message) {
+    return error.message;
+  }
+
+  if (typeof error === 'object' && error && 'message' in error) {
+    const message = (error as { message?: unknown }).message;
+    if (typeof message === 'string' && message) {
+      return message;
+    }
+  }
+
+  return fallback;
 }
 
 const styles = StyleSheet.create({

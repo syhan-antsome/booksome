@@ -1,0 +1,143 @@
+-- BookSome server-side functions.
+-- Run after schema.sql and rls.sql.
+
+create or replace function public.create_reading_room(
+  p_book_title text,
+  p_author text,
+  p_room_title text default null,
+  p_room_subtitle text default null,
+  p_room_description text default null,
+  p_first_question text default null,
+  p_cover_path text default null
+)
+returns table(id uuid, slug text)
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  current_profile_id uuid := auth.uid();
+  new_work_id uuid;
+  new_room_id uuid;
+  slug_base text;
+  candidate_slug text;
+begin
+  if current_profile_id is null then
+    raise exception '로그인이 필요합니다.';
+  end if;
+
+  if not exists (select 1 from public.profiles where profiles.id = current_profile_id) then
+    raise exception '프로필이 아직 준비되지 않았습니다. 다시 로그인한 뒤 시도해주세요.';
+  end if;
+
+  if nullif(trim(p_book_title), '') is null then
+    raise exception '책 제목은 꼭 필요합니다.';
+  end if;
+
+  if nullif(trim(p_author), '') is null then
+    raise exception '저자는 꼭 필요합니다.';
+  end if;
+
+  if nullif(trim(coalesce(p_first_question, '')), '') is null then
+    raise exception '첫 질문은 꼭 필요합니다.';
+  end if;
+
+  slug_base := lower(coalesce(nullif(trim(p_room_title), ''), trim(p_book_title)));
+  slug_base := regexp_replace(slug_base, '[^a-z0-9]+', '-', 'g');
+  slug_base := regexp_replace(slug_base, '(^-+|-+$)', '', 'g');
+  slug_base := left(slug_base, 48);
+
+  if slug_base = '' then
+    slug_base := 'room';
+  end if;
+
+  loop
+    candidate_slug := slug_base || '-' || substr(replace(gen_random_uuid()::text, '-', ''), 1, 8);
+    exit when not exists (select 1 from public.rooms where rooms.slug = candidate_slug);
+  end loop;
+
+  insert into public.book_works (
+    title,
+    author,
+    description,
+    primary_language,
+    cover_path
+  )
+  values (
+    trim(p_book_title),
+    trim(p_author),
+    nullif(trim(coalesce(p_room_description, '')), ''),
+    'ko',
+    p_cover_path
+  )
+  returning book_works.id into new_work_id;
+
+  insert into public.rooms (
+    work_id,
+    slug,
+    title,
+    subtitle,
+    description,
+    cover_path,
+    founder_id,
+    visibility
+  )
+  values (
+    new_work_id,
+    candidate_slug,
+    coalesce(nullif(trim(p_room_title), ''), trim(p_book_title)),
+    nullif(trim(coalesce(p_room_subtitle, '')), ''),
+    nullif(trim(coalesce(p_room_description, '')), ''),
+    p_cover_path,
+    current_profile_id,
+    'public'
+  )
+  returning rooms.id into new_room_id;
+
+  insert into public.room_members (
+    room_id,
+    profile_id,
+    role
+  )
+  values (
+    new_room_id,
+    current_profile_id,
+    'founder'
+  );
+
+  insert into public.posts (
+    room_id,
+    author_id,
+    kind,
+    body,
+    pinned
+  )
+  values (
+    new_room_id,
+    current_profile_id,
+    'question',
+    trim(p_first_question),
+    true
+  );
+
+  if p_cover_path is not null then
+    update public.media_assets
+    set room_id = new_room_id
+    where owner_id = current_profile_id
+      and object_path = p_cover_path
+      and room_id is null;
+  end if;
+
+  return query select new_room_id, candidate_slug;
+end;
+$$;
+
+grant execute on function public.create_reading_room(
+  text,
+  text,
+  text,
+  text,
+  text,
+  text,
+  text
+) to authenticated;

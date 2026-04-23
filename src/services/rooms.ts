@@ -104,78 +104,21 @@ export async function getRoomDetail(slug: string): Promise<RoomDetail | null> {
 }
 
 export async function createRoom(input: CreateRoomInput) {
-  const { data: bookWork, error: bookError } = await supabase
-    .from('book_works')
-    .insert({
-      title: input.bookTitle.trim(),
-      author: input.author.trim(),
-      description: input.roomDescription.trim() || null,
-      primary_language: 'ko',
-      cover_path: input.coverPath ?? null,
+  const { data, error } = await supabase
+    .rpc('create_reading_room', {
+      p_book_title: input.bookTitle.trim(),
+      p_author: input.author.trim(),
+      p_room_title: (input.roomTitle || input.bookTitle).trim(),
+      p_room_subtitle: input.roomSubtitle.trim() || null,
+      p_room_description: input.roomDescription.trim() || null,
+      p_first_question: input.firstQuestion.trim(),
+      p_cover_path: input.coverPath ?? null,
     })
-    .select('id')
     .single();
 
-  if (bookError) {
-    throw bookError;
+  if (error) {
+    throw error;
   }
 
-  const slug = createRoomSlug(input.roomTitle || input.bookTitle);
-
-  const { data: room, error: roomError } = await supabase
-    .from('rooms')
-    .insert({
-      work_id: bookWork.id,
-      slug,
-      title: input.roomTitle.trim() || input.bookTitle.trim(),
-      subtitle: input.roomSubtitle.trim() || null,
-      description: input.roomDescription.trim() || null,
-      cover_path: input.coverPath ?? null,
-      founder_id: input.founderId,
-      visibility: 'public',
-    })
-    .select('id, slug')
-    .single();
-
-  if (roomError) {
-    throw roomError;
-  }
-
-  const { error: memberError } = await supabase.from('room_members').insert({
-    room_id: room.id,
-    profile_id: input.founderId,
-    role: 'founder',
-  });
-
-  if (memberError) {
-    throw memberError;
-  }
-
-  if (input.firstQuestion.trim()) {
-    const { error: postError } = await supabase.from('posts').insert({
-      room_id: room.id,
-      author_id: input.founderId,
-      kind: 'question',
-      body: input.firstQuestion.trim(),
-      pinned: true,
-    });
-
-    if (postError) {
-      throw postError;
-    }
-  }
-
-  return room;
-}
-
-function createRoomSlug(value: string) {
-  const base = value
-    .normalize('NFKD')
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-    .slice(0, 48);
-
-  const suffix = Math.random().toString(36).slice(2, 8);
-  return `${base || 'room'}-${suffix}`;
+  return data as { id: string; slug: string };
 }
