@@ -68,6 +68,14 @@ https://booksome-media-api.booksome-api.workers.dev
 
 This keeps R2 credentials out of the client and makes validation easier.
 
+Saved media can be rendered through the Worker:
+
+```text
+GET /v1/media/:objectPath
+```
+
+Development note: upload endpoints are currently open so the app can test the full R2 path quickly. Before a public beta, the Worker should validate the app's Supabase access token and require the authenticated user to match the upload owner.
+
 ### Later optimization
 
 When volume grows, move to presigned upload URLs to reduce Worker bandwidth overhead.

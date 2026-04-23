@@ -1,15 +1,21 @@
 import * as ImagePicker from 'expo-image-picker';
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AuthRequired } from '../../src/components/auth-required';
 import { useAuth } from '../../src/providers/auth-provider';
+import { uploadImageAsset } from '../../src/services/media';
+import type { UploadedMediaAsset } from '../../src/services/media';
 
 export default function CreateRoomScreen() {
   const { session } = useAuth();
+  const [coverAsset, setCoverAsset] = useState<ImagePicker.ImagePickerAsset | null>(null);
   const [coverUri, setCoverUri] = useState<string | null>(null);
+  const [uploadedCover, setUploadedCover] = useState<UploadedMediaAsset | null>(null);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
 
   const pickCover = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -19,7 +25,37 @@ export default function CreateRoomScreen() {
     });
 
     if (!result.canceled) {
-      setCoverUri(result.assets[0]?.uri ?? null);
+      const asset = result.assets[0] ?? null;
+      setCoverAsset(asset);
+      setCoverUri(asset?.uri ?? null);
+      setUploadedCover(null);
+      setUploadError(null);
+    }
+  };
+
+  const uploadCover = async () => {
+    if (!session || !coverAsset?.uri) return;
+
+    setIsUploading(true);
+    setUploadError(null);
+
+    try {
+      const media = await uploadImageAsset({
+        kind: 'room-cover',
+        entityId: `draft-${session.user.id}`,
+        uri: coverAsset.uri,
+        ownerId: session.user.id,
+        mimeType: coverAsset.mimeType,
+        width: coverAsset.width,
+        height: coverAsset.height,
+        fileName: coverAsset.fileName,
+      });
+
+      setUploadedCover(media);
+    } catch (error) {
+      setUploadError(error instanceof Error ? error.message : '커버 업로드에 실패했습니다.');
+    } finally {
+      setIsUploading(false);
     }
   };
 
@@ -43,16 +79,45 @@ export default function CreateRoomScreen() {
         ) : null}
 
         {session ? (
-        <Pressable onPress={pickCover} style={styles.coverPicker}>
-          {coverUri ? (
-            <Image source={{ uri: coverUri }} style={styles.coverImage} />
-          ) : (
-            <>
-              <Text style={styles.coverTitle}>Room 커버 선택</Text>
-              <Text style={styles.coverCopy}>사진 보관함에서 커버 이미지를 불러오는 초기 연결입니다.</Text>
-            </>
-          )}
-        </Pressable>
+          <>
+            <Pressable onPress={pickCover} style={styles.coverPicker}>
+              {coverUri ? (
+                <Image source={{ uri: coverUri }} style={styles.coverImage} />
+              ) : (
+                <>
+                  <Text style={styles.coverTitle}>Room 커버 선택</Text>
+                  <Text style={styles.coverCopy}>사진 보관함에서 커버 이미지를 불러옵니다.</Text>
+                </>
+              )}
+            </Pressable>
+
+            {coverUri ? (
+              <Pressable
+                disabled={isUploading}
+                onPress={uploadCover}
+                style={[styles.uploadButton, isUploading ? styles.uploadButtonDisabled : null]}
+              >
+                {isUploading ? <ActivityIndicator color="#FFFFFF" /> : null}
+                <Text style={styles.uploadButtonText}>
+                  {uploadedCover ? 'R2 업로드 다시 실행' : 'R2에 커버 업로드'}
+                </Text>
+              </Pressable>
+            ) : null}
+
+            {uploadedCover ? (
+              <View style={styles.statusPanel}>
+                <Text style={styles.statusTitle}>업로드 완료</Text>
+                <Text style={styles.statusCopy}>{uploadedCover.objectPath}</Text>
+              </View>
+            ) : null}
+
+            {uploadError ? (
+              <View style={[styles.statusPanel, styles.errorPanel]}>
+                <Text style={styles.errorTitle}>업로드 실패</Text>
+                <Text style={styles.errorCopy}>{uploadError}</Text>
+              </View>
+            ) : null}
+          </>
         ) : null}
 
         {session ? (
@@ -115,6 +180,61 @@ const styles = StyleSheet.create({
   coverImage: {
     height: '100%',
     width: '100%',
+  },
+  uploadButton: {
+    alignItems: 'center',
+    backgroundColor: '#116653',
+    borderRadius: 18,
+    flexDirection: 'row',
+    gap: 10,
+    justifyContent: 'center',
+    marginTop: 14,
+    minHeight: 54,
+    paddingHorizontal: 18,
+  },
+  uploadButtonDisabled: {
+    opacity: 0.68,
+  },
+  uploadButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '900',
+  },
+  statusPanel: {
+    backgroundColor: '#E8F4EF',
+    borderColor: '#B8D8CC',
+    borderRadius: 18,
+    borderWidth: 1,
+    marginTop: 14,
+    padding: 16,
+  },
+  statusTitle: {
+    color: '#116653',
+    fontSize: 15,
+    fontWeight: '900',
+  },
+  statusCopy: {
+    color: '#33514A',
+    fontSize: 13,
+    fontWeight: '700',
+    lineHeight: 19,
+    marginTop: 6,
+  },
+  errorPanel: {
+    backgroundColor: '#FFF0EA',
+    borderColor: '#F3C2AE',
+  },
+  errorTitle: {
+    color: '#A43D20',
+    fontSize: 15,
+    fontWeight: '900',
+  },
+  errorCopy: {
+    color: '#7C3B29',
+    fontSize: 13,
+    fontWeight: '700',
+    lineHeight: 19,
+    marginTop: 6,
   },
   coverTitle: {
     color: '#FFFFFF',

@@ -36,6 +36,7 @@ yarn-error.*
 
 # typescript
 *.tsbuildinfo
+workers/media-api/worker-configuration.d.ts
 
 # generated native folders
 /ios

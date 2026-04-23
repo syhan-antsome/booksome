@@ -69,3 +69,21 @@ The current BookSome media Worker is deployed at:
 ```text
 https://booksome-media-api.booksome-api.workers.dev
 ```
+
+The create-room flow now uses this Worker for Room cover uploads:
+
+```text
+App image picker
+-> POST /v1/uploads/request
+-> PUT /v1/uploads/blob/:kind/:entityId/:fileName
+-> R2 object saved
+-> Supabase media_assets row inserted
+```
+
+Saved media can be read through:
+
+```text
+GET /v1/media/:objectPath
+```
+
+The current Worker is suitable for development. Before a public beta, upload endpoints should verify the Supabase access token from the app.

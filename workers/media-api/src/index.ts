@@ -32,6 +32,10 @@ export default {
         );
       }
 
+      if (request.method === 'GET' && url.pathname.startsWith('/v1/media/')) {
+        return handleGetMedia(request, env);
+      }
+
       if (request.method === 'POST' && url.pathname === '/v1/uploads/request') {
         return handleUploadRequest(request, env);
       }
@@ -145,10 +149,38 @@ async function handleUploadBlob(request: Request, env: Env, ctx: ExecutionContex
     {
       ok: true,
       objectKey,
-      bucket: 'BOOKSOME_MEDIA',
+      bucket: env.MEDIA_BUCKET_NAME,
+      mediaUrl: `/v1/media/${encodeObjectKey(objectKey)}`,
     },
     env,
     201,
+  );
+}
+
+async function handleGetMedia(request: Request, env: Env) {
+  const url = new URL(request.url);
+  const objectKey = decodeURIComponent(url.pathname.slice('/v1/media/'.length));
+
+  if (!objectKey) {
+    return json({ error: 'Missing media object key' }, env, 400);
+  }
+
+  const object = await env.BOOKSOME_MEDIA.get(objectKey);
+
+  if (!object) {
+    return json({ error: 'Media not found' }, env, 404);
+  }
+
+  const headers = new Headers();
+  object.writeHttpMetadata(headers);
+  headers.set('etag', object.httpEtag);
+  headers.set('cache-control', object.httpMetadata?.cacheControl ?? 'public, max-age=31536000, immutable');
+
+  return withCors(
+    new Response(object.body, {
+      headers,
+    }),
+    env,
   );
 }
 
@@ -186,4 +218,8 @@ function normalizeExtension(input?: string) {
 
 function isUploadKind(value: string): value is UploadKind {
   return value in allowedKinds;
+}
+
+function encodeObjectKey(objectKey: string) {
+  return objectKey.split('/').map(encodeURIComponent).join('/');
 }
