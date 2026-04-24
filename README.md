@@ -61,6 +61,12 @@ supabase/functions.sql
 supabase/seed.sql
 ```
 
+If an existing database reports recursive RLS errors while reading rooms, run:
+
+```text
+supabase/fix-rls-recursion.sql
+```
+
 The app first tries to read `room_discovery_cards` from Supabase. If the schema has not been applied yet, the Discover screen falls back to local preview data.
 
 ## Cloudflare Media API

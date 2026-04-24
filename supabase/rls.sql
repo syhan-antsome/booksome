@@ -33,6 +33,36 @@ as $$
   );
 $$;
 
+create or replace function public.is_room_member(target_room_id uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select exists (
+    select 1
+    from public.room_members
+    where room_id = target_room_id
+      and profile_id = auth.uid()
+  );
+$$;
+
+create or replace function public.is_public_room(target_room_id uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select exists (
+    select 1
+    from public.rooms
+    where id = target_room_id
+      and visibility = 'public'
+  );
+$$;
+
 create policy "Profiles are publicly readable"
 on public.profiles for select
 using (true);
@@ -68,10 +98,7 @@ create policy "Public rooms are readable"
 on public.rooms for select
 using (
   visibility = 'public'
-  or exists (
-    select 1 from public.room_members
-    where room_id = rooms.id and profile_id = auth.uid()
-  )
+  or public.is_room_member(id)
 );
 
 create policy "Authenticated users can create rooms"
@@ -87,15 +114,9 @@ with check (public.is_room_operator(id));
 create policy "Room members are readable for visible rooms"
 on public.room_members for select
 using (
-  exists (
-    select 1 from public.rooms
-    where rooms.id = room_members.room_id
-      and (
-        rooms.visibility = 'public'
-        or room_members.profile_id = auth.uid()
-        or public.is_room_operator(rooms.id)
-      )
-  )
+  public.is_public_room(room_id)
+  or profile_id = auth.uid()
+  or public.is_room_operator(room_id)
 );
 
 create policy "Users can join rooms as themselves"
@@ -116,16 +137,9 @@ create policy "Posts are readable in visible rooms"
 on public.posts for select
 using (
   hidden_at is null
-  and exists (
-    select 1 from public.rooms
-    where rooms.id = posts.room_id
-      and (
-        rooms.visibility = 'public'
-        or exists (
-          select 1 from public.room_members
-          where room_id = rooms.id and profile_id = auth.uid()
-        )
-      )
+  and (
+    public.is_public_room(room_id)
+    or public.is_room_member(room_id)
   )
 );
 
@@ -152,15 +166,11 @@ using (
   and exists (
     select 1
     from public.posts
-    join public.rooms on rooms.id = posts.room_id
     where posts.id = comments.post_id
       and posts.hidden_at is null
       and (
-        rooms.visibility = 'public'
-        or exists (
-          select 1 from public.room_members
-          where room_id = rooms.id and profile_id = auth.uid()
-        )
+        public.is_public_room(posts.room_id)
+        or public.is_room_member(posts.room_id)
       )
   )
 );
@@ -187,12 +197,7 @@ with check (profile_id = auth.uid());
 
 create policy "Reading sessions are readable in visible rooms"
 on public.reading_sessions for select
-using (
-  exists (
-    select 1 from public.rooms
-    where rooms.id = reading_sessions.room_id and rooms.visibility = 'public'
-  )
-);
+using (public.is_public_room(room_id));
 
 create policy "Room operators manage reading sessions"
 on public.reading_sessions for all
