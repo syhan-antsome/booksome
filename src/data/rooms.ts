@@ -8,6 +8,7 @@ export type FeaturedRoom = {
   progress: number;
   next: string;
   question: string;
+  coverPath?: string | null;
 };
 
 export const featuredRooms: FeaturedRoom[] = [

@@ -1,39 +1,36 @@
 import { Link, useFocusEffect } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { featuredRooms, nativeReadiness, type FeaturedRoom } from '../src/data/rooms';
 import { useAuth } from '../src/providers/auth-provider';
+import { getMediaUrl } from '../src/services/media';
 import { listFeaturedRooms, type RoomSummary } from '../src/services/rooms';
 
 export default function DiscoverScreen() {
   const { isLoading, profile, session, signOut } = useAuth();
   const [remoteRooms, setRemoteRooms] = useState<RoomSummary[]>([]);
-  const [connectionLabel, setConnectionLabel] = useState('Supabase 연결 확인 중');
+  const [connectionLabel, setConnectionLabel] = useState('연결 확인 중');
   const [isRefreshingRooms, setIsRefreshingRooms] = useState(false);
 
   const refreshRooms = useCallback(() => {
     let isMounted = true;
 
     setIsRefreshingRooms(true);
-    setConnectionLabel('Supabase 새로고침 중');
+    setConnectionLabel('새로고침 중');
 
     listFeaturedRooms()
       .then((rooms) => {
-        if (!isMounted) {
-          return;
-        }
+        if (!isMounted) return;
 
         setRemoteRooms(rooms);
-        setConnectionLabel(rooms.length > 0 ? 'Supabase live' : 'Supabase ready');
+        setConnectionLabel(rooms.length > 0 ? 'Live' : 'Ready');
       })
       .catch(() => {
-        if (!isMounted) {
-          return;
-        }
+        if (!isMounted) return;
 
-        setConnectionLabel('Local preview');
+        setConnectionLabel('Preview');
       })
       .finally(() => {
         if (isMounted) {
@@ -52,6 +49,9 @@ export default function DiscoverScreen() {
     () => (remoteRooms.length > 0 ? remoteRooms.map(toFeaturedRoom) : featuredRooms),
     [remoteRooms],
   );
+  const leadRoom = rooms[0];
+  const feedRooms = rooms.length > 1 ? rooms.slice(1) : rooms;
+  const leadCoverUrl = leadRoom?.coverPath ? getRoomCoverUrl(leadRoom.coverPath) : null;
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -59,90 +59,112 @@ export default function DiscoverScreen() {
         <View style={styles.header}>
           <View>
             <Text style={styles.brand}>BookSome</Text>
-            <Text style={styles.brandKo}>
+            <Text style={styles.brandCaption}>
               {isLoading
-                ? '세션을 확인하고 있습니다'
+                ? '읽는 중'
                 : session
-                  ? `${profile?.display_name ?? 'Reader'}님, 오늘 어떤 책의 방에 들어갈까요?`
-                  : '북썸'}
+                  ? `${profile?.display_name ?? 'Reader'}님의 리딩 피드`
+                  : '책으로 이어지는 사람들'}
             </Text>
           </View>
           {session ? (
-            <View style={styles.connectionBadge}>
-              <Text style={styles.connectionText}>{connectionLabel}</Text>
-            </View>
+            <Text style={styles.connectionText}>오늘</Text>
           ) : (
-            <Link href="/auth" style={styles.signInAction}>
+            <Link href="/auth" style={styles.headerAction}>
               로그인
             </Link>
           )}
         </View>
 
-        <View style={styles.hero}>
-          <Text style={styles.heroLabel}>Social Reading Rooms</Text>
-          <Text style={styles.heroTitle}>책마다 방이 있고, 독자마다 이야기가 있습니다.</Text>
-          <Text style={styles.heroCopy}>
-            {session
-              ? '같은 책을 읽는 사람을 발견하고, 질문과 문장으로 대화를 시작하세요.'
-              : '로그인하면 리딩룸 참여, 질문 저장, 모임 알림, Host 운영이 이어집니다.'}
-          </Text>
-          <View style={styles.heroActions}>
-            <Link href={session ? '/scan' : '/auth'} style={styles.primaryAction}>
-              {session ? 'ISBN 스캔' : '로그인하고 시작'}
-            </Link>
-            <Link href={session ? '/create-room' : '/auth'} style={styles.secondaryAction}>
-              {session ? '리딩룸 만들기' : '회원가입'}
-            </Link>
-          </View>
+        {leadRoom ? (
+          <Link href={`/room/${leadRoom.slug}`} style={styles.hero}>
+            {leadCoverUrl ? (
+              <Image resizeMode="cover" source={{ uri: leadCoverUrl }} style={styles.heroImage} />
+            ) : (
+              <View style={[styles.heroFallback, { backgroundColor: leadRoom.accent }]}>
+                <Text style={styles.heroFallbackLetter}>{leadRoom.title.slice(0, 1)}</Text>
+                <View style={styles.heroFallbackLineOne} />
+                <View style={styles.heroFallbackLineTwo} />
+              </View>
+            )}
+            <View style={styles.heroShade} />
+            <View style={styles.heroCopy}>
+              <View style={styles.editorialMarker}>
+                <View style={styles.editorialLine} />
+                <Text style={styles.editorialText}>오늘의 리딩룸</Text>
+              </View>
+              <Text style={styles.heroTitle}>{leadRoom.title}</Text>
+              <Text style={styles.heroAuthor}>{leadRoom.author}</Text>
+              <Text style={styles.heroQuestion}>{leadRoom.question}</Text>
+            </View>
+          </Link>
+        ) : null}
+
+        <View style={styles.quickActions}>
+          <Link href={session ? '/scan' : '/auth'} style={styles.quickAction}>
+            {session ? 'ISBN 스캔' : '시작하기'}
+          </Link>
+          <Link href={session ? '/create-room' : '/auth'} style={styles.quickAction}>
+            {session ? '방 만들기' : '회원가입'}
+          </Link>
+          <Link href="/meetups" style={styles.quickAction}>
+            모임
+          </Link>
         </View>
 
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>지금 살아있는 리딩룸</Text>
-          <View style={styles.sectionActions}>
-            <Pressable onPress={refreshRooms} style={styles.refreshAction}>
-              <Text style={styles.refreshText}>{isRefreshingRooms ? '갱신 중' : '새로고침'}</Text>
-            </Pressable>
-            <Link href="/meetups" style={styles.sectionLink}>
-              주변 모임
-            </Link>
+          <View>
+            <Text style={styles.sectionEyebrow}>Rooms</Text>
+            <Text style={styles.sectionTitle}>지금 열려있는 이야기</Text>
           </View>
+          <Pressable onPress={refreshRooms} style={styles.refreshAction}>
+            <Text style={styles.refreshText}>{isRefreshingRooms ? '...' : '↻'}</Text>
+          </Pressable>
         </View>
 
-        <View style={styles.roomList}>
-          {rooms.map((room) => (
-            <Link key={room.slug} href={`/room/${room.slug}`} style={styles.roomCard}>
-              <View style={[styles.bookRail, { backgroundColor: room.accent }]} />
-              <View style={styles.roomContent}>
-                <View style={styles.roomMetaRow}>
-                  <Text style={styles.roomHost}>Host {room.host}</Text>
-                  <Text style={styles.roomMembers}>{room.members} readers</Text>
+        <View style={styles.roomFeed}>
+          {feedRooms.map((room, index) => {
+            const coverUrl = room.coverPath ? getRoomCoverUrl(room.coverPath) : null;
+
+            return (
+              <Link key={room.slug} href={`/room/${room.slug}`} style={styles.roomItem}>
+                <View style={styles.roomIndexWrap}>
+                  <Text style={styles.roomIndex}>{String(index + 1).padStart(2, '0')}</Text>
                 </View>
-                <Text style={styles.roomTitle}>{room.title}</Text>
-                <Text style={styles.roomAuthor}>{room.author}</Text>
-                <Text style={styles.roomQuestion}>{room.question}</Text>
-                <View style={styles.progressTrack}>
-                  <View style={[styles.progressFill, { width: `${room.progress}%` }]} />
+                <View style={styles.roomThumb}>
+                  {coverUrl ? (
+                    <Image resizeMode="cover" source={{ uri: coverUrl }} style={styles.roomThumbImage} />
+                  ) : (
+                    <View style={[styles.roomThumbFallback, { backgroundColor: room.accent }]}>
+                      <Text style={styles.roomThumbLetter}>{room.title.slice(0, 1)}</Text>
+                    </View>
+                  )}
                 </View>
-                <Text style={styles.roomNext}>{room.next}</Text>
-              </View>
-            </Link>
-          ))}
+                <View style={styles.roomInfo}>
+                  <Text style={styles.roomTitle}>{room.title}</Text>
+                  <Text style={styles.roomMeta}>{room.author} · {room.host}</Text>
+                  <Text style={styles.roomQuestion}>{room.question}</Text>
+                </View>
+                <Text style={styles.roomArrow}>↗</Text>
+              </Link>
+            );
+          })}
         </View>
 
         <View style={styles.nativePanel}>
-          <Text style={styles.nativeTitle}>초기 앱 필수 기능</Text>
-          <Text style={styles.nativeCopy}>
-            BookSome은 처음부터 앱스토어 출시를 전제로, 공유와 스캔, 알림 흐름을 제품 안에
-            포함합니다.
-          </Text>
-          <View style={styles.nativeGrid}>
-            {nativeReadiness.map((item) => (
-              <View key={item.title} style={styles.nativeItem}>
-                <Text style={styles.nativeItemTitle}>{item.title}</Text>
-                <Text style={styles.nativeItemLabel}>{item.label}</Text>
-              </View>
-            ))}
+          <View style={styles.sectionHeaderCompact}>
+            <Text style={styles.sectionEyebrow}>Tools</Text>
+            <Text style={styles.connectionText}>BookSome</Text>
           </View>
+          {nativeReadiness.map((item, index) => (
+            <View key={item.title} style={styles.nativeItem}>
+              <Text style={styles.nativeIndex}>{String(index + 1).padStart(2, '0')}</Text>
+              <View style={styles.nativeCopy}>
+                <Text style={styles.nativeTitle}>{item.title}</Text>
+                <Text style={styles.nativeLabel}>{item.label}</Text>
+              </View>
+            </View>
+          ))}
         </View>
 
         {session ? (
@@ -166,17 +188,27 @@ function toFeaturedRoom(room: RoomSummary): FeaturedRoom {
     progress: room.progress_percent,
     next: room.next_event ?? '새로운 함께 읽기 일정을 준비 중입니다',
     question: room.pinned_question ?? '이 책은 당신에게 어떤 질문을 남겼나요?',
+    coverPath: room.cover_path ?? null,
   };
+}
+
+function getRoomCoverUrl(coverPath: string) {
+  try {
+    return getMediaUrl(coverPath);
+  } catch {
+    return null;
+  }
 }
 
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#F7F2EA',
+    backgroundColor: '#F7F3EC',
   },
   content: {
-    padding: 20,
-    paddingBottom: 40,
+    paddingHorizontal: 18,
+    paddingTop: 18,
+    paddingBottom: 48,
   },
   header: {
     alignItems: 'center',
@@ -185,255 +217,283 @@ const styles = StyleSheet.create({
     marginBottom: 18,
   },
   brand: {
-    color: '#142326',
-    fontSize: 28,
+    color: '#24201B',
+    fontSize: 30,
     fontWeight: '900',
     letterSpacing: 0,
   },
-  brandKo: {
-    color: '#116653',
-    fontSize: 14,
-    fontWeight: '800',
-    marginTop: -2,
-  },
-  signInAction: {
-    backgroundColor: '#142326',
-    borderRadius: 16,
-    color: '#FFFFFF',
+  brandCaption: {
+    color: '#857B70',
     fontSize: 13,
-    fontWeight: '900',
-    overflow: 'hidden',
-    paddingHorizontal: 14,
-    paddingVertical: 10,
+    fontWeight: '700',
+    marginTop: 1,
   },
-  connectionBadge: {
-    alignItems: 'center',
-    backgroundColor: '#ECE5D8',
-    borderRadius: 16,
-    justifyContent: 'center',
-    minHeight: 34,
-    paddingHorizontal: 12,
+  headerAction: {
+    color: '#24201B',
+    fontSize: 14,
+    fontWeight: '900',
   },
   connectionText: {
-    color: '#116653',
+    color: '#8B8175',
     fontSize: 12,
-    fontWeight: '900',
+    fontWeight: '800',
   },
   hero: {
-    backgroundColor: '#113F35',
-    borderRadius: 28,
-    marginBottom: 28,
-    minHeight: 292,
-    padding: 24,
+    height: 520,
+    marginHorizontal: -18,
+    overflow: 'hidden',
+    position: 'relative',
   },
-  heroLabel: {
-    color: '#D9C28F',
-    fontSize: 13,
+  heroImage: {
+    bottom: 0,
+    left: 0,
+    position: 'absolute',
+    right: 0,
+    top: 0,
+  },
+  heroFallback: {
+    alignItems: 'center',
+    bottom: 0,
+    justifyContent: 'center',
+    left: 0,
+    position: 'absolute',
+    right: 0,
+    top: 0,
+  },
+  heroFallbackLetter: {
+    color: 'rgba(255,255,255,0.18)',
+    fontSize: 240,
     fontWeight: '900',
-    letterSpacing: 0.8,
-    marginBottom: 18,
-    textTransform: 'uppercase',
+    letterSpacing: 0,
+  },
+  heroFallbackLineOne: {
+    backgroundColor: 'rgba(255,255,255,0.18)',
+    height: 18,
+    left: 28,
+    position: 'absolute',
+    top: 152,
+    width: 138,
+  },
+  heroFallbackLineTwo: {
+    backgroundColor: 'rgba(255,255,255,0.24)',
+    bottom: 138,
+    height: 12,
+    position: 'absolute',
+    right: 34,
+    width: 96,
+  },
+  heroShade: {
+    backgroundColor: 'rgba(15, 13, 11, 0.36)',
+    bottom: 0,
+    left: 0,
+    position: 'absolute',
+    right: 0,
+    top: 0,
+  },
+  heroCopy: {
+    bottom: 42,
+    left: 22,
+    position: 'absolute',
+    right: 22,
+  },
+  editorialMarker: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 10,
+    marginBottom: 16,
+  },
+  editorialLine: {
+    backgroundColor: 'rgba(255,255,255,0.76)',
+    height: 1,
+    width: 34,
+  },
+  editorialText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '800',
   },
   heroTitle: {
     color: '#FFFFFF',
-    fontSize: 36,
+    fontSize: 44,
     fontWeight: '900',
     letterSpacing: 0,
-    lineHeight: 43,
+    lineHeight: 50,
   },
-  heroCopy: {
-    color: 'rgba(255,255,255,0.76)',
+  heroAuthor: {
+    color: 'rgba(255,255,255,0.84)',
     fontSize: 16,
-    fontWeight: '600',
-    lineHeight: 25,
-    marginTop: 16,
+    fontWeight: '700',
+    marginTop: 10,
   },
-  heroActions: {
+  heroQuestion: {
+    color: 'rgba(255,255,255,0.92)',
+    fontSize: 18,
+    fontWeight: '800',
+    lineHeight: 27,
+    marginTop: 24,
+    maxWidth: 560,
+  },
+  quickActions: {
+    borderBottomColor: 'rgba(36,32,27,0.1)',
+    borderBottomWidth: 1,
     flexDirection: 'row',
-    gap: 10,
-    marginTop: 28,
+    gap: 18,
+    paddingVertical: 22,
   },
-  primaryAction: {
-    backgroundColor: '#F7F2EA',
-    borderRadius: 16,
-    color: '#113F35',
+  quickAction: {
+    color: '#24201B',
     flex: 1,
     fontSize: 15,
     fontWeight: '900',
-    overflow: 'hidden',
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    textAlign: 'center',
-  },
-  secondaryAction: {
-    backgroundColor: 'rgba(255,255,255,0.14)',
-    borderColor: 'rgba(255,255,255,0.24)',
-    borderRadius: 16,
-    borderWidth: 1,
-    color: '#FFFFFF',
-    flex: 1,
-    fontSize: 15,
-    fontWeight: '900',
-    overflow: 'hidden',
-    paddingHorizontal: 16,
-    paddingVertical: 14,
     textAlign: 'center',
   },
   sectionHeader: {
+    alignItems: 'flex-end',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 34,
+    marginBottom: 8,
+  },
+  sectionHeaderCompact: {
     alignItems: 'center',
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 14,
+    marginBottom: 8,
+  },
+  sectionEyebrow: {
+    color: '#958B80',
+    fontSize: 12,
+    fontWeight: '900',
+    marginBottom: 6,
   },
   sectionTitle: {
-    color: '#142326',
-    fontSize: 22,
+    color: '#24201B',
+    fontSize: 26,
     fontWeight: '900',
     letterSpacing: 0,
-  },
-  sectionActions: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    gap: 8,
   },
   refreshAction: {
-    backgroundColor: '#FFFFFF',
-    borderColor: '#E5DED1',
-    borderRadius: 14,
-    borderWidth: 1,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+    alignItems: 'center',
+    height: 36,
+    justifyContent: 'center',
+    width: 36,
   },
   refreshText: {
-    color: '#116653',
-    fontSize: 13,
+    color: '#24201B',
+    fontSize: 23,
     fontWeight: '900',
   },
-  sectionLink: {
-    color: '#116653',
-    fontSize: 14,
-    fontWeight: '900',
+  roomFeed: {
+    marginTop: 8,
   },
-  roomList: {
-    gap: 14,
-  },
-  roomCard: {
-    backgroundColor: '#FFFFFF',
-    borderColor: '#E5DED1',
-    borderRadius: 22,
-    borderWidth: 1,
+  roomItem: {
+    alignItems: 'center',
+    borderBottomColor: 'rgba(36,32,27,0.1)',
+    borderBottomWidth: 1,
     flexDirection: 'row',
-    minHeight: 178,
+    minHeight: 132,
+    paddingVertical: 18,
+  },
+  roomIndexWrap: {
+    width: 34,
+  },
+  roomIndex: {
+    color: '#B2A79A',
+    fontSize: 12,
+    fontWeight: '900',
+  },
+  roomThumb: {
+    borderRadius: 4,
+    height: 92,
     overflow: 'hidden',
+    width: 68,
   },
-  bookRail: {
-    width: 12,
+  roomThumbImage: {
+    bottom: 0,
+    left: 0,
+    position: 'absolute',
+    right: 0,
+    top: 0,
   },
-  roomContent: {
+  roomThumbFallback: {
+    alignItems: 'center',
     flex: 1,
-    padding: 18,
+    justifyContent: 'center',
   },
-  roomMetaRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 10,
-  },
-  roomHost: {
-    color: '#116653',
-    fontSize: 12,
+  roomThumbLetter: {
+    color: '#FFFFFF',
+    fontSize: 30,
     fontWeight: '900',
   },
-  roomMembers: {
-    color: '#7A7167',
-    fontSize: 12,
-    fontWeight: '800',
+  roomInfo: {
+    flex: 1,
+    paddingHorizontal: 16,
   },
   roomTitle: {
-    color: '#142326',
-    fontSize: 24,
+    color: '#24201B',
+    fontSize: 22,
     fontWeight: '900',
     letterSpacing: 0,
   },
-  roomAuthor: {
-    color: '#7A7167',
-    fontSize: 14,
+  roomMeta: {
+    color: '#8B8175',
+    fontSize: 13,
     fontWeight: '700',
-    marginTop: 2,
+    marginTop: 4,
   },
   roomQuestion: {
-    color: '#3F4D4D',
-    fontSize: 15,
-    fontWeight: '600',
-    lineHeight: 22,
-    marginTop: 14,
+    color: '#4C443C',
+    fontSize: 14,
+    fontWeight: '700',
+    lineHeight: 20,
+    marginTop: 12,
   },
-  progressTrack: {
-    backgroundColor: '#EEE7DA',
-    borderRadius: 6,
-    height: 7,
-    marginTop: 16,
-    overflow: 'hidden',
-  },
-  progressFill: {
-    backgroundColor: '#116653',
-    borderRadius: 6,
-    height: 7,
-  },
-  roomNext: {
-    color: '#7A7167',
-    fontSize: 12,
-    fontWeight: '800',
-    marginTop: 10,
+  roomArrow: {
+    color: '#24201B',
+    fontSize: 24,
+    fontWeight: '900',
   },
   nativePanel: {
-    backgroundColor: '#ECE5D8',
-    borderRadius: 28,
-    marginTop: 28,
-    padding: 22,
-  },
-  nativeTitle: {
-    color: '#142326',
-    fontSize: 22,
-    fontWeight: '900',
-  },
-  nativeCopy: {
-    color: '#5E6766',
-    fontSize: 15,
-    fontWeight: '600',
-    lineHeight: 23,
-    marginTop: 8,
-  },
-  nativeGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 10,
-    marginTop: 18,
+    borderTopColor: 'rgba(36,32,27,0.1)',
+    borderTopWidth: 1,
+    marginTop: 34,
+    paddingTop: 22,
   },
   nativeItem: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 18,
-    padding: 14,
-    width: '48%',
+    alignItems: 'flex-start',
+    borderBottomColor: 'rgba(36,32,27,0.08)',
+    borderBottomWidth: 1,
+    flexDirection: 'row',
+    paddingVertical: 14,
   },
-  nativeItemTitle: {
-    color: '#116653',
-    fontSize: 13,
+  nativeIndex: {
+    color: '#B2A79A',
+    fontSize: 12,
+    fontWeight: '900',
+    width: 34,
+  },
+  nativeCopy: {
+    flex: 1,
+  },
+  nativeTitle: {
+    color: '#24201B',
+    fontSize: 15,
     fontWeight: '900',
   },
-  nativeItemLabel: {
-    color: '#4E5958',
-    fontSize: 12,
+  nativeLabel: {
+    color: '#7A7065',
+    fontSize: 13,
     fontWeight: '700',
-    lineHeight: 17,
-    marginTop: 6,
+    lineHeight: 18,
+    marginTop: 4,
   },
   signOutButton: {
     alignItems: 'center',
-    marginTop: 20,
+    marginTop: 22,
     paddingVertical: 12,
   },
   signOutText: {
-    color: '#6A7473',
+    color: '#8B8175',
     fontSize: 14,
     fontWeight: '900',
   },

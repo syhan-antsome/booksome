@@ -12,6 +12,7 @@ export type RoomSummary = {
   pinned_question: string | null;
   next_event: string | null;
   progress_percent: number;
+  cover_path?: string | null;
 };
 
 export type RoomDetail = {
@@ -90,14 +91,35 @@ export async function listFeaturedRooms() {
       throw fallback.error;
     }
 
-    return fallback.data as RoomSummary[];
+    return withRoomCovers(fallback.data as RoomSummary[]);
   }
 
   if (error) {
     throw error;
   }
 
-  return data as RoomSummary[];
+  return withRoomCovers(data as RoomSummary[]);
+}
+
+async function withRoomCovers(rooms: RoomSummary[]) {
+  const roomIds = rooms.map((room) => room.id);
+
+  if (roomIds.length === 0) {
+    return rooms;
+  }
+
+  const { data, error } = await supabase.from('rooms').select('id, cover_path').in('id', roomIds);
+
+  if (error) {
+    return rooms;
+  }
+
+  const coverByRoomId = new Map(data.map((room) => [room.id, room.cover_path as string | null]));
+
+  return rooms.map((room) => ({
+    ...room,
+    cover_path: coverByRoomId.get(room.id) ?? null,
+  }));
 }
 
 export async function getRoomDetail(slug: string, viewerId?: string): Promise<RoomDetail | null> {
