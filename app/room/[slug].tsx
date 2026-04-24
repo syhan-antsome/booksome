@@ -276,8 +276,9 @@ export default function RoomScreen() {
           <View style={styles.heroVeil} />
           <View style={styles.heroGlow} />
           <View style={[styles.heroCopy, isCompact ? styles.heroCopyCompact : null]}>
-            <View style={styles.roomSticker}>
-              <Text style={styles.roomStickerText}>BookSome Room</Text>
+            <View style={styles.roomMarker}>
+              <View style={styles.roomMarkerLine} />
+              <Text style={styles.roomMarkerText}>BookSome Room</Text>
             </View>
             <Text style={[styles.heroTitle, isCompact ? styles.heroTitleCompact : null]}>{room.title}</Text>
             <Text style={styles.heroAuthor}>{room.author}</Text>
@@ -351,8 +352,10 @@ export default function RoomScreen() {
         {activeTab === 'talk' ? (
           <View style={styles.tabPanel}>
             <View style={styles.pinnedQuestion}>
-              <View style={styles.questionBadge}>
-                <Text style={styles.questionBadgeText}>오늘의 질문</Text>
+              <View style={styles.questionMarker}>
+                <Text style={styles.questionNumber}>01</Text>
+                <View style={styles.questionMarkerLine} />
+                <Text style={styles.questionMarkerText}>오늘의 질문</Text>
               </View>
               <Text style={styles.question}>{room.question}</Text>
             </View>
@@ -625,18 +628,20 @@ const styles = StyleSheet.create({
   heroCopyCompact: {
     bottom: 42,
   },
-  roomSticker: {
-    backgroundColor: 'rgba(255,255,255,0.18)',
-    borderColor: 'rgba(255,255,255,0.34)',
-    borderRadius: 999,
-    borderWidth: 1,
+  roomMarker: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 10,
     marginBottom: 16,
-    paddingHorizontal: 14,
-    paddingVertical: 7,
   },
-  roomStickerText: {
+  roomMarkerLine: {
+    backgroundColor: 'rgba(255,255,255,0.72)',
+    height: 1,
+    width: 34,
+  },
+  roomMarkerText: {
     color: '#FFFFFF',
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: '800',
   },
   heroTitle: {
@@ -789,16 +794,24 @@ const styles = StyleSheet.create({
     paddingHorizontal: 2,
     paddingVertical: 8,
   },
-  questionBadge: {
-    alignSelf: 'flex-start',
-    backgroundColor: '#EDE6DB',
-    borderRadius: 999,
-    marginBottom: 16,
-    paddingHorizontal: 12,
-    paddingVertical: 7,
+  questionMarker: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 10,
+    marginBottom: 18,
   },
-  questionBadgeText: {
-    color: '#665D52',
+  questionNumber: {
+    color: '#9A9084',
+    fontSize: 13,
+    fontWeight: '900',
+  },
+  questionMarkerLine: {
+    backgroundColor: 'rgba(36,32,27,0.22)',
+    height: 1,
+    width: 42,
+  },
+  questionMarkerText: {
+    color: '#746B60',
     fontSize: 12,
     fontWeight: '800',
   },
