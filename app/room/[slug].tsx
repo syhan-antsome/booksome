@@ -268,48 +268,54 @@ export default function RoomScreen() {
         </View>
 
         <View style={styles.heroStage}>
-          <View style={[styles.heroColorBlock, { backgroundColor: room.accent }]} />
-          <View style={styles.heroSunPatch} />
-          <View style={styles.heroLineOne} />
-          <View style={styles.heroLineTwo} />
+          {coverUrl ? (
+            <Image blurRadius={26} source={{ uri: coverUrl }} style={styles.heroBackdrop} />
+          ) : (
+            <View style={[styles.heroFallback, { backgroundColor: room.accent }]} />
+          )}
+          <View style={styles.heroVeil} />
+          <View style={styles.heroGlow} />
           <View style={[styles.coverStack, isCompact ? styles.coverStackCompact : null]}>
-            <View style={styles.coverBack} />
             <View style={[styles.bookCover, { backgroundColor: room.accent }]}>
-              {coverUrl ? <Image source={{ uri: coverUrl }} style={styles.bookCoverImage} /> : null}
-              <View style={styles.bookCoverShade} />
+              {coverUrl ? (
+                <Image source={{ uri: coverUrl }} style={styles.bookCoverImage} />
+              ) : (
+                <Text style={styles.bookCoverLetter}>{room.title.slice(0, 1)}</Text>
+              )}
             </View>
           </View>
           <View style={[styles.heroCopy, isCompact ? styles.heroCopyCompact : null]}>
             <View style={styles.roomSticker}>
-              <Text style={styles.roomStickerText}>BOOKSOME CLUB</Text>
+              <Text style={styles.roomStickerText}>BookSome Room</Text>
             </View>
             <Text style={[styles.heroTitle, isCompact ? styles.heroTitleCompact : null]}>{room.title}</Text>
             <Text style={styles.heroAuthor}>{room.author}</Text>
             <View style={styles.heroMeta}>
               <Text style={styles.heroMetaText}>{room.host}</Text>
-              <Text style={styles.heroMetaDot}>/</Text>
+              <View style={styles.heroMetaDot} />
               <Text style={styles.heroMetaText}>{room.members} readers</Text>
             </View>
           </View>
         </View>
 
-        <View style={styles.moodRail}>
-          <View style={[styles.moodChip, styles.moodChipBlue]}>
-            <Text style={styles.moodLabel}>오늘의 질문</Text>
-            <Text style={styles.moodValue}>열림</Text>
+        <View style={styles.roomSignal}>
+          <View style={styles.signalItem}>
+            <Text style={styles.signalLabel}>질문</Text>
+            <Text style={styles.signalValue}>열림</Text>
           </View>
-          <View style={[styles.moodChip, styles.moodChipYellow]}>
-            <Text style={styles.moodLabel}>대화 온도</Text>
-            <Text style={styles.moodValue}>따뜻함</Text>
+          <View style={styles.signalDivider} />
+          <View style={styles.signalItem}>
+            <Text style={styles.signalLabel}>대화</Text>
+            <Text style={styles.signalValue}>천천히</Text>
           </View>
-          <View style={[styles.moodChip, styles.moodChipGreen]}>
-            <Text style={styles.moodLabel}>읽는 사람</Text>
-            <Text style={styles.moodValue}>{room.members}</Text>
+          <View style={styles.signalDivider} />
+          <View style={styles.signalItem}>
+            <Text style={styles.signalLabel}>독자</Text>
+            <Text style={styles.signalValue}>{room.members}</Text>
           </View>
         </View>
 
         <View style={styles.joinNote}>
-          <View style={styles.joinTape} />
           <View style={styles.joinCopy}>
             <Text style={styles.joinTitle}>{isMember ? '이 방에 참여 중입니다' : '이야기에 참여해보세요'}</Text>
             <Text style={styles.joinText}>
@@ -355,7 +361,7 @@ export default function RoomScreen() {
           <View style={styles.tabPanel}>
             <View style={styles.pinnedQuestion}>
               <View style={styles.questionBadge}>
-                <Text style={styles.questionBadgeText}>QUESTION</Text>
+                <Text style={styles.questionBadgeText}>오늘의 질문</Text>
               </View>
               <Text style={styles.question}>{room.question}</Text>
             </View>
@@ -363,8 +369,8 @@ export default function RoomScreen() {
             <View style={styles.composer}>
               <View style={styles.composerHeader}>
                 <View>
-                  <Text style={styles.sectionLabel}>MOOD NOTE</Text>
-                  <Text style={styles.composerTitle}>감상과 질문 남기기</Text>
+                  <Text style={styles.sectionLabel}>새 메모</Text>
+                  <Text style={styles.composerTitle}>책장을 덮기 전 남기기</Text>
                 </View>
                 <Text style={styles.composerState}>{isMember ? '참여 중' : '참여 필요'}</Text>
               </View>
@@ -534,11 +540,11 @@ function getErrorMessage(error: unknown, fallback: string) {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#FFF7E8',
+    backgroundColor: '#F7F3EC',
   },
   content: {
-    padding: 16,
-    paddingBottom: 48,
+    padding: 20,
+    paddingBottom: 56,
   },
   topBar: {
     alignItems: 'center',
@@ -548,104 +554,93 @@ const styles = StyleSheet.create({
   },
   backButton: {
     alignItems: 'center',
-    borderColor: '#D8CEBB',
-    borderRadius: 8,
+    backgroundColor: 'rgba(255, 255, 255, 0.74)',
+    borderColor: 'rgba(35, 30, 24, 0.08)',
+    borderRadius: 19,
     borderWidth: 1,
-    height: 38,
+    height: 40,
     justifyContent: 'center',
     paddingVertical: 8,
-    width: 38,
+    width: 40,
   },
   backText: {
-    color: '#0F6B57',
+    color: '#2E493F',
     fontSize: 30,
     fontWeight: '900',
     lineHeight: 32,
   },
   topStatus: {
-    color: '#7A5B3A',
+    color: '#776E63',
     fontSize: 12,
-    fontWeight: '900',
+    fontWeight: '800',
   },
   heroStage: {
-    minHeight: 390,
+    borderRadius: 32,
+    minHeight: 440,
     overflow: 'hidden',
     position: 'relative',
+    shadowColor: '#2A241D',
+    shadowOffset: { height: 18, width: 0 },
+    shadowOpacity: 0.14,
+    shadowRadius: 34,
   },
-  heroColorBlock: {
-    borderRadius: 8,
-    bottom: 10,
-    left: 0,
-    opacity: 0.92,
+  heroBackdrop: {
+    bottom: -38,
+    left: -38,
     position: 'absolute',
-    right: 0,
-    top: 32,
+    right: -38,
+    top: -38,
   },
-  heroSunPatch: {
-    backgroundColor: '#FFD86D',
-    borderRadius: 8,
-    height: 96,
-    opacity: 0.94,
-    position: 'absolute',
-    right: 18,
-    top: 0,
-    transform: [{ rotate: '7deg' }],
-    width: 116,
-  },
-  heroLineOne: {
-    backgroundColor: '#F7A66C',
-    borderRadius: 8,
-    height: 14,
-    left: 22,
-    position: 'absolute',
-    top: 72,
-    transform: [{ rotate: '-5deg' }],
-    width: 124,
-  },
-  heroLineTwo: {
-    backgroundColor: '#65B7C8',
-    borderRadius: 8,
-    height: 12,
-    position: 'absolute',
-    right: 32,
-    top: 144,
-    transform: [{ rotate: '8deg' }],
-    width: 88,
-  },
-  coverStack: {
-    height: 238,
-    left: 24,
-    position: 'absolute',
-    top: 78,
-    transform: [{ rotate: '-4deg' }],
-    width: 166,
-  },
-  coverStackCompact: {
-    height: 198,
-    left: 18,
-    top: 100,
-    width: 138,
-  },
-  coverBack: {
-    backgroundColor: '#123C54',
-    borderRadius: 8,
-    bottom: -10,
-    left: 12,
-    opacity: 0.22,
-    position: 'absolute',
-    right: -12,
-    top: 14,
-  },
-  bookCover: {
-    borderColor: 'rgba(255,255,255,0.68)',
-    borderRadius: 8,
-    borderWidth: 3,
+  heroFallback: {
     bottom: 0,
     left: 0,
-    overflow: 'hidden',
+    opacity: 0.86,
     position: 'absolute',
     right: 0,
     top: 0,
+  },
+  heroVeil: {
+    backgroundColor: 'rgba(25, 22, 18, 0.34)',
+    bottom: 0,
+    left: 0,
+    position: 'absolute',
+    right: 0,
+    top: 0,
+  },
+  heroGlow: {
+    backgroundColor: 'rgba(248, 223, 179, 0.16)',
+    bottom: 0,
+    left: 0,
+    position: 'absolute',
+    right: 0,
+    top: 0,
+  },
+  coverStack: {
+    alignItems: 'center',
+    height: 228,
+    justifyContent: 'center',
+    left: 0,
+    position: 'absolute',
+    right: 0,
+    top: 42,
+  },
+  coverStackCompact: {
+    height: 210,
+    top: 44,
+  },
+  bookCover: {
+    alignItems: 'center',
+    borderColor: 'rgba(255,255,255,0.72)',
+    borderRadius: 18,
+    borderWidth: 1,
+    height: 220,
+    justifyContent: 'center',
+    overflow: 'hidden',
+    shadowColor: '#000000',
+    shadowOffset: { height: 16, width: 0 },
+    shadowOpacity: 0.28,
+    shadowRadius: 28,
+    width: 154,
   },
   bookCoverImage: {
     bottom: 0,
@@ -654,256 +649,239 @@ const styles = StyleSheet.create({
     right: 0,
     top: 0,
   },
-  bookCoverShade: {
-    backgroundColor: 'rgba(19, 31, 37, 0.12)',
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
-    right: 0,
-    top: 0,
+  bookCoverLetter: {
+    color: '#FFFFFF',
+    fontSize: 70,
+    fontWeight: '900',
   },
   heroCopy: {
-    bottom: 34,
-    left: 202,
+    alignItems: 'center',
+    bottom: 44,
+    left: 28,
     position: 'absolute',
-    right: 18,
+    right: 28,
   },
   heroCopyCompact: {
-    bottom: 42,
-    left: 170,
-    right: 14,
+    bottom: 38,
+    left: 22,
+    right: 22,
   },
   roomSticker: {
-    alignSelf: 'flex-start',
-    backgroundColor: '#FFF7E8',
-    borderColor: '#1A2D36',
-    borderRadius: 8,
-    borderWidth: 2,
-    marginBottom: 12,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    transform: [{ rotate: '2deg' }],
+    backgroundColor: 'rgba(255,255,255,0.18)',
+    borderColor: 'rgba(255,255,255,0.34)',
+    borderRadius: 999,
+    borderWidth: 1,
+    marginBottom: 16,
+    paddingHorizontal: 14,
+    paddingVertical: 7,
   },
   roomStickerText: {
-    color: '#1A2D36',
+    color: '#FFFFFF',
     fontSize: 11,
-    fontWeight: '900',
+    fontWeight: '800',
   },
   heroTitle: {
     color: '#FFFFFF',
-    fontSize: 36,
+    fontSize: 38,
     fontWeight: '900',
     letterSpacing: 0,
-    lineHeight: 40,
-    textShadowColor: 'rgba(12, 19, 22, 0.18)',
-    textShadowOffset: { height: 2, width: 0 },
-    textShadowRadius: 3,
+    lineHeight: 44,
+    textAlign: 'center',
   },
   heroTitleCompact: {
-    fontSize: 29,
-    lineHeight: 33,
+    fontSize: 34,
+    lineHeight: 39,
   },
   heroAuthor: {
-    color: '#FFF7E8',
+    color: 'rgba(255,255,255,0.84)',
     fontSize: 16,
-    fontWeight: '900',
-    marginTop: 10,
+    fontWeight: '700',
+    marginTop: 12,
   },
   heroMeta: {
     alignItems: 'center',
     flexDirection: 'row',
     flexWrap: 'wrap',
-    marginTop: 16,
+    justifyContent: 'center',
+    marginTop: 18,
   },
   heroMetaText: {
-    color: '#FFF7E8',
+    color: 'rgba(255,255,255,0.86)',
     fontSize: 13,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   heroMetaDot: {
-    color: '#FFD86D',
-    fontSize: 14,
-    fontWeight: '900',
-    marginHorizontal: 8,
+    backgroundColor: 'rgba(255,255,255,0.45)',
+    borderRadius: 2,
+    height: 4,
+    marginHorizontal: 10,
+    width: 4,
   },
-  moodRail: {
+  roomSignal: {
+    backgroundColor: 'rgba(255,255,255,0.76)',
+    borderRadius: 28,
     flexDirection: 'row',
-    gap: 8,
-    marginTop: 4,
+    marginHorizontal: 12,
+    marginTop: -28,
+    paddingHorizontal: 10,
+    paddingVertical: 18,
+    shadowColor: '#2A241D',
+    shadowOffset: { height: 12, width: 0 },
+    shadowOpacity: 0.08,
+    shadowRadius: 24,
   },
-  moodChip: {
-    borderColor: '#1A2D36',
-    borderRadius: 8,
-    borderWidth: 2,
+  signalItem: {
+    alignItems: 'center',
     flex: 1,
-    minHeight: 76,
-    padding: 10,
   },
-  moodChipBlue: {
-    backgroundColor: '#DDF3F9',
+  signalDivider: {
+    backgroundColor: 'rgba(42,36,29,0.1)',
+    width: 1,
   },
-  moodChipYellow: {
-    backgroundColor: '#FFE18A',
+  signalLabel: {
+    color: '#92887D',
+    fontSize: 12,
+    fontWeight: '700',
   },
-  moodChipGreen: {
-    backgroundColor: '#DDF3C4',
-  },
-  moodLabel: {
-    color: '#6E614A',
-    fontSize: 11,
+  signalValue: {
+    color: '#24201B',
+    fontSize: 18,
     fontWeight: '900',
-  },
-  moodValue: {
-    color: '#1A2D36',
-    fontSize: 17,
-    fontWeight: '900',
-    marginTop: 8,
+    marginTop: 6,
   },
   joinNote: {
     alignItems: 'center',
-    backgroundColor: '#FFEEE1',
-    borderColor: '#1A2D36',
-    borderRadius: 8,
-    borderWidth: 2,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 26,
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginTop: 14,
+    marginTop: 28,
     overflow: 'hidden',
-    padding: 14,
+    padding: 18,
     position: 'relative',
-  },
-  joinTape: {
-    backgroundColor: '#65B7C8',
-    bottom: 0,
-    position: 'absolute',
-    right: 86,
-    top: 0,
-    transform: [{ rotate: '7deg' }],
-    width: 18,
+    shadowColor: '#2A241D',
+    shadowOffset: { height: 10, width: 0 },
+    shadowOpacity: 0.06,
+    shadowRadius: 22,
   },
   joinCopy: {
     flex: 1,
     paddingRight: 12,
   },
   joinTitle: {
-    color: '#1A2D36',
-    fontSize: 15,
+    color: '#24201B',
+    fontSize: 16,
     fontWeight: '900',
   },
   joinText: {
-    color: '#6F5D46',
-    fontSize: 12,
-    fontWeight: '800',
-    lineHeight: 18,
-    marginTop: 4,
+    color: '#83796D',
+    fontSize: 13,
+    fontWeight: '600',
+    lineHeight: 19,
+    marginTop: 6,
   },
   joinButton: {
     alignItems: 'center',
-    backgroundColor: '#1A2D36',
-    borderColor: '#1A2D36',
-    borderRadius: 8,
-    borderWidth: 2,
-    minHeight: 44,
-    minWidth: 76,
+    backgroundColor: '#24201B',
+    borderRadius: 22,
+    minHeight: 46,
+    minWidth: 84,
     justifyContent: 'center',
-    paddingHorizontal: 14,
+    paddingHorizontal: 18,
   },
   joinButtonDisabled: {
-    backgroundColor: '#DDF3C4',
+    backgroundColor: '#EEE7DC',
   },
   joinButtonText: {
-    color: '#FFF7E8',
+    color: '#FFFFFF',
     fontSize: 14,
     fontWeight: '900',
   },
   joinButtonTextDisabled: {
-    color: '#1A2D36',
+    color: '#4E463C',
   },
   messagePanel: {
-    backgroundColor: '#DDF3F9',
-    borderColor: '#1A2D36',
-    borderWidth: 2,
-    borderRadius: 8,
-    marginTop: 12,
-    padding: 13,
+    backgroundColor: '#F1E9DD',
+    borderRadius: 20,
+    marginTop: 18,
+    padding: 14,
   },
   messageText: {
-    color: '#1A2D36',
+    color: '#4F473D',
     fontSize: 14,
-    fontWeight: '800',
+    fontWeight: '700',
   },
   tabs: {
-    backgroundColor: '#1A2D36',
-    borderRadius: 8,
+    backgroundColor: '#EDE6DB',
+    borderRadius: 24,
     flexDirection: 'row',
-    gap: 6,
-    marginTop: 14,
-    padding: 5,
+    gap: 4,
+    marginTop: 28,
+    padding: 4,
   },
   tabButton: {
     alignItems: 'center',
-    borderRadius: 6,
+    borderRadius: 20,
     flex: 1,
-    minHeight: 42,
+    minHeight: 44,
     justifyContent: 'center',
   },
   tabButtonActive: {
-    backgroundColor: '#FFF7E8',
+    backgroundColor: '#FFFFFF',
+    shadowColor: '#2A241D',
+    shadowOffset: { height: 4, width: 0 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
   },
   tabText: {
-    color: '#FFF7E8',
+    color: '#8A8074',
     fontSize: 14,
-    fontWeight: '900',
+    fontWeight: '800',
   },
   tabTextActive: {
-    color: '#1A2D36',
+    color: '#24201B',
   },
   tabPanel: {
-    marginTop: 18,
+    marginTop: 34,
   },
   pinnedQuestion: {
-    backgroundColor: '#FFD3BF',
-    borderColor: '#1A2D36',
-    borderRadius: 8,
-    borderWidth: 2,
-    padding: 18,
-    transform: [{ rotate: '-1deg' }],
+    paddingHorizontal: 2,
+    paddingVertical: 8,
   },
   questionBadge: {
     alignSelf: 'flex-start',
-    backgroundColor: '#FFF7E8',
-    borderColor: '#1A2D36',
-    borderRadius: 8,
-    borderWidth: 2,
-    marginBottom: 12,
-    paddingHorizontal: 9,
-    paddingVertical: 5,
+    backgroundColor: '#EDE6DB',
+    borderRadius: 999,
+    marginBottom: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
   },
   questionBadgeText: {
-    color: '#B7462F',
-    fontSize: 11,
-    fontWeight: '900',
+    color: '#665D52',
+    fontSize: 12,
+    fontWeight: '800',
   },
   sectionLabel: {
-    color: '#B7462F',
+    color: '#8E7F70',
     fontSize: 12,
-    fontWeight: '900',
+    fontWeight: '800',
     marginBottom: 8,
-    textTransform: 'uppercase',
   },
   question: {
-    color: '#1A2D36',
-    fontSize: 26,
+    color: '#24201B',
+    fontSize: 32,
     fontWeight: '900',
-    lineHeight: 36,
+    lineHeight: 43,
   },
   composer: {
-    backgroundColor: '#DDF3F9',
-    borderColor: '#1A2D36',
-    borderRadius: 8,
-    borderWidth: 2,
-    marginTop: 24,
-    padding: 16,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 28,
+    marginTop: 36,
+    padding: 20,
+    shadowColor: '#2A241D',
+    shadowOffset: { height: 10, width: 0 },
+    shadowOpacity: 0.06,
+    shadowRadius: 22,
   },
   composerHeader: {
     alignItems: 'flex-start',
@@ -912,73 +890,69 @@ const styles = StyleSheet.create({
     marginBottom: 14,
   },
   composerTitle: {
-    color: '#1A2D36',
-    fontSize: 20,
+    color: '#24201B',
+    fontSize: 22,
     fontWeight: '900',
   },
   composerState: {
-    color: '#1A7C66',
+    color: '#8E7F70',
     fontSize: 13,
-    fontWeight: '900',
+    fontWeight: '800',
   },
   segmented: {
-    backgroundColor: '#BEE6EF',
-    borderColor: '#1A2D36',
-    borderRadius: 8,
-    borderWidth: 2,
+    backgroundColor: '#F1ECE4',
+    borderRadius: 20,
     flexDirection: 'row',
-    gap: 6,
-    marginBottom: 12,
+    gap: 4,
+    marginBottom: 14,
     padding: 4,
   },
   segmentButton: {
     alignItems: 'center',
-    borderRadius: 6,
+    borderRadius: 16,
     flex: 1,
     minHeight: 38,
     justifyContent: 'center',
   },
   segmentButtonActive: {
-    backgroundColor: '#FF775F',
+    backgroundColor: '#24201B',
   },
   segmentText: {
-    color: '#1A2D36',
+    color: '#7E7469',
     fontSize: 14,
-    fontWeight: '900',
+    fontWeight: '800',
   },
   segmentTextActive: {
     color: '#FFFFFF',
   },
   postInput: {
-    backgroundColor: '#FFF7E8',
-    borderColor: '#1A2D36',
-    borderRadius: 8,
-    borderWidth: 2,
-    color: '#1A2D36',
+    backgroundColor: '#F8F4ED',
+    borderColor: 'rgba(36,32,27,0.08)',
+    borderRadius: 22,
+    borderWidth: 1,
+    color: '#24201B',
     fontSize: 16,
-    fontWeight: '700',
-    minHeight: 108,
-    paddingHorizontal: 13,
-    paddingVertical: 12,
+    fontWeight: '600',
+    minHeight: 124,
+    paddingHorizontal: 16,
+    paddingVertical: 15,
     textAlignVertical: 'top',
   },
   postButton: {
     alignItems: 'center',
-    backgroundColor: '#FF775F',
-    borderColor: '#1A2D36',
-    borderRadius: 8,
-    borderWidth: 2,
+    backgroundColor: '#24201B',
+    borderRadius: 22,
     justifyContent: 'center',
-    marginTop: 12,
-    minHeight: 50,
+    marginTop: 14,
+    minHeight: 52,
   },
   postButtonText: {
-    color: '#1A2D36',
+    color: '#FFFFFF',
     fontSize: 15,
     fontWeight: '900',
   },
   postsSection: {
-    marginTop: 26,
+    marginTop: 40,
   },
   sectionHeader: {
     alignItems: 'center',
@@ -987,38 +961,40 @@ const styles = StyleSheet.create({
     marginBottom: 14,
   },
   sectionTitle: {
-    color: '#1A2D36',
+    color: '#24201B',
     fontSize: 24,
     fontWeight: '900',
   },
   sectionCount: {
-    color: '#B7462F',
+    color: '#8E7F70',
     fontSize: 14,
-    fontWeight: '900',
+    fontWeight: '800',
   },
   postCard: {
-    backgroundColor: '#FFFDF8',
-    borderColor: '#1A2D36',
-    borderRadius: 8,
-    borderWidth: 2,
-    marginBottom: 14,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 26,
+    marginBottom: 16,
     overflow: 'hidden',
-    padding: 16,
-    paddingLeft: 22,
+    padding: 20,
     position: 'relative',
+    shadowColor: '#2A241D',
+    shadowOffset: { height: 8, width: 0 },
+    shadowOpacity: 0.05,
+    shadowRadius: 18,
   },
   postSpine: {
-    bottom: 0,
+    borderRadius: 3,
+    height: 38,
     left: 0,
     position: 'absolute',
-    top: 0,
-    width: 8,
+    top: 24,
+    width: 5,
   },
   postSpineQuestion: {
-    backgroundColor: '#65B7C8',
+    backgroundColor: '#7DAF9C',
   },
   postSpineImpression: {
-    backgroundColor: '#FF775F',
+    backgroundColor: '#BF8E63',
   },
   postMetaRow: {
     alignItems: 'center',
@@ -1027,75 +1003,69 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   postKind: {
-    backgroundColor: '#FFE18A',
-    borderColor: '#1A2D36',
-    borderRadius: 8,
-    borderWidth: 2,
-    color: '#1A2D36',
-    fontSize: 11,
-    fontWeight: '900',
+    backgroundColor: '#F1ECE4',
+    borderRadius: 999,
+    color: '#665D52',
+    fontSize: 12,
+    fontWeight: '800',
     overflow: 'hidden',
-    paddingHorizontal: 9,
-    paddingVertical: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
   },
   postAuthor: {
-    color: '#7A5B3A',
+    color: '#8E7F70',
     fontSize: 12,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   postBody: {
-    color: '#1A2D36',
+    color: '#24201B',
     fontSize: 17,
-    fontWeight: '700',
-    lineHeight: 26,
+    fontWeight: '600',
+    lineHeight: 27,
   },
   postActions: {
     flexDirection: 'row',
     marginTop: 14,
   },
   reactionButton: {
-    backgroundColor: '#DDF3C4',
-    borderColor: '#1A2D36',
-    borderRadius: 8,
-    borderWidth: 2,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+    backgroundColor: '#F1ECE4',
+    borderRadius: 999,
+    paddingHorizontal: 14,
+    paddingVertical: 9,
   },
   reactionButtonActive: {
-    backgroundColor: '#1A7C66',
+    backgroundColor: '#24201B',
   },
   reactionText: {
-    color: '#1A2D36',
+    color: '#5D544A',
     fontSize: 13,
-    fontWeight: '900',
+    fontWeight: '800',
   },
   reactionTextActive: {
     color: '#FFFFFF',
   },
   commentsList: {
-    borderTopColor: '#1A2D36',
-    borderTopWidth: 2,
+    borderTopColor: 'rgba(36,32,27,0.08)',
+    borderTopWidth: 1,
     gap: 8,
-    marginTop: 14,
-    paddingTop: 14,
+    marginTop: 16,
+    paddingTop: 16,
   },
   commentItem: {
-    backgroundColor: '#FFF0C7',
-    borderColor: '#1A2D36',
-    borderRadius: 8,
-    borderWidth: 1,
+    backgroundColor: '#F8F4ED',
+    borderRadius: 18,
     padding: 12,
   },
   commentAuthor: {
-    color: '#1A7C66',
+    color: '#82776B',
     fontSize: 12,
-    fontWeight: '900',
+    fontWeight: '800',
     marginBottom: 4,
   },
   commentBody: {
-    color: '#1A2D36',
+    color: '#38312A',
     fontSize: 14,
-    fontWeight: '700',
+    fontWeight: '600',
     lineHeight: 20,
   },
   commentComposer: {
@@ -1104,21 +1074,21 @@ const styles = StyleSheet.create({
     marginTop: 12,
   },
   commentInput: {
-    backgroundColor: '#FFF7E8',
-    borderColor: '#1A2D36',
-    borderRadius: 8,
-    borderWidth: 2,
-    color: '#1A2D36',
+    backgroundColor: '#F8F4ED',
+    borderColor: 'rgba(36,32,27,0.08)',
+    borderRadius: 18,
+    borderWidth: 1,
+    color: '#24201B',
     flex: 1,
     fontSize: 14,
-    fontWeight: '700',
+    fontWeight: '600',
     minHeight: 44,
     paddingHorizontal: 12,
   },
   commentButton: {
     alignItems: 'center',
-    backgroundColor: '#1A2D36',
-    borderRadius: 8,
+    backgroundColor: '#24201B',
+    borderRadius: 18,
     justifyContent: 'center',
     minWidth: 58,
     paddingHorizontal: 12,
@@ -1129,74 +1099,75 @@ const styles = StyleSheet.create({
     fontWeight: '900',
   },
   emptyPanel: {
-    backgroundColor: '#FFE18A',
-    borderColor: '#1A2D36',
-    borderRadius: 8,
-    borderWidth: 2,
-    padding: 18,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 24,
+    padding: 22,
   },
   emptyText: {
-    color: '#1A2D36',
+    color: '#82776B',
     fontSize: 15,
-    fontWeight: '800',
+    fontWeight: '700',
   },
   readingLead: {
-    backgroundColor: '#DDF3C4',
-    borderColor: '#1A2D36',
-    borderRadius: 8,
-    borderWidth: 2,
-    padding: 18,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 28,
+    padding: 22,
+    shadowColor: '#2A241D',
+    shadowOffset: { height: 8, width: 0 },
+    shadowOpacity: 0.05,
+    shadowRadius: 18,
   },
   readingTitle: {
-    color: '#1A2D36',
+    color: '#24201B',
     fontSize: 24,
     fontWeight: '900',
     lineHeight: 32,
   },
   readingCopy: {
-    color: '#5A634A',
+    color: '#82776B',
     fontSize: 14,
-    fontWeight: '800',
+    fontWeight: '600',
     lineHeight: 21,
     marginTop: 10,
   },
   timelineItem: {
-    borderTopColor: '#1A2D36',
-    borderTopWidth: 2,
+    borderTopColor: 'rgba(36,32,27,0.1)',
+    borderTopWidth: 1,
     flexDirection: 'row',
     gap: 16,
     paddingVertical: 18,
   },
   timelineTime: {
-    color: '#B7462F',
+    color: '#8E7F70',
     fontSize: 13,
-    fontWeight: '900',
+    fontWeight: '800',
     width: 48,
   },
   timelineCopy: {
-    color: '#1A2D36',
+    color: '#38312A',
     flex: 1,
     fontSize: 16,
-    fontWeight: '700',
+    fontWeight: '600',
     lineHeight: 24,
   },
   infoBlock: {
-    backgroundColor: '#FFEEE1',
-    borderColor: '#1A2D36',
-    borderRadius: 8,
-    borderWidth: 2,
-    padding: 18,
-    paddingBottom: 18,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 28,
+    padding: 22,
+    shadowColor: '#2A241D',
+    shadowOffset: { height: 8, width: 0 },
+    shadowOpacity: 0.05,
+    shadowRadius: 18,
   },
   infoTitle: {
-    color: '#1A2D36',
+    color: '#24201B',
     fontSize: 26,
     fontWeight: '900',
   },
   infoCopy: {
-    color: '#654B34',
+    color: '#82776B',
     fontSize: 16,
-    fontWeight: '700',
+    fontWeight: '600',
     lineHeight: 25,
     marginTop: 10,
   },
@@ -1206,37 +1177,33 @@ const styles = StyleSheet.create({
     marginTop: 16,
   },
   infoCell: {
-    backgroundColor: '#FFFDF8',
-    borderColor: '#1A2D36',
-    borderRadius: 8,
-    borderWidth: 2,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 22,
     flex: 1,
-    padding: 12,
+    padding: 14,
   },
   infoCellLabel: {
-    color: '#7A5B3A',
+    color: '#8E7F70',
     fontSize: 11,
-    fontWeight: '900',
+    fontWeight: '800',
     marginBottom: 6,
     textTransform: 'uppercase',
   },
   infoCellValue: {
-    color: '#1A2D36',
+    color: '#24201B',
     fontSize: 16,
     fontWeight: '900',
   },
   ruleBlock: {
-    backgroundColor: '#DDF3F9',
-    borderColor: '#1A2D36',
-    borderRadius: 8,
-    borderWidth: 2,
+    backgroundColor: '#EFE8DD',
+    borderRadius: 24,
     marginTop: 16,
-    padding: 16,
+    padding: 18,
   },
   ruleText: {
-    color: '#1A2D36',
+    color: '#4F473D',
     fontSize: 15,
-    fontWeight: '800',
+    fontWeight: '700',
     lineHeight: 23,
   },
 });
