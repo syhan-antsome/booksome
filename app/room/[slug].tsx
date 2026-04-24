@@ -292,18 +292,16 @@ export default function RoomScreen() {
 
         <View style={styles.roomSignal}>
           <View style={styles.signalItem}>
-            <Text style={styles.signalLabel}>질문</Text>
-            <Text style={styles.signalValue}>열림</Text>
+            <Text style={styles.signalValue}>{posts.length}</Text>
+            <Text style={styles.signalLabel}>게시글</Text>
           </View>
-          <View style={styles.signalDivider} />
           <View style={styles.signalItem}>
-            <Text style={styles.signalLabel}>대화</Text>
-            <Text style={styles.signalValue}>천천히</Text>
-          </View>
-          <View style={styles.signalDivider} />
-          <View style={styles.signalItem}>
-            <Text style={styles.signalLabel}>독자</Text>
             <Text style={styles.signalValue}>{room.members}</Text>
+            <Text style={styles.signalLabel}>참여자</Text>
+          </View>
+          <View style={styles.signalItem}>
+            <Text style={styles.signalValue}>1</Text>
+            <Text style={styles.signalLabel}>질문</Text>
           </View>
         </View>
 
@@ -680,29 +678,27 @@ const styles = StyleSheet.create({
     width: 4,
   },
   roomSignal: {
+    borderBottomColor: 'rgba(36,32,27,0.08)',
+    borderBottomWidth: 1,
     flexDirection: 'row',
-    marginTop: 28,
-    paddingHorizontal: 10,
-    paddingVertical: 8,
+    marginTop: 26,
+    paddingBottom: 22,
+    paddingTop: 4,
   },
   signalItem: {
     alignItems: 'center',
     flex: 1,
   },
-  signalDivider: {
-    backgroundColor: 'rgba(42,36,29,0.1)',
-    width: 1,
-  },
   signalLabel: {
     color: '#92887D',
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: '800',
+    marginTop: 5,
   },
   signalValue: {
     color: '#24201B',
-    fontSize: 18,
+    fontSize: 21,
     fontWeight: '900',
-    marginTop: 6,
   },
   joinNote: {
     alignItems: 'center',
