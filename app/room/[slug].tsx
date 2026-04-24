@@ -1,12 +1,27 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
-import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import {
+  Image,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { featuredRooms } from '../../src/data/rooms';
 import { useAuth } from '../../src/providers/auth-provider';
 import { getMediaUrl } from '../../src/services/media';
-import { getRoomDetail, joinRoom, type RoomDetail } from '../../src/services/rooms';
+import {
+  createRoomPost,
+  getRoomDetail,
+  joinRoom,
+  listRoomPosts,
+  type RoomDetail,
+  type RoomPost,
+} from '../../src/services/rooms';
 
 export default function RoomScreen() {
   const { slug } = useLocalSearchParams<{ slug: string }>();
@@ -14,8 +29,23 @@ export default function RoomScreen() {
   const [remoteRoom, setRemoteRoom] = useState<RoomDetail | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isJoining, setIsJoining] = useState(false);
+  const [isPosting, setIsPosting] = useState(false);
   const [actionMessage, setActionMessage] = useState<string | null>(null);
+  const [postBody, setPostBody] = useState('');
+  const [postKind, setPostKind] = useState<'impression' | 'question'>('impression');
+  const [posts, setPosts] = useState<RoomPost[]>([]);
   const fallbackRoom = featuredRooms.find((item) => item.slug === slug) ?? featuredRooms[0];
+
+  const refreshRoom = async () => {
+    if (!slug) return;
+    const room = await getRoomDetail(slug, session?.user.id);
+    setRemoteRoom(room);
+
+    if (room) {
+      const nextPosts = await listRoomPosts(room.id);
+      setPosts(nextPosts);
+    }
+  };
 
   useEffect(() => {
     let isMounted = true;
@@ -26,9 +56,16 @@ export default function RoomScreen() {
     }
 
     getRoomDetail(slug, session?.user.id)
-      .then((room) => {
+      .then(async (room) => {
         if (isMounted) {
           setRemoteRoom(room);
+        }
+
+        if (room) {
+          const nextPosts = await listRoomPosts(room.id);
+          if (isMounted) {
+            setPosts(nextPosts);
+          }
         }
       })
       .catch(() => {
@@ -70,6 +107,47 @@ export default function RoomScreen() {
       setActionMessage(getErrorMessage(error, '리딩룸 참여에 실패했습니다.'));
     } finally {
       setIsJoining(false);
+    }
+  };
+
+  const handleCreatePost = async () => {
+    if (!session) {
+      router.push('/auth');
+      return;
+    }
+
+    if (!remoteRoom) {
+      setActionMessage('리딩룸 정보를 불러온 뒤 다시 시도해주세요.');
+      return;
+    }
+
+    if (!remoteRoom.viewerRole) {
+      setActionMessage('먼저 리딩룸에 참여해야 글을 남길 수 있습니다.');
+      return;
+    }
+
+    if (!postBody.trim()) {
+      setActionMessage('남길 내용을 입력해주세요.');
+      return;
+    }
+
+    setIsPosting(true);
+    setActionMessage(null);
+
+    try {
+      await createRoomPost({
+        roomId: remoteRoom.id,
+        authorId: session.user.id,
+        kind: postKind,
+        body: postBody,
+      });
+      setPostBody('');
+      await refreshRoom();
+      setActionMessage(postKind === 'question' ? '질문을 남겼습니다.' : '감상을 남겼습니다.');
+    } catch (error) {
+      setActionMessage(getErrorMessage(error, '글 작성에 실패했습니다.'));
+    } finally {
+      setIsPosting(false);
     }
   };
 
@@ -152,6 +230,71 @@ export default function RoomScreen() {
             <Text style={styles.messageText}>{actionMessage}</Text>
           </View>
         ) : null}
+
+        <View style={styles.composer}>
+          <View style={styles.segmented}>
+            <Pressable
+              onPress={() => setPostKind('impression')}
+              style={[styles.segmentButton, postKind === 'impression' ? styles.segmentButtonActive : null]}
+            >
+              <Text
+                style={[
+                  styles.segmentText,
+                  postKind === 'impression' ? styles.segmentTextActive : null,
+                ]}
+              >
+                감상
+              </Text>
+            </Pressable>
+            <Pressable
+              onPress={() => setPostKind('question')}
+              style={[styles.segmentButton, postKind === 'question' ? styles.segmentButtonActive : null]}
+            >
+              <Text
+                style={[
+                  styles.segmentText,
+                  postKind === 'question' ? styles.segmentTextActive : null,
+                ]}
+              >
+                질문
+              </Text>
+            </Pressable>
+          </View>
+          <TextInput
+            multiline
+            onChangeText={setPostBody}
+            placeholder={
+              room.viewerRole
+                ? '이 책이 지금 남긴 생각을 적어보세요.'
+                : '참여 후 감상과 질문을 남길 수 있습니다.'
+            }
+            placeholderTextColor="#A49B8D"
+            style={styles.postInput}
+            value={postBody}
+          />
+          <Pressable disabled={isPosting} onPress={handleCreatePost} style={styles.postButton}>
+            <Text style={styles.postButtonText}>{isPosting ? '등록 중...' : '남기기'}</Text>
+          </Pressable>
+        </View>
+
+        <View style={styles.postsSection}>
+          <Text style={styles.timelineTitle}>최근 이야기</Text>
+          {posts.length > 0 ? (
+            posts.map((post) => (
+              <View key={post.id} style={styles.postCard}>
+                <View style={styles.postMetaRow}>
+                  <Text style={styles.postKind}>{post.kind === 'question' ? 'Question' : 'Impression'}</Text>
+                  <Text style={styles.postAuthor}>{post.authorName ?? 'Reader'}</Text>
+                </View>
+                <Text style={styles.postBody}>{post.body}</Text>
+              </View>
+            ))
+          ) : (
+            <View style={styles.emptyPosts}>
+              <Text style={styles.emptyPostsText}>아직 첫 감상이 기다리고 있습니다.</Text>
+            </View>
+          )}
+        </View>
 
         <View style={styles.timeline}>
           <Text style={styles.timelineTitle}>{isLoading ? '불러오는 중' : '함께 읽기'}</Text>
@@ -346,6 +489,108 @@ const styles = StyleSheet.create({
   messageText: {
     color: '#116653',
     fontSize: 14,
+    fontWeight: '800',
+  },
+  composer: {
+    backgroundColor: '#FFFFFF',
+    borderColor: '#E5DED1',
+    borderRadius: 24,
+    borderWidth: 1,
+    marginTop: 20,
+    padding: 18,
+  },
+  segmented: {
+    backgroundColor: '#F0E8DA',
+    borderRadius: 16,
+    flexDirection: 'row',
+    gap: 6,
+    marginBottom: 12,
+    padding: 4,
+  },
+  segmentButton: {
+    alignItems: 'center',
+    borderRadius: 12,
+    flex: 1,
+    minHeight: 38,
+    justifyContent: 'center',
+  },
+  segmentButtonActive: {
+    backgroundColor: '#116653',
+  },
+  segmentText: {
+    color: '#5E6766',
+    fontSize: 14,
+    fontWeight: '900',
+  },
+  segmentTextActive: {
+    color: '#FFFFFF',
+  },
+  postInput: {
+    backgroundColor: '#F7F2EA',
+    borderColor: '#E6DDCF',
+    borderRadius: 16,
+    borderWidth: 1,
+    color: '#142326',
+    fontSize: 16,
+    fontWeight: '700',
+    minHeight: 104,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    textAlignVertical: 'top',
+  },
+  postButton: {
+    alignItems: 'center',
+    backgroundColor: '#142326',
+    borderRadius: 16,
+    marginTop: 12,
+    minHeight: 50,
+    justifyContent: 'center',
+  },
+  postButtonText: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '900',
+  },
+  postsSection: {
+    marginTop: 28,
+  },
+  postCard: {
+    backgroundColor: '#FFFFFF',
+    borderColor: '#E5DED1',
+    borderRadius: 20,
+    borderWidth: 1,
+    marginBottom: 12,
+    padding: 18,
+  },
+  postMetaRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 10,
+  },
+  postKind: {
+    color: '#116653',
+    fontSize: 12,
+    fontWeight: '900',
+  },
+  postAuthor: {
+    color: '#7A7167',
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  postBody: {
+    color: '#142326',
+    fontSize: 17,
+    fontWeight: '700',
+    lineHeight: 25,
+  },
+  emptyPosts: {
+    backgroundColor: '#ECE5D8',
+    borderRadius: 18,
+    padding: 18,
+  },
+  emptyPostsText: {
+    color: '#5E6766',
+    fontSize: 15,
     fontWeight: '800',
   },
   timeline: {

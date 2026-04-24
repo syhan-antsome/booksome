@@ -29,6 +29,14 @@ export type RoomDetail = {
   viewerRole: string | null;
 };
 
+export type RoomPost = {
+  id: string;
+  kind: 'impression' | 'question' | 'quote' | 'notice';
+  body: string;
+  authorName: string | null;
+  createdAt: string;
+};
+
 export type CreateRoomInput = {
   bookTitle: string;
   author: string;
@@ -38,6 +46,13 @@ export type CreateRoomInput = {
   firstQuestion: string;
   founderId: string;
   coverPath?: string | null;
+};
+
+export type CreateRoomPostInput = {
+  roomId: string;
+  authorId: string;
+  kind: 'impression' | 'question';
+  body: string;
 };
 
 export async function listFeaturedRooms() {
@@ -127,6 +142,59 @@ export async function getRoomDetail(slug: string, viewerId?: string): Promise<Ro
     memberCount: count ?? 0,
     viewerRole: membership?.role ?? null,
   };
+}
+
+export async function listRoomPosts(roomId: string): Promise<RoomPost[]> {
+  const { data, error } = await supabase
+    .from('posts')
+    .select('id, kind, body, created_at, profiles:author_id(display_name)')
+    .eq('room_id', roomId)
+    .in('kind', ['impression', 'question'])
+    .order('created_at', { ascending: false })
+    .limit(20);
+
+  if (error) {
+    throw error;
+  }
+
+  type PostRow = {
+    id: string;
+    kind: RoomPost['kind'];
+    body: string;
+    created_at: string;
+    profiles?: { display_name?: string | null } | { display_name?: string | null }[] | null;
+  };
+
+  return ((data ?? []) as PostRow[]).map((post) => {
+    const profile = Array.isArray(post.profiles) ? post.profiles[0] : post.profiles;
+
+    return {
+      id: post.id,
+      kind: post.kind,
+      body: post.body,
+      authorName: profile?.display_name ?? null,
+      createdAt: post.created_at,
+    };
+  });
+}
+
+export async function createRoomPost(input: CreateRoomPostInput) {
+  const { data, error } = await supabase
+    .from('posts')
+    .insert({
+      room_id: input.roomId,
+      author_id: input.authorId,
+      kind: input.kind,
+      body: input.body.trim(),
+    })
+    .select('id')
+    .single();
+
+  if (error) {
+    throw error;
+  }
+
+  return data as { id: string };
 }
 
 export async function createRoom(input: CreateRoomInput) {
