@@ -226,5 +226,7 @@ export async function joinRoom(roomId: string) {
     throw error;
   }
 
-  return data?.[0] as { room_id: string; profile_id: string; role: string } | undefined;
+  return data?.[0] as
+    | { joined_room_id: string; joined_profile_id: string; member_role: string }
+    | undefined;
 }

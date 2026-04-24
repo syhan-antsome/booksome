@@ -95,6 +95,11 @@ export default function RoomScreen() {
       return;
     }
 
+    if (remoteRoom.viewerRole) {
+      setActionMessage('이미 이 리딩룸에 참여 중입니다.');
+      return;
+    }
+
     setIsJoining(true);
     setActionMessage(null);
 
@@ -214,24 +219,11 @@ export default function RoomScreen() {
           {room.description ? <Text style={styles.description}>{room.description}</Text> : null}
         </View>
 
-        <View style={styles.actions}>
-          <Pressable disabled={isJoining} onPress={handleJoinRoom} style={styles.primaryAction}>
-            <Text style={styles.primaryActionText}>
-              {room.viewerRole ? '참여 중' : isJoining ? '참여 중...' : '리딩룸 참여'}
-            </Text>
-          </Pressable>
-          <Pressable style={styles.secondaryAction}>
-            <Text style={styles.secondaryActionText}>Room 공유</Text>
-          </Pressable>
-        </View>
-
-        {actionMessage ? (
-          <View style={styles.messagePanel}>
-            <Text style={styles.messageText}>{actionMessage}</Text>
-          </View>
-        ) : null}
-
         <View style={styles.composer}>
+          <View style={styles.composerHeader}>
+            <Text style={styles.composerTitle}>감상과 질문 남기기</Text>
+            <Text style={styles.composerState}>{room.viewerRole ? '참여 중' : '참여 필요'}</Text>
+          </View>
           <View style={styles.segmented}>
             <Pressable
               onPress={() => setPostKind('impression')}
@@ -276,6 +268,27 @@ export default function RoomScreen() {
             <Text style={styles.postButtonText}>{isPosting ? '등록 중...' : '남기기'}</Text>
           </Pressable>
         </View>
+
+        <View style={styles.actions}>
+          <Pressable
+            disabled={isJoining || Boolean(room.viewerRole)}
+            onPress={handleJoinRoom}
+            style={[styles.primaryAction, room.viewerRole ? styles.primaryActionDisabled : null]}
+          >
+            <Text style={styles.primaryActionText}>
+              {room.viewerRole ? '참여 중' : isJoining ? '참여 중...' : '리딩룸 참여'}
+            </Text>
+          </Pressable>
+          <Pressable style={styles.secondaryAction}>
+            <Text style={styles.secondaryActionText}>Room 공유</Text>
+          </Pressable>
+        </View>
+
+        {actionMessage ? (
+          <View style={styles.messagePanel}>
+            <Text style={styles.messageText}>{actionMessage}</Text>
+          </View>
+        ) : null}
 
         <View style={styles.postsSection}>
           <Text style={styles.timelineTitle}>최근 이야기</Text>
@@ -461,6 +474,9 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingVertical: 15,
   },
+  primaryActionDisabled: {
+    backgroundColor: '#6C7C78',
+  },
   primaryActionText: {
     color: '#FFFFFF',
     fontSize: 15,
@@ -498,6 +514,22 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     marginTop: 20,
     padding: 18,
+  },
+  composerHeader: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 14,
+  },
+  composerTitle: {
+    color: '#142326',
+    fontSize: 20,
+    fontWeight: '900',
+  },
+  composerState: {
+    color: '#116653',
+    fontSize: 13,
+    fontWeight: '900',
   },
   segmented: {
     backgroundColor: '#F0E8DA',

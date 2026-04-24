@@ -143,7 +143,7 @@ grant execute on function public.create_reading_room(
 ) to authenticated;
 
 create or replace function public.join_room(p_room_id uuid)
-returns table(room_id uuid, profile_id uuid, role public.room_member_role)
+returns table(joined_room_id uuid, joined_profile_id uuid, member_role public.room_member_role)
 language plpgsql
 security definer
 set search_path = public
@@ -184,7 +184,7 @@ begin
   on conflict (room_id, profile_id) do update
   set joined_at = public.room_members.joined_at
   returning room_members.room_id, room_members.profile_id, room_members.role
-  into room_id, profile_id, role;
+  into joined_room_id, joined_profile_id, member_role;
 
   return next;
 end;
