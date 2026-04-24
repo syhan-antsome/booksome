@@ -269,21 +269,12 @@ export default function RoomScreen() {
 
         <View style={styles.heroStage}>
           {coverUrl ? (
-            <Image blurRadius={26} source={{ uri: coverUrl }} style={styles.heroBackdrop} />
+            <Image resizeMode="cover" source={{ uri: coverUrl }} style={styles.heroBackdrop} />
           ) : (
             <View style={[styles.heroFallback, { backgroundColor: room.accent }]} />
           )}
           <View style={styles.heroVeil} />
           <View style={styles.heroGlow} />
-          <View style={[styles.coverStack, isCompact ? styles.coverStackCompact : null]}>
-            <View style={[styles.bookCover, { backgroundColor: room.accent }]}>
-              {coverUrl ? (
-                <Image source={{ uri: coverUrl }} style={styles.bookCoverImage} />
-              ) : (
-                <Text style={styles.bookCoverLetter}>{room.title.slice(0, 1)}</Text>
-              )}
-            </View>
-          </View>
           <View style={[styles.heroCopy, isCompact ? styles.heroCopyCompact : null]}>
             <View style={styles.roomSticker}>
               <Text style={styles.roomStickerText}>BookSome Room</Text>
@@ -585,7 +576,7 @@ const styles = StyleSheet.create({
   heroStage: {
     borderRadius: 0,
     marginHorizontal: -18,
-    minHeight: 440,
+    minHeight: 520,
     overflow: 'hidden',
     position: 'relative',
     shadowColor: '#2A241D',
@@ -594,11 +585,11 @@ const styles = StyleSheet.create({
     shadowRadius: 34,
   },
   heroBackdrop: {
-    bottom: -38,
-    left: -38,
+    bottom: 0,
+    left: 0,
     position: 'absolute',
-    right: -38,
-    top: -38,
+    right: 0,
+    top: 0,
   },
   heroFallback: {
     bottom: 0,
@@ -609,7 +600,7 @@ const styles = StyleSheet.create({
     top: 0,
   },
   heroVeil: {
-    backgroundColor: 'rgba(25, 22, 18, 0.34)',
+    backgroundColor: 'rgba(15, 13, 11, 0.22)',
     bottom: 0,
     left: 0,
     position: 'absolute',
@@ -617,63 +608,22 @@ const styles = StyleSheet.create({
     top: 0,
   },
   heroGlow: {
-    backgroundColor: 'rgba(248, 223, 179, 0.16)',
+    backgroundColor: 'rgba(0, 0, 0, 0.18)',
     bottom: 0,
     left: 0,
     position: 'absolute',
     right: 0,
     top: 0,
-  },
-  coverStack: {
-    alignItems: 'center',
-    height: 228,
-    justifyContent: 'center',
-    left: 0,
-    position: 'absolute',
-    right: 0,
-    top: 42,
-  },
-  coverStackCompact: {
-    height: 210,
-    top: 44,
-  },
-  bookCover: {
-    alignItems: 'center',
-    borderColor: 'rgba(255,255,255,0.72)',
-    borderRadius: 18,
-    borderWidth: 1,
-    height: 220,
-    justifyContent: 'center',
-    overflow: 'hidden',
-    shadowColor: '#000000',
-    shadowOffset: { height: 16, width: 0 },
-    shadowOpacity: 0.28,
-    shadowRadius: 28,
-    width: 154,
-  },
-  bookCoverImage: {
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
-    right: 0,
-    top: 0,
-  },
-  bookCoverLetter: {
-    color: '#FFFFFF',
-    fontSize: 70,
-    fontWeight: '900',
   },
   heroCopy: {
-    alignItems: 'center',
-    bottom: 44,
-    left: 28,
+    alignItems: 'flex-start',
+    bottom: 48,
+    left: 22,
     position: 'absolute',
-    right: 28,
+    right: 22,
   },
   heroCopyCompact: {
-    bottom: 38,
-    left: 22,
-    right: 22,
+    bottom: 42,
   },
   roomSticker: {
     backgroundColor: 'rgba(255,255,255,0.18)',
@@ -691,15 +641,14 @@ const styles = StyleSheet.create({
   },
   heroTitle: {
     color: '#FFFFFF',
-    fontSize: 38,
+    fontSize: 44,
     fontWeight: '900',
     letterSpacing: 0,
-    lineHeight: 44,
-    textAlign: 'center',
+    lineHeight: 50,
   },
   heroTitleCompact: {
-    fontSize: 34,
-    lineHeight: 39,
+    fontSize: 40,
+    lineHeight: 46,
   },
   heroAuthor: {
     color: 'rgba(255,255,255,0.84)',
@@ -711,7 +660,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     flexDirection: 'row',
     flexWrap: 'wrap',
-    justifyContent: 'center',
     marginTop: 18,
   },
   heroMetaText: {
