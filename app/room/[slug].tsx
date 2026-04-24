@@ -159,7 +159,7 @@ export default function RoomScreen() {
 
     const body = commentDrafts[postId]?.trim();
     if (!body) {
-      setActionMessage('댓글 내용을 입력해주세요.');
+      setActionMessage('댓글로 이어갈 생각을 짧게 적어보세요.');
       return;
     }
 
@@ -199,7 +199,7 @@ export default function RoomScreen() {
     }
 
     if (!postBody.trim()) {
-      setActionMessage('남길 내용을 입력해주세요.');
+      setActionMessage(postKind === 'question' ? '떠오른 질문을 한 줄로 적어보세요.' : '책이 남긴 생각을 한 줄로 적어보세요.');
       return;
     }
 
