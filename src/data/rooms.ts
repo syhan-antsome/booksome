@@ -9,6 +9,7 @@ export type FeaturedRoom = {
   next: string;
   question: string;
   coverPath?: string | null;
+  coverUrl?: string | null;
 };
 
 export const featuredRooms: FeaturedRoom[] = [
@@ -22,6 +23,7 @@ export const featuredRooms: FeaturedRoom[] = [
     progress: 64,
     next: '오늘 밤 9:00 챕터 5 함께 읽기',
     question: '내가 나답게 살기 시작한 순간은 언제였나요?',
+    coverUrl: 'https://images.unsplash.com/photo-1519682337058-a94d519337bc?auto=format&fit=crop&w=900&q=80',
   },
   {
     slug: 'midnight-library',
@@ -33,6 +35,7 @@ export const featuredRooms: FeaturedRoom[] = [
     progress: 42,
     next: '토요일 글로벌 토론 오픈',
     question: '다른 선택의 삶을 볼 수 있다면 무엇을 확인하고 싶나요?',
+    coverUrl: 'https://images.unsplash.com/photo-1524995997946-a1c2e315a42f?auto=format&fit=crop&w=900&q=80',
   },
   {
     slug: 'almond',
@@ -44,6 +47,7 @@ export const featuredRooms: FeaturedRoom[] = [
     progress: 78,
     next: '새 질문 12개가 기다리고 있어요',
     question: '감정을 이해한다는 것은 어디에서 시작될까요?',
+    coverUrl: 'https://images.unsplash.com/photo-1495446815901-a7297e633e8d?auto=format&fit=crop&w=900&q=80',
   },
 ];
 

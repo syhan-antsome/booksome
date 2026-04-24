@@ -51,7 +51,7 @@ export default function DiscoverScreen() {
   );
   const leadRoom = rooms[0];
   const feedRooms = rooms.length > 1 ? rooms.slice(1) : rooms;
-  const leadCoverUrl = leadRoom?.coverPath ? getRoomCoverUrl(leadRoom.coverPath) : null;
+  const leadCoverUrl = leadRoom ? getRoomImageUrl(leadRoom) : null;
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -77,38 +77,50 @@ export default function DiscoverScreen() {
         </View>
 
         {leadRoom ? (
-          <Link href={`/room/${leadRoom.slug}`} style={styles.hero}>
-            {leadCoverUrl ? (
-              <Image resizeMode="cover" source={{ uri: leadCoverUrl }} style={styles.heroImage} />
-            ) : (
-              <View style={[styles.heroFallback, { backgroundColor: leadRoom.accent }]}>
-                <Text style={styles.heroFallbackLetter}>{leadRoom.title.slice(0, 1)}</Text>
-                <View style={styles.heroFallbackLineOne} />
-                <View style={styles.heroFallbackLineTwo} />
-              </View>
-            )}
-            <View style={styles.heroShade} />
+          <Link href={`/room/${leadRoom.slug}`} style={styles.heroPoster}>
+            <View style={[styles.heroColorPlane, { backgroundColor: leadRoom.accent }]} />
+            <View style={styles.heroWhiteCut} />
+            <View style={styles.heroPaperShard} />
+            <View style={styles.heroVisual}>
+              {leadCoverUrl ? (
+                <Image resizeMode="cover" source={{ uri: leadCoverUrl }} style={styles.heroVisualImage} />
+              ) : (
+                <View style={[styles.heroFallback, { backgroundColor: leadRoom.accent }]}>
+                  <Text style={styles.heroFallbackLetter}>{leadRoom.title.slice(0, 1)}</Text>
+                  <View style={styles.heroFallbackLineOne} />
+                  <View style={styles.heroFallbackLineTwo} />
+                </View>
+              )}
+            </View>
             <View style={styles.heroCopy}>
-              <View style={styles.editorialMarker}>
-                <View style={styles.editorialLine} />
-                <Text style={styles.editorialText}>오늘의 리딩룸</Text>
-              </View>
-              <Text style={styles.heroTitle}>{leadRoom.title}</Text>
+              <Text style={styles.posterKicker}>TODAY ROOM</Text>
+              <Text adjustsFontSizeToFit numberOfLines={2} style={styles.heroTitle}>
+                {leadRoom.title}
+              </Text>
               <Text style={styles.heroAuthor}>{leadRoom.author}</Text>
               <Text style={styles.heroQuestion}>{leadRoom.question}</Text>
+              <View style={styles.heroActions}>
+                <Text style={styles.heroPrimaryAction}>ENTER ↗</Text>
+                <Text style={styles.heroSecondaryAction}>읽고 말하기</Text>
+              </View>
             </View>
           </Link>
         ) : null}
 
         <View style={styles.quickActions}>
-          <Link href={session ? '/scan' : '/auth'} style={styles.quickAction}>
-            {session ? 'ISBN 스캔' : '시작하기'}
+          <Link href={session ? '/scan' : '/auth'} style={[styles.quickAction, styles.quickActionDark]}>
+            <Text style={[styles.quickActionIcon, styles.quickActionIconDark]}>{session ? '⌕' : '→'}</Text>
+            <Text style={[styles.quickActionText, styles.quickActionTextDark]}>
+              {session ? 'ISBN 스캔' : '시작하기'}
+            </Text>
           </Link>
           <Link href={session ? '/create-room' : '/auth'} style={styles.quickAction}>
-            {session ? '방 만들기' : '회원가입'}
+            <Text style={styles.quickActionIcon}>＋</Text>
+            <Text style={styles.quickActionText}>{session ? '방 만들기' : '회원가입'}</Text>
           </Link>
           <Link href="/meetups" style={styles.quickAction}>
-            모임
+            <Text style={styles.quickActionIcon}>◎</Text>
+            <Text style={styles.quickActionText}>모임</Text>
           </Link>
         </View>
 
@@ -124,7 +136,7 @@ export default function DiscoverScreen() {
 
         <View style={styles.roomFeed}>
           {feedRooms.map((room, index) => {
-            const coverUrl = room.coverPath ? getRoomCoverUrl(room.coverPath) : null;
+            const coverUrl = getRoomImageUrl(room);
 
             return (
               <Link key={room.slug} href={`/room/${room.slug}`} style={styles.roomItem}>
@@ -189,7 +201,16 @@ function toFeaturedRoom(room: RoomSummary): FeaturedRoom {
     next: room.next_event ?? '새로운 함께 읽기 일정을 준비 중입니다',
     question: room.pinned_question ?? '이 책은 당신에게 어떤 질문을 남겼나요?',
     coverPath: room.cover_path ?? null,
+    coverUrl: null,
   };
+}
+
+function getRoomImageUrl(room: FeaturedRoom) {
+  if (room.coverPath) {
+    return getRoomCoverUrl(room.coverPath);
+  }
+
+  return room.coverUrl ?? null;
 }
 
 function getRoomCoverUrl(coverPath: string) {
@@ -203,48 +224,89 @@ function getRoomCoverUrl(coverPath: string) {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#F7F3EC',
+    backgroundColor: '#F34A3F',
   },
   content: {
-    paddingHorizontal: 18,
-    paddingTop: 18,
+    alignSelf: 'center',
+    backgroundColor: '#FFFDF8',
+    maxWidth: 430,
+    paddingHorizontal: 0,
+    paddingTop: 0,
     paddingBottom: 48,
+    width: '100%',
   },
   header: {
     alignItems: 'center',
+    backgroundColor: '#F34A3F',
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 18,
+    paddingHorizontal: 20,
+    paddingBottom: 16,
   },
   brand: {
-    color: '#24201B',
+    color: '#FFFFFF',
     fontSize: 30,
     fontWeight: '900',
     letterSpacing: 0,
   },
   brandCaption: {
-    color: '#857B70',
+    color: 'rgba(255,255,255,0.78)',
     fontSize: 13,
     fontWeight: '700',
     marginTop: 1,
   },
   headerAction: {
-    color: '#24201B',
+    color: '#FFFFFF',
     fontSize: 14,
     fontWeight: '900',
   },
   connectionText: {
-    color: '#8B8175',
+    color: 'rgba(255,255,255,0.74)',
     fontSize: 12,
     fontWeight: '800',
   },
-  hero: {
-    height: 520,
-    marginHorizontal: -18,
+  heroPoster: {
+    backgroundColor: '#F34A3F',
+    height: 590,
     overflow: 'hidden',
     position: 'relative',
   },
-  heroImage: {
+  heroColorPlane: {
+    bottom: 160,
+    left: 0,
+    position: 'absolute',
+    right: 0,
+    top: 0,
+  },
+  heroWhiteCut: {
+    backgroundColor: '#FFFDF8',
+    bottom: -72,
+    height: 370,
+    left: -36,
+    position: 'absolute',
+    right: -36,
+    transform: [{ rotate: '-12deg' }],
+  },
+  heroPaperShard: {
+    backgroundColor: '#FFFDF8',
+    height: 172,
+    left: -64,
+    position: 'absolute',
+    top: 150,
+    transform: [{ rotate: '40deg' }],
+    width: 188,
+  },
+  heroVisual: {
+    backgroundColor: '#18130F',
+    height: 250,
+    overflow: 'hidden',
+    position: 'absolute',
+    right: 16,
+    top: 34,
+    transform: [{ rotate: '5deg' }],
+    width: '62%',
+  },
+  heroVisualImage: {
     bottom: 0,
     left: 0,
     position: 'absolute',
@@ -262,97 +324,135 @@ const styles = StyleSheet.create({
   },
   heroFallbackLetter: {
     color: 'rgba(255,255,255,0.18)',
-    fontSize: 240,
+    fontSize: 156,
     fontWeight: '900',
     letterSpacing: 0,
   },
   heroFallbackLineOne: {
     backgroundColor: 'rgba(255,255,255,0.18)',
-    height: 18,
-    left: 28,
+    height: 12,
+    left: 18,
     position: 'absolute',
-    top: 152,
-    width: 138,
+    top: 78,
+    width: 94,
   },
   heroFallbackLineTwo: {
     backgroundColor: 'rgba(255,255,255,0.24)',
-    bottom: 138,
-    height: 12,
+    bottom: 58,
+    height: 10,
     position: 'absolute',
-    right: 34,
-    width: 96,
-  },
-  heroShade: {
-    backgroundColor: 'rgba(15, 13, 11, 0.36)',
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
-    right: 0,
-    top: 0,
+    right: 18,
+    width: 72,
   },
   heroCopy: {
-    bottom: 42,
-    left: 22,
+    bottom: 34,
+    left: 20,
     position: 'absolute',
-    right: 22,
+    right: 20,
   },
-  editorialMarker: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    gap: 10,
-    marginBottom: 16,
-  },
-  editorialLine: {
-    backgroundColor: 'rgba(255,255,255,0.76)',
-    height: 1,
-    width: 34,
-  },
-  editorialText: {
-    color: '#FFFFFF',
+  posterKicker: {
+    alignSelf: 'flex-start',
+    backgroundColor: '#E9E2DA',
+    color: '#17120F',
     fontSize: 12,
-    fontWeight: '800',
+    fontWeight: '900',
+    marginBottom: 12,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
   },
   heroTitle: {
-    color: '#FFFFFF',
-    fontSize: 44,
+    color: '#15110E',
+    fontSize: 46,
     fontWeight: '900',
     letterSpacing: 0,
     lineHeight: 50,
+    maxWidth: 520,
+    textTransform: 'uppercase',
   },
   heroAuthor: {
-    color: 'rgba(255,255,255,0.84)',
+    color: '#5F554D',
     fontSize: 16,
-    fontWeight: '700',
-    marginTop: 10,
+    fontWeight: '900',
+    marginTop: 12,
   },
   heroQuestion: {
-    color: 'rgba(255,255,255,0.92)',
-    fontSize: 18,
+    color: '#3B342F',
+    fontSize: 16,
     fontWeight: '800',
-    lineHeight: 27,
+    lineHeight: 23,
+    marginTop: 14,
+    maxWidth: 480,
+  },
+  heroActions: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 12,
     marginTop: 24,
-    maxWidth: 560,
+  },
+  heroPrimaryAction: {
+    backgroundColor: '#080706',
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '900',
+    overflow: 'hidden',
+    paddingHorizontal: 18,
+    paddingVertical: 12,
+  },
+  heroSecondaryAction: {
+    backgroundColor: '#E8E1DA',
+    color: '#15110E',
+    fontSize: 15,
+    fontWeight: '900',
+    overflow: 'hidden',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
   },
   quickActions: {
-    borderBottomColor: 'rgba(36,32,27,0.1)',
-    borderBottomWidth: 1,
+    backgroundColor: '#FFFDF8',
     flexDirection: 'row',
-    gap: 18,
-    paddingVertical: 22,
+    gap: 10,
+    paddingHorizontal: 20,
+    paddingTop: 22,
+    paddingBottom: 8,
   },
   quickAction: {
-    color: '#24201B',
+    alignItems: 'center',
+    backgroundColor: '#F0EAE2',
     flex: 1,
-    fontSize: 15,
+    flexDirection: 'row',
+    gap: 8,
+    justifyContent: 'center',
+    minHeight: 46,
+    paddingHorizontal: 10,
+  },
+  quickActionDark: {
+    backgroundColor: '#070604',
+  },
+  quickActionIcon: {
+    color: '#15110E',
+    fontSize: 17,
+    fontWeight: '900',
+  },
+  quickActionIconDark: {
+    color: '#FFFFFF',
+  },
+  quickActionText: {
+    color: '#15110E',
+    fontSize: 14,
     fontWeight: '900',
     textAlign: 'center',
   },
+  quickActionTextDark: {
+    color: '#FFFFFF',
+  },
   sectionHeader: {
     alignItems: 'flex-end',
+    backgroundColor: '#FFFDF8',
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginTop: 34,
-    marginBottom: 8,
+    paddingHorizontal: 20,
+    paddingTop: 34,
+    paddingBottom: 8,
   },
   sectionHeaderCompact: {
     alignItems: 'center',
@@ -384,7 +484,9 @@ const styles = StyleSheet.create({
     fontWeight: '900',
   },
   roomFeed: {
-    marginTop: 8,
+    backgroundColor: '#FFFDF8',
+    paddingHorizontal: 20,
+    paddingTop: 8,
   },
   roomItem: {
     alignItems: 'center',
@@ -454,9 +556,11 @@ const styles = StyleSheet.create({
     fontWeight: '900',
   },
   nativePanel: {
+    backgroundColor: '#FFFDF8',
     borderTopColor: 'rgba(36,32,27,0.1)',
     borderTopWidth: 1,
-    marginTop: 34,
+    marginTop: 0,
+    paddingHorizontal: 20,
     paddingTop: 22,
   },
   nativeItem: {
@@ -489,7 +593,8 @@ const styles = StyleSheet.create({
   },
   signOutButton: {
     alignItems: 'center',
-    marginTop: 22,
+    backgroundColor: '#FFFDF8',
+    marginTop: 0,
     paddingVertical: 12,
   },
   signOutText: {
