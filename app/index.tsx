@@ -139,47 +139,49 @@ export default function DiscoverScreen() {
           <Text style={styles.sectionTitle}>Popular</Text>
           <Text style={styles.sectionMore}>{connectionLabel}</Text>
         </View>
-        <ScrollView
-          contentContainerStyle={styles.popularRail}
-          horizontal
-          showsHorizontalScrollIndicator={false}
-        >
-          {popularRooms.map((room, index) => {
-            const coverUrl = getRoomImageUrl(room);
+        <View style={styles.lowerFlow}>
+          <ScrollView
+            contentContainerStyle={styles.popularRail}
+            horizontal
+            showsHorizontalScrollIndicator={false}
+          >
+            {popularRooms.map((room, index) => {
+              const coverUrl = getRoomImageUrl(room);
 
-            return (
-              <Link
-                key={room.slug}
-                href={`/room/${room.slug}`}
-                style={[styles.popularItem, index === 0 ? styles.popularItemActive : null]}
-              >
-                <View style={styles.popularThumb}>
+              return (
+                <Link
+                  key={room.slug}
+                  href={`/room/${room.slug}`}
+                  style={[styles.popularItem, index === 0 ? styles.popularItemActive : null]}
+                >
                   {coverUrl ? (
-                    <Image resizeMode="cover" source={{ uri: coverUrl }} style={styles.popularThumbImage} />
+                    <Image resizeMode="cover" source={{ uri: coverUrl }} style={styles.popularBackgroundImage} />
                   ) : (
-                    <View style={[styles.heroImageFallback, { backgroundColor: room.accent }]}>
-                      <Text style={styles.fallbackLetterSmall}>{room.title.slice(0, 1)}</Text>
-                    </View>
+                    <View style={[styles.popularBackgroundFallback, { backgroundColor: room.accent }]} />
                   )}
-                </View>
-                <View style={styles.popularCopy}>
-                  <Text style={[styles.popularTitle, index === 0 ? styles.popularTitleActive : null]} numberOfLines={1}>
-                    {room.title}
-                  </Text>
-                  <Text style={[styles.popularMeta, index === 0 ? styles.popularMetaActive : null]} numberOfLines={1}>
-                    {room.author}
-                  </Text>
-                  <View style={styles.readerDots}>
-                    <Text style={styles.readerDot}>R</Text>
-                    <Text style={styles.readerDot}>B</Text>
-                    <Text style={styles.readerDotMore}>+{room.members}</Text>
+                  <View style={styles.popularScrim} />
+                  <View style={styles.popularFloatingBadge}>
+                    <Text style={styles.popularBadgeText}>{index + 1}</Text>
                   </View>
-                </View>
-                <Text style={[styles.popularArrow, index === 0 ? styles.popularArrowActive : null]}>→</Text>
-              </Link>
-            );
-          })}
-        </ScrollView>
+                  <View style={styles.popularCopy}>
+                    <Text style={styles.popularTitle} numberOfLines={1}>
+                      {room.title}
+                    </Text>
+                    <Text style={styles.popularMeta} numberOfLines={1}>
+                      {room.author}
+                    </Text>
+                    <View style={styles.readerDots}>
+                      <Text style={styles.readerDot}>R</Text>
+                      <Text style={styles.readerDot}>B</Text>
+                      <Text style={styles.readerDotMore}>+{room.members}</Text>
+                    </View>
+                  </View>
+                  <Text style={styles.popularArrow}>→</Text>
+                </Link>
+              );
+            })}
+          </ScrollView>
+        </View>
 
         <View style={styles.sectionRow}>
           <Text style={styles.sectionTitle}>Today picks</Text>
@@ -194,6 +196,15 @@ export default function DiscoverScreen() {
 
             return (
               <Link key={room.slug} href={`/room/${room.slug}`} style={styles.galleryRoom}>
+                <View style={styles.galleryTextPanel}>
+                  <Text style={styles.galleryLocation}>BOOKSOME PICK</Text>
+                  <Text style={styles.galleryPanelTitle} numberOfLines={2}>
+                    {room.title}
+                  </Text>
+                  <Text style={styles.galleryPanelQuestion} numberOfLines={2}>
+                    {room.question}
+                  </Text>
+                </View>
                 <View style={[styles.galleryImageWrap, { backgroundColor: room.accent }]}>
                   {coverUrl ? (
                     <Image resizeMode="cover" source={{ uri: coverUrl }} style={styles.galleryImage} />
@@ -206,16 +217,8 @@ export default function DiscoverScreen() {
                   <Text style={styles.galleryIndex}>{String(index + 1).padStart(2, '0')}</Text>
                   <Text style={styles.gallerySave}>☆</Text>
                   <View style={styles.galleryCopy}>
-                    <View style={styles.galleryTitleRow}>
-                      <Text style={styles.galleryTitle} numberOfLines={2}>
-                        {room.title}
-                      </Text>
-                      <Text style={styles.galleryArrow}>↗</Text>
-                    </View>
                     <Text style={styles.galleryMeta}>{room.author} · {room.host}</Text>
-                    <Text style={styles.galleryQuestion} numberOfLines={2}>
-                      {room.question}
-                    </Text>
+                    <Text style={styles.galleryArrow}>↗</Text>
                   </View>
                 </View>
               </Link>
@@ -562,62 +565,102 @@ const styles = StyleSheet.create({
   },
   popularRail: {
     gap: 12,
-    paddingHorizontal: 20,
+    paddingHorizontal: 0,
+    zIndex: 3,
+  },
+  lowerFlow: {
+    marginHorizontal: 20,
+    overflow: 'visible',
+    position: 'relative',
     zIndex: 3,
   },
   popularItem: {
-    alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 26,
-    flexDirection: 'row',
-    height: 88,
+    backgroundColor: '#0E271B',
+    borderRadius: 30,
+    height: 122,
     overflow: 'hidden',
-    paddingHorizontal: 10,
-    width: 262,
+    position: 'relative',
+    width: 238,
   },
   popularItemActive: {
     backgroundColor: '#0E271B',
   },
-  popularThumb: {
-    backgroundColor: '#D7DED2',
-    borderRadius: 20,
-    height: 62,
-    overflow: 'hidden',
-    position: 'relative',
-    width: 56,
+  popularBackgroundImage: {
+    bottom: 0,
+    left: 0,
+    opacity: 0.72,
+    position: 'absolute',
+    right: 0,
+    top: 0,
   },
-  popularThumbImage: {
+  popularBackgroundFallback: {
     bottom: 0,
     left: 0,
     position: 'absolute',
     right: 0,
     top: 0,
   },
+  popularScrim: {
+    backgroundColor: 'rgba(5, 17, 11, 0.42)',
+    bottom: 0,
+    left: 0,
+    position: 'absolute',
+    right: 0,
+    top: 0,
+  },
+  popularFloatingBadge: {
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 22,
+    height: 44,
+    justifyContent: 'center',
+    left: 14,
+    position: 'absolute',
+    top: 14,
+    width: 44,
+  },
+  popularBadgeText: {
+    color: '#0E271B',
+    fontSize: 13,
+    fontWeight: '900',
+  },
   popularCopy: {
-    flex: 1,
-    paddingHorizontal: 12,
+    bottom: 16,
+    left: 72,
+    position: 'absolute',
+    right: 48,
   },
   popularTitle: {
-    color: '#172117',
-    fontSize: 16,
+    color: '#FFFFFF',
+    fontSize: 18,
     fontWeight: '900',
   },
   popularTitleActive: {
     color: '#FFFFFF',
   },
   popularMeta: {
-    color: '#71806B',
+    color: 'rgba(255,255,255,0.78)',
     fontSize: 12,
-    fontWeight: '800',
+    fontWeight: '900',
     marginTop: 5,
   },
   popularMetaActive: {
     color: 'rgba(255,255,255,0.72)',
   },
   popularArrow: {
-    color: '#172117',
-    fontSize: 18,
+    backgroundColor: 'rgba(255,255,255,0.92)',
+    borderRadius: 18,
+    color: '#0E271B',
+    fontSize: 17,
     fontWeight: '900',
+    height: 36,
+    lineHeight: 34,
+    overflow: 'hidden',
+    position: 'absolute',
+    right: 12,
+    textAlign: 'center',
+    top: 43,
+    width: 36,
   },
   popularArrowActive: {
     color: '#FFFFFF',
@@ -660,18 +703,52 @@ const styles = StyleSheet.create({
   },
   galleryRoom: {
     borderRadius: 28,
-    height: 286,
+    backgroundColor: '#FFFFFF',
+    height: 342,
     overflow: 'hidden',
+    position: 'relative',
     width: '100%',
   },
-  galleryImageWrap: {
+  galleryTextPanel: {
+    backgroundColor: '#FFFFFF',
     bottom: 0,
-    height: 286,
     left: 0,
-    overflow: 'hidden',
+    paddingBottom: 18,
+    paddingHorizontal: 18,
+    paddingTop: 118,
     position: 'absolute',
     right: 0,
     top: 0,
+  },
+  galleryLocation: {
+    color: '#B85744',
+    fontSize: 11,
+    fontWeight: '900',
+    marginBottom: 8,
+  },
+  galleryPanelTitle: {
+    color: '#101910',
+    fontSize: 28,
+    fontWeight: '900',
+    letterSpacing: 0,
+    lineHeight: 30,
+  },
+  galleryPanelQuestion: {
+    color: '#52604E',
+    fontSize: 13,
+    fontWeight: '800',
+    lineHeight: 18,
+    marginTop: 10,
+    maxWidth: 250,
+  },
+  galleryImageWrap: {
+    height: 148,
+    left: 18,
+    overflow: 'hidden',
+    position: 'absolute',
+    right: 18,
+    top: 16,
+    borderRadius: 24,
   },
   galleryImage: {
     bottom: 0,
@@ -681,7 +758,7 @@ const styles = StyleSheet.create({
     top: 0,
   },
   galleryScrim: {
-    backgroundColor: 'rgba(7,12,8,0.48)',
+    backgroundColor: 'rgba(7,12,8,0.18)',
     bottom: 0,
     left: 0,
     position: 'absolute',
@@ -717,42 +794,35 @@ const styles = StyleSheet.create({
     width: 40,
   },
   galleryCopy: {
-    bottom: 18,
-    left: 16,
-    position: 'absolute',
-    right: 16,
-  },
-  galleryTitleRow: {
-    alignItems: 'flex-start',
+    alignItems: 'center',
+    bottom: 14,
     flexDirection: 'row',
     justifyContent: 'space-between',
-    gap: 12,
-  },
-  galleryTitle: {
-    color: '#FFFFFF',
-    flex: 1,
-    fontSize: 30,
-    fontWeight: '900',
-    letterSpacing: 0,
-    lineHeight: 32,
+    left: 14,
+    position: 'absolute',
+    right: 14,
   },
   galleryArrow: {
-    color: '#FFFFFF',
-    fontSize: 24,
+    backgroundColor: 'rgba(255,255,255,0.9)',
+    borderRadius: 19,
+    color: '#0E271B',
+    fontSize: 18,
     fontWeight: '900',
+    height: 38,
+    lineHeight: 36,
+    overflow: 'hidden',
+    textAlign: 'center',
+    width: 38,
   },
   galleryMeta: {
-    color: 'rgba(255,255,255,0.78)',
-    fontSize: 13,
+    backgroundColor: 'rgba(255,255,255,0.9)',
+    borderRadius: 17,
+    color: '#0E271B',
+    fontSize: 12,
     fontWeight: '900',
-    marginTop: 7,
-  },
-  galleryQuestion: {
-    color: 'rgba(255,255,255,0.9)',
-    fontSize: 14,
-    fontWeight: '800',
-    lineHeight: 20,
-    marginTop: 12,
+    overflow: 'hidden',
+    paddingHorizontal: 10,
+    paddingVertical: 8,
   },
   dockItem: {
     alignItems: 'center',
