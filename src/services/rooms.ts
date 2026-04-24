@@ -26,6 +26,7 @@ export type RoomDetail = {
   pinnedQuestion: string | null;
   nextEvent: string | null;
   memberCount: number;
+  viewerRole: string | null;
 };
 
 export type CreateRoomInput = {
@@ -67,7 +68,7 @@ export async function listFeaturedRooms() {
   return data as RoomSummary[];
 }
 
-export async function getRoomDetail(slug: string): Promise<RoomDetail | null> {
+export async function getRoomDetail(slug: string, viewerId?: string): Promise<RoomDetail | null> {
   const { data: room, error: roomError } = await supabase
     .from('rooms')
     .select('id, work_id, slug, title, subtitle, description, accent_color, cover_path')
@@ -82,7 +83,8 @@ export async function getRoomDetail(slug: string): Promise<RoomDetail | null> {
     return null;
   }
 
-  const [{ data: work }, { data: question }, { data: session }, { count }] = await Promise.all([
+  const [{ data: work }, { data: question }, { data: session }, { count }, { data: membership }] =
+    await Promise.all([
     supabase.from('book_works').select('author').eq('id', room.work_id).maybeSingle(),
     supabase
       .from('posts')
@@ -101,6 +103,14 @@ export async function getRoomDetail(slug: string): Promise<RoomDetail | null> {
       .limit(1)
       .maybeSingle(),
     supabase.from('room_members').select('profile_id', { count: 'exact', head: true }).eq('room_id', room.id),
+    viewerId
+      ? supabase
+          .from('room_members')
+          .select('role')
+          .eq('room_id', room.id)
+          .eq('profile_id', viewerId)
+          .maybeSingle()
+      : Promise.resolve({ data: null }),
   ]);
 
   return {
@@ -115,6 +125,7 @@ export async function getRoomDetail(slug: string): Promise<RoomDetail | null> {
     pinnedQuestion: question?.body ?? null,
     nextEvent: session?.title ?? null,
     memberCount: count ?? 0,
+    viewerRole: membership?.role ?? null,
   };
 }
 
@@ -136,4 +147,16 @@ export async function createRoom(input: CreateRoomInput) {
   }
 
   return data as { id: string; slug: string };
+}
+
+export async function joinRoom(roomId: string) {
+  const { data, error } = await supabase.rpc('join_room', {
+    p_room_id: roomId,
+  });
+
+  if (error) {
+    throw error;
+  }
+
+  return data?.[0] as { room_id: string; profile_id: string; role: string } | undefined;
 }

@@ -4,13 +4,17 @@ import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-nati
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { featuredRooms } from '../../src/data/rooms';
+import { useAuth } from '../../src/providers/auth-provider';
 import { getMediaUrl } from '../../src/services/media';
-import { getRoomDetail, type RoomDetail } from '../../src/services/rooms';
+import { getRoomDetail, joinRoom, type RoomDetail } from '../../src/services/rooms';
 
 export default function RoomScreen() {
   const { slug } = useLocalSearchParams<{ slug: string }>();
+  const { session } = useAuth();
   const [remoteRoom, setRemoteRoom] = useState<RoomDetail | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isJoining, setIsJoining] = useState(false);
+  const [actionMessage, setActionMessage] = useState<string | null>(null);
   const fallbackRoom = featuredRooms.find((item) => item.slug === slug) ?? featuredRooms[0];
 
   useEffect(() => {
@@ -21,7 +25,7 @@ export default function RoomScreen() {
       return;
     }
 
-    getRoomDetail(slug)
+    getRoomDetail(slug, session?.user.id)
       .then((room) => {
         if (isMounted) {
           setRemoteRoom(room);
@@ -41,7 +45,33 @@ export default function RoomScreen() {
     return () => {
       isMounted = false;
     };
-  }, [slug]);
+  }, [session?.user.id, slug]);
+
+  const handleJoinRoom = async () => {
+    if (!session) {
+      router.push('/auth');
+      return;
+    }
+
+    if (!remoteRoom) {
+      setActionMessage('리딩룸 정보를 불러온 뒤 다시 시도해주세요.');
+      return;
+    }
+
+    setIsJoining(true);
+    setActionMessage(null);
+
+    try {
+      await joinRoom(remoteRoom.id);
+      const nextRoom = await getRoomDetail(remoteRoom.slug, session.user.id);
+      setRemoteRoom(nextRoom);
+      setActionMessage('리딩룸에 참여했습니다.');
+    } catch (error) {
+      setActionMessage(getErrorMessage(error, '리딩룸 참여에 실패했습니다.'));
+    } finally {
+      setIsJoining(false);
+    }
+  };
 
   const room = useMemo(() => {
     if (!remoteRoom) {
@@ -68,6 +98,7 @@ export default function RoomScreen() {
       next: remoteRoom.nextEvent ?? '첫 함께 읽기 일정을 준비해보세요.',
       question: remoteRoom.pinnedQuestion ?? '이 책은 당신에게 어떤 질문을 남겼나요?',
       title: remoteRoom.title,
+      viewerRole: remoteRoom.viewerRole,
     };
   }, [fallbackRoom, remoteRoom]);
 
@@ -106,13 +137,21 @@ export default function RoomScreen() {
         </View>
 
         <View style={styles.actions}>
-          <Pressable style={styles.primaryAction}>
-            <Text style={styles.primaryActionText}>질문에 답하기</Text>
+          <Pressable disabled={isJoining} onPress={handleJoinRoom} style={styles.primaryAction}>
+            <Text style={styles.primaryActionText}>
+              {room.viewerRole ? '참여 중' : isJoining ? '참여 중...' : '리딩룸 참여'}
+            </Text>
           </Pressable>
           <Pressable style={styles.secondaryAction}>
             <Text style={styles.secondaryActionText}>Room 공유</Text>
           </Pressable>
         </View>
+
+        {actionMessage ? (
+          <View style={styles.messagePanel}>
+            <Text style={styles.messageText}>{actionMessage}</Text>
+          </View>
+        ) : null}
 
         <View style={styles.timeline}>
           <Text style={styles.timelineTitle}>{isLoading ? '불러오는 중' : '함께 읽기'}</Text>
@@ -128,6 +167,21 @@ export default function RoomScreen() {
       </ScrollView>
     </SafeAreaView>
   );
+}
+
+function getErrorMessage(error: unknown, fallback: string) {
+  if (error instanceof Error && error.message) {
+    return error.message;
+  }
+
+  if (typeof error === 'object' && error && 'message' in error) {
+    const message = (error as { message?: unknown }).message;
+    if (typeof message === 'string' && message) {
+      return message;
+    }
+  }
+
+  return fallback;
 }
 
 const styles = StyleSheet.create({
@@ -280,6 +334,19 @@ const styles = StyleSheet.create({
     color: '#142326',
     fontSize: 15,
     fontWeight: '900',
+  },
+  messagePanel: {
+    backgroundColor: '#E8F4EF',
+    borderColor: '#B8D8CC',
+    borderRadius: 18,
+    borderWidth: 1,
+    marginTop: 14,
+    padding: 15,
+  },
+  messageText: {
+    color: '#116653',
+    fontSize: 14,
+    fontWeight: '800',
   },
   timeline: {
     marginTop: 28,

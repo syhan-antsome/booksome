@@ -67,6 +67,12 @@ If an existing database reports recursive RLS errors while reading rooms, run:
 supabase/fix-rls-recursion.sql
 ```
 
+If an existing database needs the Room participation RPC, run:
+
+```text
+supabase/add-join-room-function.sql
+```
+
 The app first tries to read `room_discovery_cards` from Supabase. If the schema has not been applied yet, the Discover screen falls back to local preview data.
 
 ## Cloudflare Media API
