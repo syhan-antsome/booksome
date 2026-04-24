@@ -261,7 +261,7 @@ export default function RoomScreen() {
     <SafeAreaView style={styles.safeArea}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.topBar}>
-          <Pressable onPress={() => router.back()} style={styles.backButton}>
+          <Pressable onPress={() => (router.canGoBack() ? router.back() : router.replace('/'))} style={styles.backButton}>
             <Text style={styles.backText}>‹</Text>
           </Pressable>
           <Text style={styles.topStatus}>{isLoading ? '불러오는 중' : isMember ? '참여중' : '열린 리딩룸'}</Text>
@@ -401,7 +401,7 @@ export default function RoomScreen() {
                 value={postBody}
               />
               <Pressable disabled={isPosting} onPress={handleCreatePost} style={styles.postButton}>
-                <Text style={styles.postButtonText}>{isPosting ? '등록 중...' : '남기기'}</Text>
+                <Text style={styles.postButtonText}>{isPosting ? '…' : '↑'}</Text>
               </Pressable>
             </View>
 
@@ -430,10 +430,17 @@ export default function RoomScreen() {
                         onPress={() => handleToggleReaction(post)}
                         style={[styles.reactionButton, post.viewerReacted ? styles.reactionButtonActive : null]}
                       >
-                        <Text style={[styles.reactionText, post.viewerReacted ? styles.reactionTextActive : null]}>
-                          공감 {post.reactionCount}
+                        <Text style={[styles.reactionIcon, post.viewerReacted ? styles.reactionIconActive : null]}>
+                          {post.viewerReacted ? '♥' : '♡'}
                         </Text>
+                        <Text style={styles.reactionCount}>{post.reactionCount}</Text>
                       </Pressable>
+                      <View style={styles.feedIconGroup}>
+                        <Text style={styles.feedIcon}>✎</Text>
+                        <Text style={styles.reactionCount}>{post.comments.length}</Text>
+                      </View>
+                      <View style={styles.feedIconSpacer} />
+                      <Text style={styles.feedIcon}>↗</Text>
                     </View>
                     {post.comments.length > 0 ? (
                       <View style={styles.commentsList}>
@@ -458,7 +465,7 @@ export default function RoomScreen() {
                         onPress={() => handleCreateComment(post.id)}
                         style={styles.commentButton}
                       >
-                        <Text style={styles.commentButtonText}>{commentingPostId === post.id ? '등록' : '댓글'}</Text>
+                        <Text style={styles.commentButtonText}>{commentingPostId === post.id ? '…' : '↑'}</Text>
                       </Pressable>
                     </View>
                   </View>
@@ -543,7 +550,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#F7F3EC',
   },
   content: {
-    padding: 20,
+    paddingHorizontal: 18,
+    paddingTop: 18,
     paddingBottom: 56,
   },
   topBar: {
@@ -575,7 +583,8 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   heroStage: {
-    borderRadius: 32,
+    borderRadius: 0,
+    marginHorizontal: -18,
     minHeight: 440,
     overflow: 'hidden',
     position: 'relative',
@@ -718,17 +727,10 @@ const styles = StyleSheet.create({
     width: 4,
   },
   roomSignal: {
-    backgroundColor: 'rgba(255,255,255,0.76)',
-    borderRadius: 28,
     flexDirection: 'row',
-    marginHorizontal: 12,
-    marginTop: -28,
+    marginTop: 28,
     paddingHorizontal: 10,
-    paddingVertical: 18,
-    shadowColor: '#2A241D',
-    shadowOffset: { height: 12, width: 0 },
-    shadowOpacity: 0.08,
-    shadowRadius: 24,
+    paddingVertical: 8,
   },
   signalItem: {
     alignItems: 'center',
@@ -751,18 +753,13 @@ const styles = StyleSheet.create({
   },
   joinNote: {
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 26,
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginTop: 28,
+    marginTop: 30,
     overflow: 'hidden',
-    padding: 18,
+    paddingHorizontal: 2,
+    paddingVertical: 4,
     position: 'relative',
-    shadowColor: '#2A241D',
-    shadowOffset: { height: 10, width: 0 },
-    shadowOpacity: 0.06,
-    shadowRadius: 22,
   },
   joinCopy: {
     flex: 1,
@@ -783,9 +780,9 @@ const styles = StyleSheet.create({
   joinButton: {
     alignItems: 'center',
     backgroundColor: '#24201B',
-    borderRadius: 22,
-    minHeight: 46,
-    minWidth: 84,
+    borderRadius: 18,
+    minHeight: 36,
+    minWidth: 76,
     justifyContent: 'center',
     paddingHorizontal: 18,
   },
@@ -812,26 +809,22 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   tabs: {
-    backgroundColor: '#EDE6DB',
-    borderRadius: 24,
+    borderBottomColor: 'rgba(36,32,27,0.1)',
+    borderBottomWidth: 1,
     flexDirection: 'row',
     gap: 4,
-    marginTop: 28,
-    padding: 4,
+    marginTop: 30,
   },
   tabButton: {
     alignItems: 'center',
-    borderRadius: 20,
+    borderBottomColor: 'transparent',
+    borderBottomWidth: 2,
     flex: 1,
-    minHeight: 44,
+    minHeight: 46,
     justifyContent: 'center',
   },
   tabButtonActive: {
-    backgroundColor: '#FFFFFF',
-    shadowColor: '#2A241D',
-    shadowOffset: { height: 4, width: 0 },
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
+    borderBottomColor: '#24201B',
   },
   tabText: {
     color: '#8A8074',
@@ -842,7 +835,7 @@ const styles = StyleSheet.create({
     color: '#24201B',
   },
   tabPanel: {
-    marginTop: 34,
+    marginTop: 30,
   },
   pinnedQuestion: {
     paddingHorizontal: 2,
@@ -874,14 +867,10 @@ const styles = StyleSheet.create({
     lineHeight: 43,
   },
   composer: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 28,
+    borderTopColor: 'rgba(36,32,27,0.1)',
+    borderTopWidth: 1,
     marginTop: 36,
-    padding: 20,
-    shadowColor: '#2A241D',
-    shadowOffset: { height: 10, width: 0 },
-    shadowOpacity: 0.06,
-    shadowRadius: 22,
+    paddingTop: 24,
   },
   composerHeader: {
     alignItems: 'flex-start',
@@ -900,22 +889,21 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   segmented: {
-    backgroundColor: '#F1ECE4',
-    borderRadius: 20,
+    alignSelf: 'flex-start',
     flexDirection: 'row',
-    gap: 4,
-    marginBottom: 14,
-    padding: 4,
+    gap: 18,
+    marginBottom: 16,
   },
   segmentButton: {
     alignItems: 'center',
-    borderRadius: 16,
-    flex: 1,
+    borderBottomColor: 'transparent',
+    borderBottomWidth: 2,
     minHeight: 38,
     justifyContent: 'center',
+    paddingHorizontal: 2,
   },
   segmentButtonActive: {
-    backgroundColor: '#24201B',
+    borderBottomColor: '#24201B',
   },
   segmentText: {
     color: '#7E7469',
@@ -923,10 +911,10 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   segmentTextActive: {
-    color: '#FFFFFF',
+    color: '#24201B',
   },
   postInput: {
-    backgroundColor: '#F8F4ED',
+    backgroundColor: 'rgba(255,255,255,0.58)',
     borderColor: 'rgba(36,32,27,0.08)',
     borderRadius: 22,
     borderWidth: 1,
@@ -941,15 +929,18 @@ const styles = StyleSheet.create({
   postButton: {
     alignItems: 'center',
     backgroundColor: '#24201B',
-    borderRadius: 22,
+    borderRadius: 24,
+    height: 48,
     justifyContent: 'center',
     marginTop: 14,
-    minHeight: 52,
+    width: 48,
+    alignSelf: 'flex-end',
   },
   postButtonText: {
     color: '#FFFFFF',
-    fontSize: 15,
+    fontSize: 24,
     fontWeight: '900',
+    lineHeight: 26,
   },
   postsSection: {
     marginTop: 40,
@@ -971,24 +962,15 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   postCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 26,
-    marginBottom: 16,
+    borderBottomColor: 'rgba(36,32,27,0.1)',
+    borderBottomWidth: 1,
+    marginBottom: 0,
     overflow: 'hidden',
-    padding: 20,
+    paddingVertical: 22,
     position: 'relative',
-    shadowColor: '#2A241D',
-    shadowOffset: { height: 8, width: 0 },
-    shadowOpacity: 0.05,
-    shadowRadius: 18,
   },
   postSpine: {
-    borderRadius: 3,
-    height: 38,
-    left: 0,
-    position: 'absolute',
-    top: 24,
-    width: 5,
+    display: 'none',
   },
   postSpineQuestion: {
     backgroundColor: '#7DAF9C',
@@ -1003,14 +985,10 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   postKind: {
-    backgroundColor: '#F1ECE4',
-    borderRadius: 999,
     color: '#665D52',
     fontSize: 12,
     fontWeight: '800',
     overflow: 'hidden',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
   },
   postAuthor: {
     color: '#8E7F70',
@@ -1024,25 +1002,48 @@ const styles = StyleSheet.create({
     lineHeight: 27,
   },
   postActions: {
+    alignItems: 'center',
     flexDirection: 'row',
-    marginTop: 14,
+    gap: 16,
+    marginTop: 18,
   },
   reactionButton: {
-    backgroundColor: '#F1ECE4',
-    borderRadius: 999,
-    paddingHorizontal: 14,
-    paddingVertical: 9,
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 5,
+    minHeight: 34,
   },
   reactionButtonActive: {
-    backgroundColor: '#24201B',
+    backgroundColor: 'transparent',
   },
-  reactionText: {
-    color: '#5D544A',
-    fontSize: 13,
+  reactionIcon: {
+    color: '#24201B',
+    fontSize: 25,
     fontWeight: '800',
+    lineHeight: 28,
   },
-  reactionTextActive: {
-    color: '#FFFFFF',
+  reactionIconActive: {
+    color: '#D54E47',
+  },
+  reactionCount: {
+    color: '#675E54',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  feedIconGroup: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 5,
+    minHeight: 34,
+  },
+  feedIcon: {
+    color: '#24201B',
+    fontSize: 25,
+    fontWeight: '800',
+    lineHeight: 28,
+  },
+  feedIconSpacer: {
+    flex: 1,
   },
   commentsList: {
     borderTopColor: 'rgba(36,32,27,0.08)',
@@ -1052,9 +1053,7 @@ const styles = StyleSheet.create({
     paddingTop: 16,
   },
   commentItem: {
-    backgroundColor: '#F8F4ED',
-    borderRadius: 18,
-    padding: 12,
+    paddingVertical: 6,
   },
   commentAuthor: {
     color: '#82776B',
@@ -1074,7 +1073,7 @@ const styles = StyleSheet.create({
     marginTop: 12,
   },
   commentInput: {
-    backgroundColor: '#F8F4ED',
+    backgroundColor: 'rgba(255,255,255,0.58)',
     borderColor: 'rgba(36,32,27,0.08)',
     borderRadius: 18,
     borderWidth: 1,
@@ -1089,14 +1088,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: '#24201B',
     borderRadius: 18,
+    height: 36,
     justifyContent: 'center',
-    minWidth: 58,
-    paddingHorizontal: 12,
+    width: 36,
   },
   commentButtonText: {
     color: '#FFFFFF',
-    fontSize: 13,
+    fontSize: 19,
     fontWeight: '900',
+    lineHeight: 21,
   },
   emptyPanel: {
     backgroundColor: '#FFFFFF',
