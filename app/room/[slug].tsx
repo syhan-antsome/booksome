@@ -290,21 +290,6 @@ export default function RoomScreen() {
           </View>
         </View>
 
-        <View style={styles.roomSignal}>
-          <View style={styles.signalItem}>
-            <Text style={styles.signalValue}>{room.members}</Text>
-            <Text style={styles.signalLabel}>참여자</Text>
-          </View>
-          <View style={styles.signalItem}>
-            <Text style={styles.signalValue}>1</Text>
-            <Text style={styles.signalLabel}>질문</Text>
-          </View>
-          <View style={styles.signalItem}>
-            <Text style={styles.signalValue}>읽는 중</Text>
-            <Text style={styles.signalLabel}>상태</Text>
-          </View>
-        </View>
-
         {!isMember ? (
           <View style={styles.joinNote}>
             <View style={styles.joinCopy}>
@@ -325,18 +310,22 @@ export default function RoomScreen() {
 
         <View style={styles.tabs}>
           {[
-            { key: 'talk', label: '이야기' },
-            { key: 'reading', label: '함께읽기' },
-            { key: 'info', label: '정보' },
+            { key: 'talk', label: '이야기', number: '01' },
+            { key: 'reading', label: '함께읽기', number: '02' },
+            { key: 'info', label: '정보', number: '03' },
           ].map((tab) => (
             <Pressable
               key={tab.key}
               onPress={() => setActiveTab(tab.key as RoomTab)}
-              style={[styles.tabButton, activeTab === tab.key ? styles.tabButtonActive : null]}
+              style={styles.tabButton}
             >
+              <Text style={[styles.tabNumber, activeTab === tab.key ? styles.tabNumberActive : null]}>
+                {tab.number}
+              </Text>
               <Text style={[styles.tabText, activeTab === tab.key ? styles.tabTextActive : null]}>
                 {tab.label}
               </Text>
+              {activeTab === tab.key ? <View style={styles.tabActiveLine} /> : null}
             </Pressable>
           ))}
         </View>
@@ -671,29 +660,6 @@ const styles = StyleSheet.create({
     marginHorizontal: 10,
     width: 4,
   },
-  roomSignal: {
-    borderBottomColor: 'rgba(36,32,27,0.08)',
-    borderBottomWidth: 1,
-    flexDirection: 'row',
-    marginTop: 26,
-    paddingBottom: 22,
-    paddingTop: 4,
-  },
-  signalItem: {
-    alignItems: 'center',
-    flex: 1,
-  },
-  signalLabel: {
-    color: '#92887D',
-    fontSize: 12,
-    fontWeight: '800',
-    marginTop: 5,
-  },
-  signalValue: {
-    color: '#24201B',
-    fontSize: 19,
-    fontWeight: '900',
-  },
   joinNote: {
     alignItems: 'center',
     flexDirection: 'row',
@@ -752,30 +718,41 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   tabs: {
-    borderBottomColor: 'rgba(36,32,27,0.1)',
-    borderBottomWidth: 1,
+    borderTopColor: 'rgba(36,32,27,0.12)',
+    borderTopWidth: 1,
     flexDirection: 'row',
-    gap: 4,
-    marginTop: 30,
+    gap: 12,
+    marginTop: 34,
+    paddingTop: 18,
   },
   tabButton: {
-    alignItems: 'center',
-    borderBottomColor: 'transparent',
-    borderBottomWidth: 2,
+    alignItems: 'flex-start',
     flex: 1,
-    minHeight: 46,
+    minHeight: 52,
     justifyContent: 'center',
   },
-  tabButtonActive: {
-    borderBottomColor: '#24201B',
+  tabNumber: {
+    color: '#B0A69A',
+    fontSize: 11,
+    fontWeight: '900',
+    marginBottom: 5,
+  },
+  tabNumberActive: {
+    color: '#24201B',
   },
   tabText: {
     color: '#8A8074',
-    fontSize: 14,
-    fontWeight: '800',
+    fontSize: 16,
+    fontWeight: '900',
   },
   tabTextActive: {
     color: '#24201B',
+  },
+  tabActiveLine: {
+    backgroundColor: '#24201B',
+    height: 2,
+    marginTop: 10,
+    width: 28,
   },
   tabPanel: {
     marginTop: 30,
