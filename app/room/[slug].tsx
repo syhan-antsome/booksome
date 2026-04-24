@@ -292,16 +292,16 @@ export default function RoomScreen() {
 
         <View style={styles.roomSignal}>
           <View style={styles.signalItem}>
-            <Text style={styles.signalValue}>{posts.length}</Text>
-            <Text style={styles.signalLabel}>게시글</Text>
-          </View>
-          <View style={styles.signalItem}>
             <Text style={styles.signalValue}>{room.members}</Text>
             <Text style={styles.signalLabel}>참여자</Text>
           </View>
           <View style={styles.signalItem}>
             <Text style={styles.signalValue}>1</Text>
             <Text style={styles.signalLabel}>질문</Text>
+          </View>
+          <View style={styles.signalItem}>
+            <Text style={styles.signalValue}>읽는 중</Text>
+            <Text style={styles.signalLabel}>상태</Text>
           </View>
         </View>
 
@@ -691,7 +691,7 @@ const styles = StyleSheet.create({
   },
   signalValue: {
     color: '#24201B',
-    fontSize: 21,
+    fontSize: 19,
     fontWeight: '900',
   },
   joinNote: {
