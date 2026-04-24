@@ -69,7 +69,7 @@ export default function DiscoverScreen() {
             <Text style={styles.brand}>BookSome</Text>
           </View>
           {session ? (
-            <Text style={styles.statusBadge}>Today</Text>
+            <Text style={styles.statusBadge}>Live 15°C</Text>
           ) : (
             <Link href="/auth" style={styles.headerAction}>
               로그인
@@ -78,7 +78,7 @@ export default function DiscoverScreen() {
         </View>
 
         <View style={styles.searchLine}>
-          <Text style={styles.pageTitle}>Reading rooms</Text>
+          <Text style={styles.pageTitle}>Reading{'\n'}Power</Text>
           <Pressable onPress={refreshRooms} style={styles.iconButton}>
             <Text style={styles.iconText}>{isRefreshingRooms ? '...' : '⌕'}</Text>
           </Pressable>
@@ -102,7 +102,7 @@ export default function DiscoverScreen() {
             )}
             <View style={styles.heroScrim} />
             <View style={styles.heroTopMeta}>
-              <Text style={styles.countryLabel}>BOOKSOME</Text>
+              <Text style={styles.countryLabel}>READING ROOM</Text>
               <Text style={styles.saveDot}>☆</Text>
             </View>
             <View style={styles.heroRoomCopy}>
@@ -113,12 +113,22 @@ export default function DiscoverScreen() {
                 {leadRoom.question}
               </Text>
               <View style={styles.heroFooter}>
-                <Text style={styles.heroFooterText}>{leadRoom.author}</Text>
-                <Text style={styles.heroFooterText}>Start room</Text>
+                <Text style={styles.heroFooterText}>읽는 중</Text>
+                <Text style={styles.heroFooterText}>{leadRoom.members}</Text>
+                <Text style={styles.heroFooterText}>{leadRoom.progress}%</Text>
               </View>
+              <Text style={styles.heroStart}>Start room</Text>
             </View>
           </Link>
         ) : null}
+
+        <View style={styles.bottomDock}>
+          <Link href={session ? '/scan' : '/auth'} style={styles.dockItem}>⌕</Link>
+          <Link href="/" style={[styles.dockItem, styles.dockItemActive]}>⌂</Link>
+          <Link href="/meetups" style={styles.dockItem}>◎</Link>
+          <Link href={session ? '/create-room' : '/auth'} style={styles.dockItem}>＋</Link>
+          <Text style={styles.dockItem}>◌</Text>
+        </View>
 
         <View style={styles.sectionRow}>
           <Text style={styles.sectionTitle}>Popular</Text>
@@ -154,6 +164,11 @@ export default function DiscoverScreen() {
                   <Text style={[styles.popularMeta, index === 0 ? styles.popularMetaActive : null]} numberOfLines={1}>
                     {room.author}
                   </Text>
+                  <View style={styles.readerDots}>
+                    <Text style={styles.readerDot}>R</Text>
+                    <Text style={styles.readerDot}>B</Text>
+                    <Text style={styles.readerDotMore}>+{room.members}</Text>
+                  </View>
                 </View>
                 <Text style={[styles.popularArrow, index === 0 ? styles.popularArrowActive : null]}>→</Text>
               </Link>
@@ -203,13 +218,6 @@ export default function DiscoverScreen() {
           })}
         </View>
 
-        <View style={styles.bottomDock}>
-          <Link href={session ? '/scan' : '/auth'} style={styles.dockItem}>⌕</Link>
-          <Link href="/" style={[styles.dockItem, styles.dockItemActive]}>⌂</Link>
-          <Link href="/meetups" style={styles.dockItem}>◎</Link>
-          <Link href={session ? '/create-room' : '/auth'} style={styles.dockItem}>＋</Link>
-        </View>
-
         {session ? (
           <Pressable onPress={signOut} style={styles.signOutButton}>
             <Text style={styles.signOutText}>로그아웃</Text>
@@ -255,48 +263,52 @@ function getRoomCoverUrl(coverPath: string) {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#C7D8C7',
+    backgroundColor: '#BED3C0',
   },
   content: {
     alignSelf: 'center',
-    backgroundColor: '#F4F1E8',
-    maxWidth: 430,
+    backgroundColor: '#EEF3E8',
+    borderRadius: 34,
+    marginVertical: 14,
+    maxWidth: 390,
     paddingHorizontal: 0,
-    paddingTop: 18,
-    paddingBottom: 28,
+    paddingTop: 24,
+    paddingBottom: 26,
     width: '100%',
   },
   topBar: {
     alignItems: 'center',
     flexDirection: 'row',
     justifyContent: 'space-between',
-    paddingHorizontal: 22,
-    paddingBottom: 18,
+    paddingHorizontal: 20,
+    paddingBottom: 14,
   },
   greeting: {
     color: '#253123',
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '800',
     marginBottom: 4,
   },
   brand: {
     color: '#111910',
-    fontSize: 34,
+    fontSize: 22,
     fontWeight: '900',
     letterSpacing: 0,
   },
   statusBadge: {
     backgroundColor: '#FFFFFF',
     color: '#253123',
-    fontSize: 13,
+    borderRadius: 22,
+    fontSize: 12,
     fontWeight: '900',
     overflow: 'hidden',
-    paddingHorizontal: 14,
-    paddingVertical: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
   },
   headerAction: {
     backgroundColor: '#FFFFFF',
     color: '#111910',
+    borderRadius: 22,
     fontSize: 14,
     fontWeight: '900',
     overflow: 'hidden',
@@ -307,21 +319,22 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     flexDirection: 'row',
     justifyContent: 'space-between',
-    paddingHorizontal: 22,
+    paddingHorizontal: 20,
   },
   pageTitle: {
     color: '#111910',
-    fontSize: 42,
+    fontSize: 44,
     fontWeight: '900',
     letterSpacing: 0,
-    lineHeight: 44,
+    lineHeight: 43,
   },
   iconButton: {
     alignItems: 'center',
     backgroundColor: '#FFFFFF',
-    height: 46,
+    borderRadius: 24,
+    height: 48,
     justifyContent: 'center',
-    width: 46,
+    width: 48,
   },
   iconText: {
     color: '#111910',
@@ -332,26 +345,28 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     flexDirection: 'row',
     gap: 8,
-    paddingHorizontal: 22,
-    paddingTop: 18,
+    paddingHorizontal: 20,
+    paddingTop: 16,
   },
   topicPill: {
     backgroundColor: '#FFFFFF',
+    borderRadius: 20,
     color: '#2A3828',
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '900',
     overflow: 'hidden',
-    paddingHorizontal: 13,
-    paddingVertical: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
   },
   topicPillActive: {
     backgroundColor: '#0E271B',
     color: '#FFFFFF',
   },
   heroRoom: {
-    height: 366,
-    marginHorizontal: 22,
-    marginTop: 18,
+    borderRadius: 34,
+    height: 354,
+    marginHorizontal: 20,
+    marginTop: 16,
     overflow: 'hidden',
     position: 'relative',
   },
@@ -382,7 +397,7 @@ const styles = StyleSheet.create({
     fontWeight: '900',
   },
   heroScrim: {
-    backgroundColor: 'rgba(7, 12, 8, 0.36)',
+    backgroundColor: 'rgba(7, 12, 8, 0.28)',
     bottom: 0,
     left: 0,
     position: 'absolute',
@@ -396,10 +411,11 @@ const styles = StyleSheet.create({
     left: 18,
     position: 'absolute',
     right: 18,
-    top: 18,
+    top: 16,
   },
   countryLabel: {
     backgroundColor: 'rgba(255,255,255,0.88)',
+    borderRadius: 18,
     color: '#16311F',
     fontSize: 11,
     fontWeight: '900',
@@ -410,6 +426,7 @@ const styles = StyleSheet.create({
   saveDot: {
     alignItems: 'center',
     backgroundColor: 'rgba(255,255,255,0.88)',
+    borderRadius: 22,
     color: '#16311F',
     fontSize: 22,
     fontWeight: '900',
@@ -420,48 +437,72 @@ const styles = StyleSheet.create({
     width: 42,
   },
   heroRoomCopy: {
-    bottom: 22,
+    alignItems: 'center',
+    bottom: 26,
     left: 18,
     position: 'absolute',
     right: 18,
   },
   heroRoomTitle: {
     color: '#FFFFFF',
-    fontSize: 40,
+    fontSize: 27,
     fontWeight: '900',
     letterSpacing: 0,
-    lineHeight: 42,
+    lineHeight: 30,
+    textAlign: 'center',
   },
   heroRoomQuestion: {
     color: 'rgba(255,255,255,0.92)',
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: '800',
-    lineHeight: 20,
+    lineHeight: 17,
     marginTop: 8,
-    maxWidth: 330,
+    maxWidth: 260,
+    textAlign: 'center',
   },
   heroFooter: {
     alignItems: 'center',
     flexDirection: 'row',
     gap: 10,
-    marginTop: 16,
+    marginTop: 14,
   },
   heroFooterText: {
-    backgroundColor: 'rgba(255,255,255,0.92)',
-    color: '#152119',
+    color: '#FFFFFF',
+    fontSize: 11,
+    fontWeight: '900',
+  },
+  heroStart: {
+    backgroundColor: '#0E271B',
+    borderRadius: 20,
+    color: '#FFFFFF',
     fontSize: 12,
     fontWeight: '900',
+    marginTop: 13,
     overflow: 'hidden',
-    paddingHorizontal: 10,
-    paddingVertical: 8,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+  },
+  bottomDock: {
+    alignSelf: 'center',
+    alignItems: 'center',
+    backgroundColor: '#0E271B',
+    borderRadius: 30,
+    flexDirection: 'row',
+    gap: 12,
+    justifyContent: 'center',
+    marginTop: -26,
+    overflow: 'hidden',
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    zIndex: 2,
   },
   sectionRow: {
     alignItems: 'center',
     flexDirection: 'row',
     justifyContent: 'space-between',
-    paddingHorizontal: 22,
-    paddingTop: 30,
-    paddingBottom: 14,
+    paddingHorizontal: 20,
+    paddingTop: 28,
+    paddingBottom: 12,
   },
   sectionTitle: {
     color: '#111910',
@@ -481,22 +522,24 @@ const styles = StyleSheet.create({
   },
   popularRail: {
     gap: 12,
-    paddingHorizontal: 22,
+    paddingHorizontal: 20,
   },
   popularItem: {
     alignItems: 'center',
     backgroundColor: '#FFFFFF',
+    borderRadius: 26,
     flexDirection: 'row',
-    height: 86,
+    height: 88,
     overflow: 'hidden',
     paddingHorizontal: 10,
-    width: 250,
+    width: 262,
   },
   popularItemActive: {
     backgroundColor: '#0E271B',
   },
   popularThumb: {
     backgroundColor: '#D7DED2',
+    borderRadius: 20,
     height: 62,
     overflow: 'hidden',
     position: 'relative',
@@ -538,11 +581,42 @@ const styles = StyleSheet.create({
   popularArrowActive: {
     color: '#FFFFFF',
   },
+  readerDots: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 0,
+    marginTop: 6,
+  },
+  readerDot: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 9,
+    color: '#0E271B',
+    fontSize: 9,
+    fontWeight: '900',
+    height: 18,
+    lineHeight: 18,
+    marginRight: -4,
+    overflow: 'hidden',
+    textAlign: 'center',
+    width: 18,
+  },
+  readerDotMore: {
+    backgroundColor: '#DDE9C8',
+    borderRadius: 10,
+    color: '#0E271B',
+    fontSize: 9,
+    fontWeight: '900',
+    height: 19,
+    lineHeight: 19,
+    overflow: 'hidden',
+    paddingHorizontal: 6,
+  },
   galleryList: {
     gap: 18,
-    paddingHorizontal: 22,
+    paddingHorizontal: 20,
   },
   galleryRoom: {
+    borderRadius: 28,
     height: 286,
     overflow: 'hidden',
     width: '100%',
@@ -573,6 +647,7 @@ const styles = StyleSheet.create({
   },
   galleryIndex: {
     backgroundColor: 'rgba(255,255,255,0.88)',
+    borderRadius: 18,
     color: '#16311F',
     fontSize: 12,
     fontWeight: '900',
@@ -585,6 +660,7 @@ const styles = StyleSheet.create({
   },
   gallerySave: {
     backgroundColor: 'rgba(255,255,255,0.9)',
+    borderRadius: 20,
     color: '#16311F',
     fontSize: 22,
     fontWeight: '900',
@@ -635,17 +711,6 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     marginTop: 12,
   },
-  bottomDock: {
-    alignSelf: 'center',
-    backgroundColor: '#0E271B',
-    flexDirection: 'row',
-    gap: 18,
-    justifyContent: 'center',
-    marginTop: 24,
-    overflow: 'hidden',
-    paddingHorizontal: 22,
-    paddingVertical: 12,
-  },
   dockItem: {
     alignItems: 'center',
     color: 'rgba(255,255,255,0.62)',
@@ -658,6 +723,7 @@ const styles = StyleSheet.create({
   },
   dockItemActive: {
     backgroundColor: '#DDE9C8',
+    borderRadius: 17,
     color: '#0E271B',
     overflow: 'hidden',
   },
