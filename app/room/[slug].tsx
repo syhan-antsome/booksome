@@ -305,23 +305,17 @@ export default function RoomScreen() {
           </View>
         </View>
 
-        <View style={styles.joinNote}>
-          <View style={styles.joinCopy}>
-            <Text style={styles.joinTitle}>{isMember ? '이 방에 참여 중입니다' : '이야기에 참여해보세요'}</Text>
-            <Text style={styles.joinText}>
-              {isMember ? '감상, 질문, 댓글, 공감이 열려 있습니다.' : '참여하면 감상과 질문을 남길 수 있습니다.'}
-            </Text>
+        {!isMember ? (
+          <View style={styles.joinNote}>
+            <View style={styles.joinCopy}>
+              <Text style={styles.joinTitle}>이야기에 참여해보세요</Text>
+              <Text style={styles.joinText}>함께 읽고 생각을 나눠보세요.</Text>
+            </View>
+            <Pressable disabled={isJoining} onPress={handleJoinRoom} style={styles.joinButton}>
+              <Text style={styles.joinButtonText}>{isJoining ? '...' : '참여'}</Text>
+            </Pressable>
           </View>
-          <Pressable
-            disabled={isJoining || isMember}
-            onPress={handleJoinRoom}
-            style={[styles.joinButton, isMember ? styles.joinButtonDisabled : null]}
-          >
-            <Text style={[styles.joinButtonText, isMember ? styles.joinButtonTextDisabled : null]}>
-              {isMember ? '참여 중' : isJoining ? '참여 중...' : '참여'}
-            </Text>
-          </Pressable>
-        </View>
+        ) : null}
 
         {actionMessage ? (
           <View style={styles.messagePanel}>
