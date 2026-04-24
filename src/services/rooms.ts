@@ -35,6 +35,17 @@ export type RoomPost = {
   body: string;
   authorName: string | null;
   createdAt: string;
+  reactionCount: number;
+  viewerReacted: boolean;
+  comments: RoomComment[];
+};
+
+export type RoomComment = {
+  id: string;
+  postId: string;
+  body: string;
+  authorName: string | null;
+  createdAt: string;
 };
 
 export type CreateRoomInput = {
@@ -52,6 +63,12 @@ export type CreateRoomPostInput = {
   roomId: string;
   authorId: string;
   kind: 'impression' | 'question';
+  body: string;
+};
+
+export type CreateRoomCommentInput = {
+  postId: string;
+  authorId: string;
   body: string;
 };
 
@@ -144,7 +161,7 @@ export async function getRoomDetail(slug: string, viewerId?: string): Promise<Ro
   };
 }
 
-export async function listRoomPosts(roomId: string): Promise<RoomPost[]> {
+export async function listRoomPosts(roomId: string, viewerId?: string): Promise<RoomPost[]> {
   const { data, error } = await supabase
     .from('posts')
     .select('id, kind, body, created_at, profiles:author_id(display_name)')
@@ -165,7 +182,67 @@ export async function listRoomPosts(roomId: string): Promise<RoomPost[]> {
     profiles?: { display_name?: string | null } | { display_name?: string | null }[] | null;
   };
 
-  return ((data ?? []) as PostRow[]).map((post) => {
+  const postRows = (data ?? []) as PostRow[];
+  const postIds = postRows.map((post) => post.id);
+
+  const [reactionsResult, commentsResult] = postIds.length
+    ? await Promise.all([
+        supabase.from('reactions').select('post_id, profile_id').in('post_id', postIds).eq('reaction', 'like'),
+        supabase
+          .from('comments')
+          .select('id, post_id, body, created_at, profiles:author_id(display_name)')
+          .in('post_id', postIds)
+          .order('created_at', { ascending: true }),
+      ])
+    : [
+        { data: [], error: null },
+        { data: [], error: null },
+      ];
+
+  if (reactionsResult.error) {
+    throw reactionsResult.error;
+  }
+
+  if (commentsResult.error) {
+    throw commentsResult.error;
+  }
+
+  const reactionCounts = new Map<string, number>();
+  const viewerReactionSet = new Set<string>();
+
+  for (const reaction of reactionsResult.data ?? []) {
+    reactionCounts.set(reaction.post_id, (reactionCounts.get(reaction.post_id) ?? 0) + 1);
+
+    if (viewerId && reaction.profile_id === viewerId) {
+      viewerReactionSet.add(reaction.post_id);
+    }
+  }
+
+  type CommentRow = {
+    id: string;
+    post_id: string;
+    body: string;
+    created_at: string;
+    profiles?: { display_name?: string | null } | { display_name?: string | null }[] | null;
+  };
+
+  const commentsByPost = new Map<string, RoomComment[]>();
+  for (const comment of (commentsResult.data ?? []) as CommentRow[]) {
+    const profile = Array.isArray(comment.profiles) ? comment.profiles[0] : comment.profiles;
+    const comments = commentsByPost.get(comment.post_id) ?? [];
+
+    comments.push({
+      id: comment.id,
+      postId: comment.post_id,
+      body: comment.body,
+      authorName: profile?.display_name ?? null,
+      createdAt: comment.created_at,
+    });
+
+    commentsByPost.set(comment.post_id, comments);
+  }
+
+  return postRows.map((post) => {
     const profile = Array.isArray(post.profiles) ? post.profiles[0] : post.profiles;
 
     return {
@@ -174,6 +251,9 @@ export async function listRoomPosts(roomId: string): Promise<RoomPost[]> {
       body: post.body,
       authorName: profile?.display_name ?? null,
       createdAt: post.created_at,
+      reactionCount: reactionCounts.get(post.id) ?? 0,
+      viewerReacted: viewerReactionSet.has(post.id),
+      comments: commentsByPost.get(post.id) ?? [],
     };
   });
 }
@@ -195,6 +275,51 @@ export async function createRoomPost(input: CreateRoomPostInput) {
   }
 
   return data as { id: string };
+}
+
+export async function createRoomComment(input: CreateRoomCommentInput) {
+  const { data, error } = await supabase
+    .from('comments')
+    .insert({
+      post_id: input.postId,
+      author_id: input.authorId,
+      body: input.body.trim(),
+    })
+    .select('id')
+    .single();
+
+  if (error) {
+    throw error;
+  }
+
+  return data as { id: string };
+}
+
+export async function togglePostReaction(postId: string, profileId: string, active: boolean) {
+  if (active) {
+    const { error } = await supabase
+      .from('reactions')
+      .delete()
+      .eq('post_id', postId)
+      .eq('profile_id', profileId)
+      .eq('reaction', 'like');
+
+    if (error) {
+      throw error;
+    }
+
+    return;
+  }
+
+  const { error } = await supabase.from('reactions').upsert({
+    post_id: postId,
+    profile_id: profileId,
+    reaction: 'like',
+  });
+
+  if (error) {
+    throw error;
+  }
 }
 
 export async function createRoom(input: CreateRoomInput) {

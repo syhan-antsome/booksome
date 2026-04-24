@@ -73,6 +73,12 @@ If an existing database needs the Room participation RPC, run:
 supabase/add-join-room-function.sql
 ```
 
+If an existing database needs stricter comment writes, run:
+
+```text
+supabase/tighten-comment-rls.sql
+```
+
 The app first tries to read `room_discovery_cards` from Supabase. If the schema has not been applied yet, the Discover screen falls back to local preview data.
 
 ## Cloudflare Media API

@@ -15,10 +15,12 @@ import { featuredRooms } from '../../src/data/rooms';
 import { useAuth } from '../../src/providers/auth-provider';
 import { getMediaUrl } from '../../src/services/media';
 import {
+  createRoomComment,
   createRoomPost,
   getRoomDetail,
   joinRoom,
   listRoomPosts,
+  togglePostReaction,
   type RoomDetail,
   type RoomPost,
 } from '../../src/services/rooms';
@@ -30,9 +32,12 @@ export default function RoomScreen() {
   const [isLoading, setIsLoading] = useState(true);
   const [isJoining, setIsJoining] = useState(false);
   const [isPosting, setIsPosting] = useState(false);
+  const [reactingPostId, setReactingPostId] = useState<string | null>(null);
+  const [commentingPostId, setCommentingPostId] = useState<string | null>(null);
   const [actionMessage, setActionMessage] = useState<string | null>(null);
   const [postBody, setPostBody] = useState('');
   const [postKind, setPostKind] = useState<'impression' | 'question'>('impression');
+  const [commentDrafts, setCommentDrafts] = useState<Record<string, string>>({});
   const [posts, setPosts] = useState<RoomPost[]>([]);
   const fallbackRoom = featuredRooms.find((item) => item.slug === slug) ?? featuredRooms[0];
 
@@ -42,7 +47,7 @@ export default function RoomScreen() {
     setRemoteRoom(room);
 
     if (room) {
-      const nextPosts = await listRoomPosts(room.id);
+      const nextPosts = await listRoomPosts(room.id, session?.user.id);
       setPosts(nextPosts);
     }
   };
@@ -62,7 +67,7 @@ export default function RoomScreen() {
         }
 
         if (room) {
-          const nextPosts = await listRoomPosts(room.id);
+          const nextPosts = await listRoomPosts(room.id, session?.user.id);
           if (isMounted) {
             setPosts(nextPosts);
           }
@@ -112,6 +117,64 @@ export default function RoomScreen() {
       setActionMessage(getErrorMessage(error, '리딩룸 참여에 실패했습니다.'));
     } finally {
       setIsJoining(false);
+    }
+  };
+
+  const ensureCanInteract = () => {
+    if (!session) {
+      router.push('/auth');
+      return false;
+    }
+
+    if (!remoteRoom?.viewerRole) {
+      setActionMessage('먼저 리딩룸에 참여해야 반응할 수 있습니다.');
+      return false;
+    }
+
+    return true;
+  };
+
+  const handleToggleReaction = async (post: RoomPost) => {
+    if (!ensureCanInteract() || !session) return;
+
+    setReactingPostId(post.id);
+    setActionMessage(null);
+
+    try {
+      await togglePostReaction(post.id, session.user.id, post.viewerReacted);
+      await refreshRoom();
+    } catch (error) {
+      setActionMessage(getErrorMessage(error, '공감 처리에 실패했습니다.'));
+    } finally {
+      setReactingPostId(null);
+    }
+  };
+
+  const handleCreateComment = async (postId: string) => {
+    if (!ensureCanInteract() || !session) return;
+
+    const body = commentDrafts[postId]?.trim();
+    if (!body) {
+      setActionMessage('댓글 내용을 입력해주세요.');
+      return;
+    }
+
+    setCommentingPostId(postId);
+    setActionMessage(null);
+
+    try {
+      await createRoomComment({
+        postId,
+        authorId: session.user.id,
+        body,
+      });
+      setCommentDrafts((drafts) => ({ ...drafts, [postId]: '' }));
+      await refreshRoom();
+      setActionMessage('댓글을 남겼습니다.');
+    } catch (error) {
+      setActionMessage(getErrorMessage(error, '댓글 작성에 실패했습니다.'));
+    } finally {
+      setCommentingPostId(null);
     }
   };
 
@@ -300,6 +363,52 @@ export default function RoomScreen() {
                   <Text style={styles.postAuthor}>{post.authorName ?? 'Reader'}</Text>
                 </View>
                 <Text style={styles.postBody}>{post.body}</Text>
+                <View style={styles.postActions}>
+                  <Pressable
+                    disabled={reactingPostId === post.id}
+                    onPress={() => handleToggleReaction(post)}
+                    style={[styles.reactionButton, post.viewerReacted ? styles.reactionButtonActive : null]}
+                  >
+                    <Text
+                      style={[
+                        styles.reactionText,
+                        post.viewerReacted ? styles.reactionTextActive : null,
+                      ]}
+                    >
+                      공감 {post.reactionCount}
+                    </Text>
+                  </Pressable>
+                </View>
+                {post.comments.length > 0 ? (
+                  <View style={styles.commentsList}>
+                    {post.comments.map((comment) => (
+                      <View key={comment.id} style={styles.commentItem}>
+                        <Text style={styles.commentAuthor}>{comment.authorName ?? 'Reader'}</Text>
+                        <Text style={styles.commentBody}>{comment.body}</Text>
+                      </View>
+                    ))}
+                  </View>
+                ) : null}
+                <View style={styles.commentComposer}>
+                  <TextInput
+                    onChangeText={(text) =>
+                      setCommentDrafts((drafts) => ({ ...drafts, [post.id]: text }))
+                    }
+                    placeholder={room.viewerRole ? '댓글을 남겨보세요.' : '참여 후 댓글을 남길 수 있습니다.'}
+                    placeholderTextColor="#A49B8D"
+                    style={styles.commentInput}
+                    value={commentDrafts[post.id] ?? ''}
+                  />
+                  <Pressable
+                    disabled={commentingPostId === post.id}
+                    onPress={() => handleCreateComment(post.id)}
+                    style={styles.commentButton}
+                  >
+                    <Text style={styles.commentButtonText}>
+                      {commentingPostId === post.id ? '등록' : '댓글'}
+                    </Text>
+                  </Pressable>
+                </View>
               </View>
             ))
           ) : (
@@ -614,6 +723,81 @@ const styles = StyleSheet.create({
     fontSize: 17,
     fontWeight: '700',
     lineHeight: 25,
+  },
+  postActions: {
+    flexDirection: 'row',
+    marginTop: 14,
+  },
+  reactionButton: {
+    backgroundColor: '#F0E8DA',
+    borderRadius: 14,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  reactionButtonActive: {
+    backgroundColor: '#116653',
+  },
+  reactionText: {
+    color: '#116653',
+    fontSize: 13,
+    fontWeight: '900',
+  },
+  reactionTextActive: {
+    color: '#FFFFFF',
+  },
+  commentsList: {
+    borderTopColor: '#EEE7DA',
+    borderTopWidth: 1,
+    gap: 10,
+    marginTop: 14,
+    paddingTop: 14,
+  },
+  commentItem: {
+    backgroundColor: '#F7F2EA',
+    borderRadius: 14,
+    padding: 12,
+  },
+  commentAuthor: {
+    color: '#116653',
+    fontSize: 12,
+    fontWeight: '900',
+    marginBottom: 4,
+  },
+  commentBody: {
+    color: '#142326',
+    fontSize: 14,
+    fontWeight: '700',
+    lineHeight: 20,
+  },
+  commentComposer: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 12,
+  },
+  commentInput: {
+    backgroundColor: '#F7F2EA',
+    borderColor: '#E6DDCF',
+    borderRadius: 14,
+    borderWidth: 1,
+    color: '#142326',
+    flex: 1,
+    fontSize: 14,
+    fontWeight: '700',
+    minHeight: 44,
+    paddingHorizontal: 12,
+  },
+  commentButton: {
+    alignItems: 'center',
+    backgroundColor: '#142326',
+    borderRadius: 14,
+    justifyContent: 'center',
+    minWidth: 58,
+    paddingHorizontal: 12,
+  },
+  commentButtonText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '900',
   },
   emptyPosts: {
     backgroundColor: '#ECE5D8',
