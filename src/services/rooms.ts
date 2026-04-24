@@ -4,6 +4,7 @@ export type RoomSummary = {
   id: string;
   slug: string;
   title: string;
+  created_at?: string;
   subtitle: string | null;
   host_name: string | null;
   member_count: number;
@@ -42,8 +43,22 @@ export async function listFeaturedRooms() {
   const { data, error } = await supabase
     .from('room_discovery_cards')
     .select('*')
-    .order('member_count', { ascending: false })
+    .order('created_at', { ascending: false })
     .limit(12);
+
+  if (error && error.message.includes('created_at')) {
+    const fallback = await supabase
+      .from('room_discovery_cards')
+      .select('*')
+      .order('member_count', { ascending: false })
+      .limit(12);
+
+    if (fallback.error) {
+      throw fallback.error;
+    }
+
+    return fallback.data as RoomSummary[];
+  }
 
   if (error) {
     throw error;

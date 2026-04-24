@@ -212,7 +212,8 @@ select
   count(distinct rm.profile_id)::integer as member_count,
   pinned.body as pinned_question,
   next_session.title as next_event,
-  50::integer as progress_percent
+  50::integer as progress_percent,
+  r.created_at
 from public.rooms r
 join public.book_works bw on bw.id = r.work_id
 left join public.room_members rm on rm.room_id = r.id

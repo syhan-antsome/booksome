@@ -1,5 +1,5 @@
-import { Link } from 'expo-router';
-import { useEffect, useMemo, useState } from 'react';
+import { Link, useFocusEffect } from 'expo-router';
+import { useCallback, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -11,9 +11,13 @@ export default function DiscoverScreen() {
   const { isLoading, profile, session, signOut } = useAuth();
   const [remoteRooms, setRemoteRooms] = useState<RoomSummary[]>([]);
   const [connectionLabel, setConnectionLabel] = useState('Supabase 연결 확인 중');
+  const [isRefreshingRooms, setIsRefreshingRooms] = useState(false);
 
-  useEffect(() => {
+  const refreshRooms = useCallback(() => {
     let isMounted = true;
+
+    setIsRefreshingRooms(true);
+    setConnectionLabel('Supabase 새로고침 중');
 
     listFeaturedRooms()
       .then((rooms) => {
@@ -30,12 +34,19 @@ export default function DiscoverScreen() {
         }
 
         setConnectionLabel('Local preview');
+      })
+      .finally(() => {
+        if (isMounted) {
+          setIsRefreshingRooms(false);
+        }
       });
 
     return () => {
       isMounted = false;
     };
   }, []);
+
+  useFocusEffect(refreshRooms);
 
   const rooms = useMemo(
     () => (remoteRooms.length > 0 ? remoteRooms.map(toFeaturedRoom) : featuredRooms),
@@ -87,9 +98,14 @@ export default function DiscoverScreen() {
 
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>지금 살아있는 리딩룸</Text>
-          <Link href="/meetups" style={styles.sectionLink}>
-            주변 모임
-          </Link>
+          <View style={styles.sectionActions}>
+            <Pressable onPress={refreshRooms} style={styles.refreshAction}>
+              <Text style={styles.refreshText}>{isRefreshingRooms ? '갱신 중' : '새로고침'}</Text>
+            </Pressable>
+            <Link href="/meetups" style={styles.sectionLink}>
+              주변 모임
+            </Link>
+          </View>
         </View>
 
         <View style={styles.roomList}>
@@ -274,6 +290,24 @@ const styles = StyleSheet.create({
     fontSize: 22,
     fontWeight: '900',
     letterSpacing: 0,
+  },
+  sectionActions: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 8,
+  },
+  refreshAction: {
+    backgroundColor: '#FFFFFF',
+    borderColor: '#E5DED1',
+    borderRadius: 14,
+    borderWidth: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  refreshText: {
+    color: '#116653',
+    fontSize: 13,
+    fontWeight: '900',
   },
   sectionLink: {
     color: '#116653',
