@@ -3,7 +3,7 @@ import { useCallback, useMemo, useState } from 'react';
 import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { featuredRooms, nativeReadiness, type FeaturedRoom } from '../src/data/rooms';
+import { featuredRooms, type FeaturedRoom } from '../src/data/rooms';
 import { useAuth } from '../src/providers/auth-provider';
 import { getMediaUrl } from '../src/services/media';
 import { listFeaturedRooms, type RoomSummary } from '../src/services/rooms';
@@ -50,25 +50,26 @@ export default function DiscoverScreen() {
     [remoteRooms],
   );
   const leadRoom = rooms[0];
-  const feedRooms = rooms.length > 1 ? rooms.slice(1) : rooms;
+  const popularRooms = rooms.slice(0, 4);
+  const galleryRooms = rooms.length > 1 ? rooms.slice(1) : rooms;
   const leadCoverUrl = leadRoom ? getRoomImageUrl(leadRoom) : null;
 
   return (
     <SafeAreaView style={styles.safeArea}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <View style={styles.header}>
+        <View style={styles.topBar}>
           <View>
-            <Text style={styles.brand}>BookSome</Text>
-            <Text style={styles.brandCaption}>
+            <Text style={styles.greeting}>
               {isLoading
-                ? '읽는 중'
+                ? '책장을 여는 중'
                 : session
-                  ? `${profile?.display_name ?? 'Reader'}님의 리딩 피드`
-                  : '책으로 이어지는 사람들'}
+                  ? `Hi, ${profile?.display_name ?? 'Reader'}`
+                  : 'Hi, Reader'}
             </Text>
+            <Text style={styles.brand}>BookSome</Text>
           </View>
           {session ? (
-            <Text style={styles.connectionText}>오늘</Text>
+            <Text style={styles.statusBadge}>Today</Text>
           ) : (
             <Link href="/auth" style={styles.headerAction}>
               로그인
@@ -76,107 +77,137 @@ export default function DiscoverScreen() {
           )}
         </View>
 
+        <View style={styles.searchLine}>
+          <Text style={styles.pageTitle}>Reading rooms</Text>
+          <Pressable onPress={refreshRooms} style={styles.iconButton}>
+            <Text style={styles.iconText}>{isRefreshingRooms ? '...' : '⌕'}</Text>
+          </Pressable>
+        </View>
+
+        <View style={styles.topicRail}>
+          <Text style={[styles.topicPill, styles.topicPillActive]}># 함께읽기</Text>
+          <Text style={styles.topicPill}>질문</Text>
+          <Text style={styles.topicPill}>감상</Text>
+          <Text style={styles.topicPill}>모임</Text>
+        </View>
+
         {leadRoom ? (
-          <Link href={`/room/${leadRoom.slug}`} style={styles.heroPoster}>
-            <View style={[styles.heroColorPlane, { backgroundColor: leadRoom.accent }]} />
-            <View style={styles.heroWhiteCut} />
-            <View style={styles.heroPaperShard} />
-            <View style={styles.heroVisual}>
-              {leadCoverUrl ? (
-                <Image resizeMode="cover" source={{ uri: leadCoverUrl }} style={styles.heroVisualImage} />
-              ) : (
-                <View style={[styles.heroFallback, { backgroundColor: leadRoom.accent }]}>
-                  <Text style={styles.heroFallbackLetter}>{leadRoom.title.slice(0, 1)}</Text>
-                  <View style={styles.heroFallbackLineOne} />
-                  <View style={styles.heroFallbackLineTwo} />
-                </View>
-              )}
+          <Link href={`/room/${leadRoom.slug}`} style={styles.heroRoom}>
+            {leadCoverUrl ? (
+              <Image resizeMode="cover" source={{ uri: leadCoverUrl }} style={styles.heroRoomImage} />
+            ) : (
+              <View style={[styles.heroImageFallback, { backgroundColor: leadRoom.accent }]}>
+                <Text style={styles.fallbackLetter}>{leadRoom.title.slice(0, 1)}</Text>
+              </View>
+            )}
+            <View style={styles.heroScrim} />
+            <View style={styles.heroTopMeta}>
+              <Text style={styles.countryLabel}>BOOKSOME</Text>
+              <Text style={styles.saveDot}>☆</Text>
             </View>
-            <View style={styles.heroCopy}>
-              <Text style={styles.posterKicker}>TODAY ROOM</Text>
-              <Text adjustsFontSizeToFit numberOfLines={2} style={styles.heroTitle}>
+            <View style={styles.heroRoomCopy}>
+              <Text adjustsFontSizeToFit numberOfLines={2} style={styles.heroRoomTitle}>
                 {leadRoom.title}
               </Text>
-              <Text style={styles.heroAuthor}>{leadRoom.author}</Text>
-              <Text style={styles.heroQuestion}>{leadRoom.question}</Text>
-              <View style={styles.heroActions}>
-                <Text style={styles.heroPrimaryAction}>ENTER ↗</Text>
-                <Text style={styles.heroSecondaryAction}>읽고 말하기</Text>
+              <Text style={styles.heroRoomQuestion} numberOfLines={2}>
+                {leadRoom.question}
+              </Text>
+              <View style={styles.heroFooter}>
+                <Text style={styles.heroFooterText}>{leadRoom.author}</Text>
+                <Text style={styles.heroFooterText}>Start room</Text>
               </View>
             </View>
           </Link>
         ) : null}
 
-        <View style={styles.quickActions}>
-          <Link href={session ? '/scan' : '/auth'} style={[styles.quickAction, styles.quickActionDark]}>
-            <Text style={[styles.quickActionIcon, styles.quickActionIconDark]}>{session ? '⌕' : '→'}</Text>
-            <Text style={[styles.quickActionText, styles.quickActionTextDark]}>
-              {session ? 'ISBN 스캔' : '시작하기'}
-            </Text>
-          </Link>
-          <Link href={session ? '/create-room' : '/auth'} style={styles.quickAction}>
-            <Text style={styles.quickActionIcon}>＋</Text>
-            <Text style={styles.quickActionText}>{session ? '방 만들기' : '회원가입'}</Text>
-          </Link>
-          <Link href="/meetups" style={styles.quickAction}>
-            <Text style={styles.quickActionIcon}>◎</Text>
-            <Text style={styles.quickActionText}>모임</Text>
-          </Link>
+        <View style={styles.sectionRow}>
+          <Text style={styles.sectionTitle}>Popular</Text>
+          <Text style={styles.sectionMore}>{connectionLabel}</Text>
         </View>
-
-        <View style={styles.sectionHeader}>
-          <View>
-            <Text style={styles.sectionEyebrow}>Rooms</Text>
-            <Text style={styles.sectionTitle}>지금 열려있는 이야기</Text>
-          </View>
-          <Pressable onPress={refreshRooms} style={styles.refreshAction}>
-            <Text style={styles.refreshText}>{isRefreshingRooms ? '...' : '↻'}</Text>
-          </Pressable>
-        </View>
-
-        <View style={styles.roomFeed}>
-          {feedRooms.map((room, index) => {
+        <ScrollView
+          contentContainerStyle={styles.popularRail}
+          horizontal
+          showsHorizontalScrollIndicator={false}
+        >
+          {popularRooms.map((room, index) => {
             const coverUrl = getRoomImageUrl(room);
 
             return (
-              <Link key={room.slug} href={`/room/${room.slug}`} style={styles.roomItem}>
-                <View style={styles.roomIndexWrap}>
-                  <Text style={styles.roomIndex}>{String(index + 1).padStart(2, '0')}</Text>
-                </View>
-                <View style={styles.roomThumb}>
+              <Link
+                key={room.slug}
+                href={`/room/${room.slug}`}
+                style={[styles.popularItem, index === 0 ? styles.popularItemActive : null]}
+              >
+                <View style={styles.popularThumb}>
                   {coverUrl ? (
-                    <Image resizeMode="cover" source={{ uri: coverUrl }} style={styles.roomThumbImage} />
+                    <Image resizeMode="cover" source={{ uri: coverUrl }} style={styles.popularThumbImage} />
                   ) : (
-                    <View style={[styles.roomThumbFallback, { backgroundColor: room.accent }]}>
-                      <Text style={styles.roomThumbLetter}>{room.title.slice(0, 1)}</Text>
+                    <View style={[styles.heroImageFallback, { backgroundColor: room.accent }]}>
+                      <Text style={styles.fallbackLetterSmall}>{room.title.slice(0, 1)}</Text>
                     </View>
                   )}
                 </View>
-                <View style={styles.roomInfo}>
-                  <Text style={styles.roomTitle}>{room.title}</Text>
-                  <Text style={styles.roomMeta}>{room.author} · {room.host}</Text>
-                  <Text style={styles.roomQuestion}>{room.question}</Text>
+                <View style={styles.popularCopy}>
+                  <Text style={[styles.popularTitle, index === 0 ? styles.popularTitleActive : null]} numberOfLines={1}>
+                    {room.title}
+                  </Text>
+                  <Text style={[styles.popularMeta, index === 0 ? styles.popularMetaActive : null]} numberOfLines={1}>
+                    {room.author}
+                  </Text>
                 </View>
-                <Text style={styles.roomArrow}>↗</Text>
+                <Text style={[styles.popularArrow, index === 0 ? styles.popularArrowActive : null]}>→</Text>
+              </Link>
+            );
+          })}
+        </ScrollView>
+
+        <View style={styles.sectionRow}>
+          <Text style={styles.sectionTitle}>Today picks</Text>
+          <Link href={session ? '/create-room' : '/auth'} style={styles.createRoomLink}>
+            + 방 만들기
+          </Link>
+        </View>
+
+        <View style={styles.galleryList}>
+          {galleryRooms.map((room, index) => {
+            const coverUrl = getRoomImageUrl(room);
+
+            return (
+              <Link key={room.slug} href={`/room/${room.slug}`} style={styles.galleryRoom}>
+                <View style={[styles.galleryImageWrap, { backgroundColor: room.accent }]}>
+                  {coverUrl ? (
+                    <Image resizeMode="cover" source={{ uri: coverUrl }} style={styles.galleryImage} />
+                  ) : (
+                    <View style={[styles.heroImageFallback, { backgroundColor: room.accent }]}>
+                      <Text style={styles.fallbackLetter}>{room.title.slice(0, 1)}</Text>
+                    </View>
+                  )}
+                  <View style={styles.galleryScrim} />
+                  <Text style={styles.galleryIndex}>{String(index + 1).padStart(2, '0')}</Text>
+                  <Text style={styles.gallerySave}>☆</Text>
+                  <View style={styles.galleryCopy}>
+                    <View style={styles.galleryTitleRow}>
+                      <Text style={styles.galleryTitle} numberOfLines={2}>
+                        {room.title}
+                      </Text>
+                      <Text style={styles.galleryArrow}>↗</Text>
+                    </View>
+                    <Text style={styles.galleryMeta}>{room.author} · {room.host}</Text>
+                    <Text style={styles.galleryQuestion} numberOfLines={2}>
+                      {room.question}
+                    </Text>
+                  </View>
+                </View>
               </Link>
             );
           })}
         </View>
 
-        <View style={styles.nativePanel}>
-          <View style={styles.sectionHeaderCompact}>
-            <Text style={styles.sectionEyebrow}>Tools</Text>
-            <Text style={styles.connectionText}>BookSome</Text>
-          </View>
-          {nativeReadiness.map((item, index) => (
-            <View key={item.title} style={styles.nativeItem}>
-              <Text style={styles.nativeIndex}>{String(index + 1).padStart(2, '0')}</Text>
-              <View style={styles.nativeCopy}>
-                <Text style={styles.nativeTitle}>{item.title}</Text>
-                <Text style={styles.nativeLabel}>{item.label}</Text>
-              </View>
-            </View>
-          ))}
+        <View style={styles.bottomDock}>
+          <Link href={session ? '/scan' : '/auth'} style={styles.dockItem}>⌕</Link>
+          <Link href="/" style={[styles.dockItem, styles.dockItemActive]}>⌂</Link>
+          <Link href="/meetups" style={styles.dockItem}>◎</Link>
+          <Link href={session ? '/create-room' : '/auth'} style={styles.dockItem}>＋</Link>
         </View>
 
         {session ? (
@@ -224,96 +255,114 @@ function getRoomCoverUrl(coverPath: string) {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#F34A3F',
+    backgroundColor: '#C7D8C7',
   },
   content: {
     alignSelf: 'center',
-    backgroundColor: '#FFFDF8',
+    backgroundColor: '#F4F1E8',
     maxWidth: 430,
     paddingHorizontal: 0,
-    paddingTop: 0,
-    paddingBottom: 48,
+    paddingTop: 18,
+    paddingBottom: 28,
     width: '100%',
   },
-  header: {
+  topBar: {
     alignItems: 'center',
-    backgroundColor: '#F34A3F',
     flexDirection: 'row',
     justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingBottom: 16,
+    paddingHorizontal: 22,
+    paddingBottom: 18,
+  },
+  greeting: {
+    color: '#253123',
+    fontSize: 14,
+    fontWeight: '800',
+    marginBottom: 4,
   },
   brand: {
-    color: '#FFFFFF',
-    fontSize: 30,
+    color: '#111910',
+    fontSize: 34,
     fontWeight: '900',
     letterSpacing: 0,
   },
-  brandCaption: {
-    color: 'rgba(255,255,255,0.78)',
+  statusBadge: {
+    backgroundColor: '#FFFFFF',
+    color: '#253123',
     fontSize: 13,
-    fontWeight: '700',
-    marginTop: 1,
+    fontWeight: '900',
+    overflow: 'hidden',
+    paddingHorizontal: 14,
+    paddingVertical: 10,
   },
   headerAction: {
-    color: '#FFFFFF',
+    backgroundColor: '#FFFFFF',
+    color: '#111910',
     fontSize: 14,
     fontWeight: '900',
+    overflow: 'hidden',
+    paddingHorizontal: 14,
+    paddingVertical: 10,
   },
-  connectionText: {
-    color: 'rgba(255,255,255,0.74)',
-    fontSize: 12,
-    fontWeight: '800',
+  searchLine: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingHorizontal: 22,
   },
-  heroPoster: {
-    backgroundColor: '#F34A3F',
-    height: 590,
+  pageTitle: {
+    color: '#111910',
+    fontSize: 42,
+    fontWeight: '900',
+    letterSpacing: 0,
+    lineHeight: 44,
+  },
+  iconButton: {
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    height: 46,
+    justifyContent: 'center',
+    width: 46,
+  },
+  iconText: {
+    color: '#111910',
+    fontSize: 20,
+    fontWeight: '900',
+  },
+  topicRail: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 8,
+    paddingHorizontal: 22,
+    paddingTop: 18,
+  },
+  topicPill: {
+    backgroundColor: '#FFFFFF',
+    color: '#2A3828',
+    fontSize: 13,
+    fontWeight: '900',
+    overflow: 'hidden',
+    paddingHorizontal: 13,
+    paddingVertical: 10,
+  },
+  topicPillActive: {
+    backgroundColor: '#0E271B',
+    color: '#FFFFFF',
+  },
+  heroRoom: {
+    height: 366,
+    marginHorizontal: 22,
+    marginTop: 18,
     overflow: 'hidden',
     position: 'relative',
   },
-  heroColorPlane: {
-    bottom: 160,
-    left: 0,
-    position: 'absolute',
-    right: 0,
-    top: 0,
-  },
-  heroWhiteCut: {
-    backgroundColor: '#FFFDF8',
-    bottom: -72,
-    height: 370,
-    left: -36,
-    position: 'absolute',
-    right: -36,
-    transform: [{ rotate: '-12deg' }],
-  },
-  heroPaperShard: {
-    backgroundColor: '#FFFDF8',
-    height: 172,
-    left: -64,
-    position: 'absolute',
-    top: 150,
-    transform: [{ rotate: '40deg' }],
-    width: 188,
-  },
-  heroVisual: {
-    backgroundColor: '#18130F',
-    height: 250,
-    overflow: 'hidden',
-    position: 'absolute',
-    right: 16,
-    top: 34,
-    transform: [{ rotate: '5deg' }],
-    width: '62%',
-  },
-  heroVisualImage: {
+  heroRoomImage: {
     bottom: 0,
     left: 0,
     position: 'absolute',
     right: 0,
     top: 0,
   },
-  heroFallback: {
+  heroImageFallback: {
     alignItems: 'center',
     bottom: 0,
     justifyContent: 'center',
@@ -322,283 +371,303 @@ const styles = StyleSheet.create({
     right: 0,
     top: 0,
   },
-  heroFallbackLetter: {
-    color: 'rgba(255,255,255,0.18)',
-    fontSize: 156,
+  fallbackLetter: {
+    color: 'rgba(255,255,255,0.62)',
+    fontSize: 94,
     fontWeight: '900',
-    letterSpacing: 0,
   },
-  heroFallbackLineOne: {
-    backgroundColor: 'rgba(255,255,255,0.18)',
-    height: 12,
+  fallbackLetterSmall: {
+    color: 'rgba(255,255,255,0.7)',
+    fontSize: 32,
+    fontWeight: '900',
+  },
+  heroScrim: {
+    backgroundColor: 'rgba(7, 12, 8, 0.36)',
+    bottom: 0,
+    left: 0,
+    position: 'absolute',
+    right: 0,
+    top: 0,
+  },
+  heroTopMeta: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     left: 18,
     position: 'absolute',
-    top: 78,
-    width: 94,
+    right: 18,
+    top: 18,
   },
-  heroFallbackLineTwo: {
-    backgroundColor: 'rgba(255,255,255,0.24)',
-    bottom: 58,
-    height: 10,
+  countryLabel: {
+    backgroundColor: 'rgba(255,255,255,0.88)',
+    color: '#16311F',
+    fontSize: 11,
+    fontWeight: '900',
+    overflow: 'hidden',
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+  },
+  saveDot: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.88)',
+    color: '#16311F',
+    fontSize: 22,
+    fontWeight: '900',
+    height: 42,
+    lineHeight: 38,
+    overflow: 'hidden',
+    textAlign: 'center',
+    width: 42,
+  },
+  heroRoomCopy: {
+    bottom: 22,
+    left: 18,
     position: 'absolute',
     right: 18,
-    width: 72,
   },
-  heroCopy: {
-    bottom: 34,
-    left: 20,
-    position: 'absolute',
-    right: 20,
-  },
-  posterKicker: {
-    alignSelf: 'flex-start',
-    backgroundColor: '#E9E2DA',
-    color: '#17120F',
-    fontSize: 12,
-    fontWeight: '900',
-    marginBottom: 12,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-  },
-  heroTitle: {
-    color: '#15110E',
-    fontSize: 46,
+  heroRoomTitle: {
+    color: '#FFFFFF',
+    fontSize: 40,
     fontWeight: '900',
     letterSpacing: 0,
-    lineHeight: 50,
-    maxWidth: 520,
-    textTransform: 'uppercase',
+    lineHeight: 42,
   },
-  heroAuthor: {
-    color: '#5F554D',
-    fontSize: 16,
-    fontWeight: '900',
-    marginTop: 12,
-  },
-  heroQuestion: {
-    color: '#3B342F',
-    fontSize: 16,
+  heroRoomQuestion: {
+    color: 'rgba(255,255,255,0.92)',
+    fontSize: 14,
     fontWeight: '800',
-    lineHeight: 23,
-    marginTop: 14,
-    maxWidth: 480,
+    lineHeight: 20,
+    marginTop: 8,
+    maxWidth: 330,
   },
-  heroActions: {
+  heroFooter: {
     alignItems: 'center',
-    flexDirection: 'row',
-    gap: 12,
-    marginTop: 24,
-  },
-  heroPrimaryAction: {
-    backgroundColor: '#080706',
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '900',
-    overflow: 'hidden',
-    paddingHorizontal: 18,
-    paddingVertical: 12,
-  },
-  heroSecondaryAction: {
-    backgroundColor: '#E8E1DA',
-    color: '#15110E',
-    fontSize: 15,
-    fontWeight: '900',
-    overflow: 'hidden',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-  },
-  quickActions: {
-    backgroundColor: '#FFFDF8',
     flexDirection: 'row',
     gap: 10,
-    paddingHorizontal: 20,
-    paddingTop: 22,
-    paddingBottom: 8,
+    marginTop: 16,
   },
-  quickAction: {
-    alignItems: 'center',
-    backgroundColor: '#F0EAE2',
-    flex: 1,
-    flexDirection: 'row',
-    gap: 8,
-    justifyContent: 'center',
-    minHeight: 46,
-    paddingHorizontal: 10,
-  },
-  quickActionDark: {
-    backgroundColor: '#070604',
-  },
-  quickActionIcon: {
-    color: '#15110E',
-    fontSize: 17,
-    fontWeight: '900',
-  },
-  quickActionIconDark: {
-    color: '#FFFFFF',
-  },
-  quickActionText: {
-    color: '#15110E',
-    fontSize: 14,
-    fontWeight: '900',
-    textAlign: 'center',
-  },
-  quickActionTextDark: {
-    color: '#FFFFFF',
-  },
-  sectionHeader: {
-    alignItems: 'flex-end',
-    backgroundColor: '#FFFDF8',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingTop: 34,
-    paddingBottom: 8,
-  },
-  sectionHeaderCompact: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 8,
-  },
-  sectionEyebrow: {
-    color: '#958B80',
+  heroFooterText: {
+    backgroundColor: 'rgba(255,255,255,0.92)',
+    color: '#152119',
     fontSize: 12,
     fontWeight: '900',
-    marginBottom: 6,
+    overflow: 'hidden',
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+  },
+  sectionRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingHorizontal: 22,
+    paddingTop: 30,
+    paddingBottom: 14,
   },
   sectionTitle: {
-    color: '#24201B',
-    fontSize: 26,
+    color: '#111910',
+    fontSize: 28,
     fontWeight: '900',
     letterSpacing: 0,
   },
-  refreshAction: {
-    alignItems: 'center',
-    height: 36,
-    justifyContent: 'center',
-    width: 36,
-  },
-  refreshText: {
-    color: '#24201B',
-    fontSize: 23,
-    fontWeight: '900',
-  },
-  roomFeed: {
-    backgroundColor: '#FFFDF8',
-    paddingHorizontal: 20,
-    paddingTop: 8,
-  },
-  roomItem: {
-    alignItems: 'center',
-    borderBottomColor: 'rgba(36,32,27,0.1)',
-    borderBottomWidth: 1,
-    flexDirection: 'row',
-    minHeight: 132,
-    paddingVertical: 18,
-  },
-  roomIndexWrap: {
-    width: 34,
-  },
-  roomIndex: {
-    color: '#B2A79A',
+  sectionMore: {
+    color: '#64715F',
     fontSize: 12,
     fontWeight: '900',
   },
-  roomThumb: {
-    borderRadius: 4,
-    height: 92,
-    overflow: 'hidden',
-    width: 68,
+  createRoomLink: {
+    color: '#16311F',
+    fontSize: 13,
+    fontWeight: '900',
   },
-  roomThumbImage: {
+  popularRail: {
+    gap: 12,
+    paddingHorizontal: 22,
+  },
+  popularItem: {
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    flexDirection: 'row',
+    height: 86,
+    overflow: 'hidden',
+    paddingHorizontal: 10,
+    width: 250,
+  },
+  popularItemActive: {
+    backgroundColor: '#0E271B',
+  },
+  popularThumb: {
+    backgroundColor: '#D7DED2',
+    height: 62,
+    overflow: 'hidden',
+    position: 'relative',
+    width: 56,
+  },
+  popularThumbImage: {
     bottom: 0,
     left: 0,
     position: 'absolute',
     right: 0,
     top: 0,
   },
-  roomThumbFallback: {
-    alignItems: 'center',
+  popularCopy: {
     flex: 1,
-    justifyContent: 'center',
+    paddingHorizontal: 12,
   },
-  roomThumbLetter: {
-    color: '#FFFFFF',
-    fontSize: 30,
+  popularTitle: {
+    color: '#172117',
+    fontSize: 16,
     fontWeight: '900',
   },
-  roomInfo: {
-    flex: 1,
-    paddingHorizontal: 16,
+  popularTitleActive: {
+    color: '#FFFFFF',
   },
-  roomTitle: {
-    color: '#24201B',
+  popularMeta: {
+    color: '#71806B',
+    fontSize: 12,
+    fontWeight: '800',
+    marginTop: 5,
+  },
+  popularMetaActive: {
+    color: 'rgba(255,255,255,0.72)',
+  },
+  popularArrow: {
+    color: '#172117',
+    fontSize: 18,
+    fontWeight: '900',
+  },
+  popularArrowActive: {
+    color: '#FFFFFF',
+  },
+  galleryList: {
+    gap: 18,
+    paddingHorizontal: 22,
+  },
+  galleryRoom: {
+    height: 286,
+    overflow: 'hidden',
+    width: '100%',
+  },
+  galleryImageWrap: {
+    bottom: 0,
+    height: 286,
+    left: 0,
+    overflow: 'hidden',
+    position: 'absolute',
+    right: 0,
+    top: 0,
+  },
+  galleryImage: {
+    bottom: 0,
+    left: 0,
+    position: 'absolute',
+    right: 0,
+    top: 0,
+  },
+  galleryScrim: {
+    backgroundColor: 'rgba(7,12,8,0.48)',
+    bottom: 0,
+    left: 0,
+    position: 'absolute',
+    right: 0,
+    top: 0,
+  },
+  galleryIndex: {
+    backgroundColor: 'rgba(255,255,255,0.88)',
+    color: '#16311F',
+    fontSize: 12,
+    fontWeight: '900',
+    left: 14,
+    overflow: 'hidden',
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    position: 'absolute',
+    top: 14,
+  },
+  gallerySave: {
+    backgroundColor: 'rgba(255,255,255,0.9)',
+    color: '#16311F',
     fontSize: 22,
     fontWeight: '900',
+    height: 40,
+    lineHeight: 36,
+    overflow: 'hidden',
+    position: 'absolute',
+    right: 14,
+    textAlign: 'center',
+    top: 14,
+    width: 40,
+  },
+  galleryCopy: {
+    bottom: 18,
+    left: 16,
+    position: 'absolute',
+    right: 16,
+  },
+  galleryTitleRow: {
+    alignItems: 'flex-start',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  galleryTitle: {
+    color: '#FFFFFF',
+    flex: 1,
+    fontSize: 30,
+    fontWeight: '900',
     letterSpacing: 0,
+    lineHeight: 32,
   },
-  roomMeta: {
-    color: '#8B8175',
-    fontSize: 13,
-    fontWeight: '700',
-    marginTop: 4,
-  },
-  roomQuestion: {
-    color: '#4C443C',
-    fontSize: 14,
-    fontWeight: '700',
-    lineHeight: 20,
-    marginTop: 12,
-  },
-  roomArrow: {
-    color: '#24201B',
+  galleryArrow: {
+    color: '#FFFFFF',
     fontSize: 24,
     fontWeight: '900',
   },
-  nativePanel: {
-    backgroundColor: '#FFFDF8',
-    borderTopColor: 'rgba(36,32,27,0.1)',
-    borderTopWidth: 1,
-    marginTop: 0,
-    paddingHorizontal: 20,
-    paddingTop: 22,
-  },
-  nativeItem: {
-    alignItems: 'flex-start',
-    borderBottomColor: 'rgba(36,32,27,0.08)',
-    borderBottomWidth: 1,
-    flexDirection: 'row',
-    paddingVertical: 14,
-  },
-  nativeIndex: {
-    color: '#B2A79A',
-    fontSize: 12,
+  galleryMeta: {
+    color: 'rgba(255,255,255,0.78)',
+    fontSize: 13,
     fontWeight: '900',
+    marginTop: 7,
+  },
+  galleryQuestion: {
+    color: 'rgba(255,255,255,0.9)',
+    fontSize: 14,
+    fontWeight: '800',
+    lineHeight: 20,
+    marginTop: 12,
+  },
+  bottomDock: {
+    alignSelf: 'center',
+    backgroundColor: '#0E271B',
+    flexDirection: 'row',
+    gap: 18,
+    justifyContent: 'center',
+    marginTop: 24,
+    overflow: 'hidden',
+    paddingHorizontal: 22,
+    paddingVertical: 12,
+  },
+  dockItem: {
+    alignItems: 'center',
+    color: 'rgba(255,255,255,0.62)',
+    fontSize: 18,
+    fontWeight: '900',
+    height: 34,
+    lineHeight: 31,
+    textAlign: 'center',
     width: 34,
   },
-  nativeCopy: {
-    flex: 1,
-  },
-  nativeTitle: {
-    color: '#24201B',
-    fontSize: 15,
-    fontWeight: '900',
-  },
-  nativeLabel: {
-    color: '#7A7065',
-    fontSize: 13,
-    fontWeight: '700',
-    lineHeight: 18,
-    marginTop: 4,
+  dockItemActive: {
+    backgroundColor: '#DDE9C8',
+    color: '#0E271B',
+    overflow: 'hidden',
   },
   signOutButton: {
     alignItems: 'center',
-    backgroundColor: '#FFFDF8',
-    marginTop: 0,
+    marginTop: 14,
     paddingVertical: 12,
   },
   signOutText: {
-    color: '#8B8175',
+    color: '#60705B',
     fontSize: 14,
     fontWeight: '900',
   },
