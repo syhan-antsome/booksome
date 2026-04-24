@@ -57,6 +57,10 @@ export default function DiscoverScreen() {
   return (
     <SafeAreaView style={styles.safeArea}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        {leadCoverUrl ? (
+          <Image blurRadius={10} resizeMode="cover" source={{ uri: leadCoverUrl }} style={styles.ambientImage} />
+        ) : null}
+        <View style={styles.ambientVeil} />
         <View style={styles.topBar}>
           <View>
             <Text style={styles.greeting}>
@@ -101,6 +105,7 @@ export default function DiscoverScreen() {
               </View>
             )}
             <View style={styles.heroScrim} />
+            <View style={styles.heroSoftBase} />
             <View style={styles.heroTopMeta}>
               <Text style={styles.countryLabel}>READING ROOM</Text>
               <Text style={styles.saveDot}>☆</Text>
@@ -271,10 +276,28 @@ const styles = StyleSheet.create({
     borderRadius: 34,
     marginVertical: 14,
     maxWidth: 390,
+    overflow: 'hidden',
     paddingHorizontal: 0,
     paddingTop: 24,
     paddingBottom: 26,
+    position: 'relative',
     width: '100%',
+  },
+  ambientImage: {
+    height: 560,
+    left: 0,
+    opacity: 0.34,
+    position: 'absolute',
+    right: 0,
+    top: 0,
+  },
+  ambientVeil: {
+    backgroundColor: 'rgba(238,243,232,0.52)',
+    height: 620,
+    left: 0,
+    position: 'absolute',
+    right: 0,
+    top: 0,
   },
   topBar: {
     alignItems: 'center',
@@ -282,6 +305,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 20,
     paddingBottom: 14,
+    zIndex: 2,
   },
   greeting: {
     color: '#253123',
@@ -320,6 +344,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     paddingHorizontal: 20,
+    zIndex: 2,
   },
   pageTitle: {
     color: '#111910',
@@ -347,6 +372,7 @@ const styles = StyleSheet.create({
     gap: 8,
     paddingHorizontal: 20,
     paddingTop: 16,
+    zIndex: 2,
   },
   topicPill: {
     backgroundColor: '#FFFFFF',
@@ -363,19 +389,20 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
   },
   heroRoom: {
-    borderRadius: 34,
-    height: 354,
-    marginHorizontal: 20,
-    marginTop: 16,
-    overflow: 'hidden',
+    height: 350,
+    marginHorizontal: 0,
+    marginTop: 8,
+    overflow: 'visible',
     position: 'relative',
+    zIndex: 1,
   },
   heroRoomImage: {
     bottom: 0,
     left: 0,
+    opacity: 0.76,
     position: 'absolute',
     right: 0,
-    top: 0,
+    top: -238,
   },
   heroImageFallback: {
     alignItems: 'center',
@@ -397,12 +424,23 @@ const styles = StyleSheet.create({
     fontWeight: '900',
   },
   heroScrim: {
-    backgroundColor: 'rgba(7, 12, 8, 0.28)',
+    backgroundColor: 'rgba(7, 12, 8, 0.18)',
     bottom: 0,
     left: 0,
     position: 'absolute',
     right: 0,
-    top: 0,
+    top: -238,
+  },
+  heroSoftBase: {
+    backgroundColor: '#EEF3E8',
+    borderTopLeftRadius: 180,
+    borderTopRightRadius: 180,
+    bottom: -82,
+    height: 192,
+    left: -54,
+    opacity: 0.98,
+    position: 'absolute',
+    right: -34,
   },
   heroTopMeta: {
     alignItems: 'center',
@@ -411,7 +449,7 @@ const styles = StyleSheet.create({
     left: 18,
     position: 'absolute',
     right: 18,
-    top: 16,
+    top: 18,
   },
   countryLabel: {
     backgroundColor: 'rgba(255,255,255,0.88)',
@@ -438,7 +476,7 @@ const styles = StyleSheet.create({
   },
   heroRoomCopy: {
     alignItems: 'center',
-    bottom: 26,
+    bottom: 42,
     left: 18,
     position: 'absolute',
     right: 18,
@@ -503,6 +541,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 28,
     paddingBottom: 12,
+    position: 'relative',
+    zIndex: 3,
   },
   sectionTitle: {
     color: '#111910',
@@ -523,6 +563,7 @@ const styles = StyleSheet.create({
   popularRail: {
     gap: 12,
     paddingHorizontal: 20,
+    zIndex: 3,
   },
   popularItem: {
     alignItems: 'center',
@@ -614,6 +655,8 @@ const styles = StyleSheet.create({
   galleryList: {
     gap: 18,
     paddingHorizontal: 20,
+    position: 'relative',
+    zIndex: 3,
   },
   galleryRoom: {
     borderRadius: 28,
