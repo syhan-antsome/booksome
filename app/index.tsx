@@ -16,7 +16,7 @@ import { featuredRooms, type FeaturedRoom } from '../src/data/rooms';
 import { useAuth } from '../src/providers/auth-provider';
 import { getMediaUrl } from '../src/services/media';
 import { listFeaturedRooms, type RoomSummary } from '../src/services/rooms';
-import homeHeroImage from '../assets/home-hero-d-crop.png';
+import homeHeroImage from '../assets/home-hero-reading-lounge.jpg';
 
 const homeHeroSource: ImageSourcePropType =
   typeof homeHeroImage === 'string' ? { uri: homeHeroImage } : homeHeroImage;
