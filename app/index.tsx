@@ -4,6 +4,7 @@ import {
   Animated,
   Image,
   type ImageSourcePropType,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -36,7 +37,7 @@ const sseomdiReadingSource: ImageSourcePropType =
 
 export default function DiscoverScreen() {
   const { isLoading, profile, session } = useAuth();
-  const { width } = useWindowDimensions();
+  const { height, width } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const [remoteRooms, setRemoteRooms] = useState<RoomSummary[]>([]);
   const [isRefreshingRooms, setIsRefreshingRooms] = useState(false);
@@ -45,6 +46,7 @@ export default function DiscoverScreen() {
   const heroZoom = useRef(new Animated.Value(0)).current;
   const heroFade = useRef(new Animated.Value(0)).current;
   const activeHeroIndexRef = useRef(0);
+  const useNativeHeroDriver = Platform.OS !== 'web';
 
   useEffect(() => {
     const animation = Animated.loop(
@@ -52,12 +54,12 @@ export default function DiscoverScreen() {
         Animated.timing(heroZoom, {
           duration: 11000,
           toValue: 1,
-          useNativeDriver: false,
+          useNativeDriver: useNativeHeroDriver,
         }),
         Animated.timing(heroZoom, {
           duration: 3500,
           toValue: 0,
-          useNativeDriver: false,
+          useNativeDriver: useNativeHeroDriver,
         }),
       ]),
     );
@@ -67,7 +69,7 @@ export default function DiscoverScreen() {
     return () => {
       animation.stop();
     };
-  }, [heroZoom]);
+  }, [heroZoom, useNativeHeroDriver]);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -76,9 +78,9 @@ export default function DiscoverScreen() {
       setNextHeroIndex(nextIndex);
       heroFade.setValue(0);
       Animated.timing(heroFade, {
-        duration: 1400,
+        duration: 1800,
         toValue: 1,
-        useNativeDriver: false,
+        useNativeDriver: useNativeHeroDriver,
       }).start(() => {
         activeHeroIndexRef.current = nextIndex;
         setActiveHeroIndex(nextIndex);
@@ -89,7 +91,7 @@ export default function DiscoverScreen() {
     return () => {
       clearInterval(interval);
     };
-  }, [heroFade]);
+  }, [heroFade, useNativeHeroDriver]);
 
   const refreshRooms = useCallback(() => {
     let isMounted = true;
@@ -124,6 +126,7 @@ export default function DiscoverScreen() {
   );
   const spotlightRooms = rooms.slice(0, 4);
   const isFramedPreview = width >= 640;
+  const heroStageHeight = Math.max(350, Math.min(430, height - 330));
   const heroZoomScale = heroZoom.interpolate({
     inputRange: [0, 1],
     outputRange: [1, 1.08],
@@ -177,8 +180,10 @@ export default function DiscoverScreen() {
             <Pressable onPress={refreshRooms} style={styles.headerIconButton}>
               <Text style={styles.headerIconText}>{isRefreshingRooms ? '...' : '⌕'}</Text>
             </Pressable>
-            <Link href={session ? '/profile' : '/auth'} style={styles.profileButton}>
-              {profile?.display_name?.slice(0, 1) ?? 'B'}
+            <Link asChild href={session ? '/profile' : '/auth'}>
+              <Pressable style={styles.profileButton}>
+                <Text style={styles.profileButtonText}>{profile?.display_name?.slice(0, 1) ?? 'B'}</Text>
+              </Pressable>
             </Link>
           </View>
         </View>
@@ -190,19 +195,21 @@ export default function DiscoverScreen() {
           <Text style={styles.appModeItem}>모임</Text>
         </View>
 
-        <Link href={session ? '/scan' : '/auth'} style={styles.cinematicHero}>
-          <View style={styles.sseomdiSticker}>
-            <Image resizeMode="contain" source={sseomdiReadingSource} style={styles.sseomdiImage} />
-          </View>
-          <View style={styles.cinematicCopy}>
-            <Text adjustsFontSizeToFit numberOfLines={2} style={styles.heroRoomTitle}>
-              책으로 이어지는 하루
-            </Text>
-            <Text style={styles.heroRoomQuestion} numberOfLines={2}>
-              책을 고르면 대화와 모임이 함께 열립니다.
-            </Text>
-            <Text style={styles.heroStart}>Start BookSome</Text>
-          </View>
+        <Link asChild href={session ? '/scan' : '/auth'}>
+          <Pressable style={[styles.cinematicHero, { height: heroStageHeight }]}>
+            <View style={styles.sseomdiSticker}>
+              <Image resizeMode="contain" source={sseomdiReadingSource} style={styles.sseomdiImage} />
+            </View>
+            <View style={styles.cinematicCopy}>
+              <Text adjustsFontSizeToFit numberOfLines={2} style={styles.heroRoomTitle}>
+                책으로 이어지는 하루
+              </Text>
+              <Text style={styles.heroRoomQuestion} numberOfLines={2}>
+                책을 고르면 대화와 모임이 함께 열립니다.
+              </Text>
+              <Text style={styles.heroStart}>Start BookSome</Text>
+            </View>
+          </Pressable>
         </Link>
 
         <View style={styles.discoveryPanel}>
@@ -222,26 +229,24 @@ export default function DiscoverScreen() {
                 const coverUrl = getRoomImageUrl(room);
 
                 return (
-                  <Link
-                    key={room.slug}
-                    href={`/room/${room.slug}`}
-                    style={styles.popularItem}
-                  >
-                    {coverUrl ? (
-                      <Image resizeMode="cover" source={{ uri: coverUrl }} style={styles.popularBackgroundImage} />
-                    ) : (
-                      <View style={[styles.popularBackgroundFallback, { backgroundColor: room.accent }]} />
-                    )}
-                    <View style={styles.popularScrim} />
-                    <View style={styles.popularCopy}>
-                      <Text style={styles.popularTitle} numberOfLines={1}>
-                        {room.title}
-                      </Text>
-                      <Text style={styles.popularMeta} numberOfLines={1}>
-                        {room.author}
-                      </Text>
-                    </View>
-                    <Text style={styles.popularArrow}>→</Text>
+                  <Link asChild href={`/room/${room.slug}`} key={room.slug}>
+                    <Pressable style={styles.popularItem}>
+                      {coverUrl ? (
+                        <Image resizeMode="cover" source={{ uri: coverUrl }} style={styles.popularBackgroundImage} />
+                      ) : (
+                        <View style={[styles.popularBackgroundFallback, { backgroundColor: room.accent }]} />
+                      )}
+                      <View style={styles.popularScrim} />
+                      <View style={styles.popularCopy}>
+                        <Text style={styles.popularTitle} numberOfLines={1}>
+                          {room.title}
+                        </Text>
+                        <Text style={styles.popularMeta} numberOfLines={1}>
+                          {room.author}
+                        </Text>
+                      </View>
+                      <Text style={styles.popularArrow}>→</Text>
+                    </Pressable>
                   </Link>
                 );
               })}
@@ -258,20 +263,30 @@ export default function DiscoverScreen() {
         ]}
       >
         <View style={styles.tabBar}>
-          <Link href="/" style={[styles.tabItem, styles.tabItemActive]}>
-            <Text style={[styles.tabIcon, styles.tabIconActive]}>⌂</Text>
+          <Link asChild href="/">
+            <Pressable style={[styles.tabItem, styles.tabItemActive]}>
+              <Text style={[styles.tabIcon, styles.tabIconActive]}>⌂</Text>
+            </Pressable>
           </Link>
-          <Link href={session ? '/scan' : '/auth'} style={styles.tabItem}>
-            <Text style={styles.tabIcon}>⌕</Text>
+          <Link asChild href={session ? '/scan' : '/auth'}>
+            <Pressable style={styles.tabItem}>
+              <Text style={styles.tabIcon}>⌕</Text>
+            </Pressable>
           </Link>
-          <Link href={session ? '/create-room' : '/auth'} style={styles.tabCreate}>
-            <Text style={styles.tabCreateIcon}>＋</Text>
+          <Link asChild href={session ? '/create-room' : '/auth'}>
+            <Pressable style={styles.tabCreate}>
+              <Text style={styles.tabCreateIcon}>＋</Text>
+            </Pressable>
           </Link>
-          <Link href="/meetups" style={styles.tabItem}>
-            <Text style={styles.tabIcon}>◎</Text>
+          <Link asChild href="/meetups">
+            <Pressable style={styles.tabItem}>
+              <Text style={styles.tabIcon}>◎</Text>
+            </Pressable>
           </Link>
-          <Link href={session ? '/profile' : '/auth'} style={styles.tabItem}>
-            <Text style={styles.tabIcon}>◌</Text>
+          <Link asChild href={session ? '/profile' : '/auth'}>
+            <Pressable style={styles.tabItem}>
+              <Text style={styles.tabIcon}>◌</Text>
+            </Pressable>
           </Link>
         </View>
       </View>
@@ -399,16 +414,18 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   profileButton: {
+    alignItems: 'center',
     backgroundColor: 'rgba(14,39,27,0.92)',
     borderRadius: 21,
+    height: 42,
+    justifyContent: 'center',
+    width: 42,
+  },
+  profileButtonText: {
     color: '#FFFFFF',
     fontSize: 14,
     fontWeight: '900',
-    height: 42,
-    lineHeight: 42,
-    overflow: 'hidden',
-    textAlign: 'center',
-    width: 42,
+    lineHeight: 18,
   },
   appModeRail: {
     alignItems: 'center',
@@ -431,7 +448,6 @@ const styles = StyleSheet.create({
   },
   cinematicHero: {
     backgroundColor: 'transparent',
-    height: 476,
     marginHorizontal: 0,
     marginTop: 8,
     overflow: 'visible',
@@ -497,7 +513,7 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 34,
     borderTopRightRadius: 34,
     marginTop: 0,
-    paddingBottom: 24,
+    paddingBottom: 96,
     paddingTop: 2,
     position: 'relative',
     zIndex: 4,
@@ -535,11 +551,11 @@ const styles = StyleSheet.create({
   },
   popularItem: {
     backgroundColor: '#0E271B',
-    borderRadius: 28,
-    height: 148,
+    borderRadius: 24,
+    height: 122,
     overflow: 'hidden',
     position: 'relative',
-    width: 214,
+    width: 186,
   },
   popularBackgroundImage: {
     bottom: 0,
