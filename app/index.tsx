@@ -35,7 +35,7 @@ const sseomdiReadingSource: ImageSourcePropType =
   toImageSource(sseomdiReadingImage);
 
 export default function DiscoverScreen() {
-  const { isLoading, profile, session, signOut } = useAuth();
+  const { isLoading, profile, session } = useAuth();
   const { width } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const [remoteRooms, setRemoteRooms] = useState<RoomSummary[]>([]);
@@ -181,7 +181,7 @@ export default function DiscoverScreen() {
             <Pressable onPress={refreshRooms} style={styles.headerIconButton}>
               <Text style={styles.headerIconText}>{isRefreshingRooms ? '...' : '⌕'}</Text>
             </Pressable>
-            <Link href={session ? '/auth' : '/auth'} style={styles.profileButton}>
+            <Link href={session ? '/profile' : '/auth'} style={styles.profileButton}>
               {profile?.display_name?.slice(0, 1) ?? 'B'}
             </Link>
           </View>
@@ -268,11 +268,6 @@ export default function DiscoverScreen() {
           </ScrollView>
         </View>
 
-        {session ? (
-          <Pressable onPress={signOut} style={styles.signOutButton}>
-            <Text style={styles.signOutText}>로그아웃</Text>
-          </Pressable>
-        ) : null}
       </ScrollView>
       <View
         style={[
@@ -294,7 +289,7 @@ export default function DiscoverScreen() {
           <Link href="/meetups" style={styles.tabItem}>
             <Text style={styles.tabIcon}>◎</Text>
           </Link>
-          <Link href={session ? '/auth' : '/auth'} style={styles.tabItem}>
+          <Link href={session ? '/profile' : '/auth'} style={styles.tabItem}>
             <Text style={styles.tabIcon}>◌</Text>
           </Link>
         </View>
@@ -708,15 +703,5 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     lineHeight: 28,
     textAlign: 'center',
-  },
-  signOutButton: {
-    alignItems: 'center',
-    marginTop: 14,
-    paddingVertical: 12,
-  },
-  signOutText: {
-    color: '#60705B',
-    fontSize: 14,
-    fontWeight: '900',
   },
 });
