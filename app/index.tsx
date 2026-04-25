@@ -17,9 +17,12 @@ import { useAuth } from '../src/providers/auth-provider';
 import { getMediaUrl } from '../src/services/media';
 import { listFeaturedRooms, type RoomSummary } from '../src/services/rooms';
 import homeHeroImage from '../assets/home-hero-reading-lounge.jpg';
+import sseomdiReadingImage from '../assets/sseomdi-reading.png';
 
 const homeHeroSource: ImageSourcePropType =
   typeof homeHeroImage === 'string' ? { uri: homeHeroImage } : homeHeroImage;
+const sseomdiReadingSource: ImageSourcePropType =
+  typeof sseomdiReadingImage === 'string' ? { uri: sseomdiReadingImage } : sseomdiReadingImage;
 
 export default function DiscoverScreen() {
   const { isLoading, profile, session, signOut } = useAuth();
@@ -119,6 +122,9 @@ export default function DiscoverScreen() {
             <View style={styles.heroTopMeta}>
               <Text style={styles.countryLabel}>BOOKSOME TODAY</Text>
               <Text style={styles.saveDot}>☆</Text>
+            </View>
+            <View style={styles.sseomdiSticker}>
+              <Image resizeMode="contain" source={sseomdiReadingSource} style={styles.sseomdiImage} />
             </View>
             <View style={styles.heroRoomCopy}>
               <Text adjustsFontSizeToFit numberOfLines={2} style={styles.heroRoomTitle}>
@@ -523,6 +529,25 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     textAlign: 'center',
     width: 42,
+  },
+  sseomdiSticker: {
+    alignItems: 'center',
+    backgroundColor: '#F8F1E8',
+    borderColor: 'rgba(14,39,27,0.08)',
+    borderRadius: 26,
+    borderWidth: 1,
+    bottom: 52,
+    height: 88,
+    justifyContent: 'center',
+    overflow: 'hidden',
+    position: 'absolute',
+    right: 18,
+    width: 108,
+    zIndex: 3,
+  },
+  sseomdiImage: {
+    height: 82,
+    width: 108,
   },
   heroRoomCopy: {
     alignItems: 'center',
