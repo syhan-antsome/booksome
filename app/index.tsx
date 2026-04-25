@@ -1,12 +1,25 @@
 import { Link, useFocusEffect } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
-import { Image, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import {
+  Image,
+  type ImageSourcePropType,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  useWindowDimensions,
+  View,
+} from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { featuredRooms, type FeaturedRoom } from '../src/data/rooms';
 import { useAuth } from '../src/providers/auth-provider';
 import { getMediaUrl } from '../src/services/media';
 import { listFeaturedRooms, type RoomSummary } from '../src/services/rooms';
+import homeHeroImage from '../assets/home-hero-d-crop.png';
+
+const homeHeroSource: ImageSourcePropType =
+  typeof homeHeroImage === 'string' ? { uri: homeHeroImage } : homeHeroImage;
 
 export default function DiscoverScreen() {
   const { isLoading, profile, session, signOut } = useAuth();
@@ -54,7 +67,6 @@ export default function DiscoverScreen() {
   const leadRoom = rooms[0];
   const popularRooms = rooms.slice(0, 4);
   const galleryRooms = rooms.length > 1 ? rooms.slice(1) : rooms;
-  const leadCoverUrl = leadRoom ? getRoomImageUrl(leadRoom) : null;
   const isFramedPreview = width >= 640;
 
   return (
@@ -63,9 +75,7 @@ export default function DiscoverScreen() {
         contentContainerStyle={[styles.content, styles.contentWithTabBar, !isFramedPreview ? styles.contentFull : null]}
         showsVerticalScrollIndicator={false}
       >
-        {leadCoverUrl ? (
-          <Image blurRadius={10} resizeMode="cover" source={{ uri: leadCoverUrl }} style={styles.ambientImage} />
-        ) : null}
+        <Image blurRadius={10} resizeMode="cover" source={homeHeroSource} style={styles.ambientImage} />
         <View style={styles.ambientVeil} />
         <View style={styles.topBar}>
           <View>
@@ -103,13 +113,7 @@ export default function DiscoverScreen() {
 
         {leadRoom ? (
           <Link href={session ? '/scan' : '/auth'} style={styles.heroRoom}>
-            {leadCoverUrl ? (
-              <Image resizeMode="cover" source={{ uri: leadCoverUrl }} style={styles.heroRoomImage} />
-            ) : (
-              <View style={[styles.heroImageFallback, { backgroundColor: leadRoom.accent }]}>
-                <Text style={styles.fallbackLetter}>{leadRoom.title.slice(0, 1)}</Text>
-              </View>
-            )}
+            <Image resizeMode="cover" source={homeHeroSource} style={styles.heroRoomImage} />
             <View style={styles.heroScrim} />
             <View style={styles.heroSoftBase} />
             <View style={styles.heroTopMeta}>
