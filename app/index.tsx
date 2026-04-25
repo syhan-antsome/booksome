@@ -1,6 +1,6 @@
 import { Link, useFocusEffect } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
-import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { featuredRooms, type FeaturedRoom } from '../src/data/rooms';
@@ -10,6 +10,7 @@ import { listFeaturedRooms, type RoomSummary } from '../src/services/rooms';
 
 export default function DiscoverScreen() {
   const { isLoading, profile, session, signOut } = useAuth();
+  const { width } = useWindowDimensions();
   const [remoteRooms, setRemoteRooms] = useState<RoomSummary[]>([]);
   const [connectionLabel, setConnectionLabel] = useState('연결 확인 중');
   const [isRefreshingRooms, setIsRefreshingRooms] = useState(false);
@@ -53,10 +54,14 @@ export default function DiscoverScreen() {
   const popularRooms = rooms.slice(0, 4);
   const galleryRooms = rooms.length > 1 ? rooms.slice(1) : rooms;
   const leadCoverUrl = leadRoom ? getRoomImageUrl(leadRoom) : null;
+  const isFramedPreview = width >= 640;
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+    <SafeAreaView style={[styles.safeArea, !isFramedPreview ? styles.safeAreaFull : null]}>
+      <ScrollView
+        contentContainerStyle={[styles.content, !isFramedPreview ? styles.contentFull : null]}
+        showsVerticalScrollIndicator={false}
+      >
         {leadCoverUrl ? (
           <Image blurRadius={10} resizeMode="cover" source={{ uri: leadCoverUrl }} style={styles.ambientImage} />
         ) : null}
@@ -273,6 +278,9 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#BED3C0',
   },
+  safeAreaFull: {
+    backgroundColor: '#EEF3E8',
+  },
   content: {
     alignSelf: 'center',
     backgroundColor: '#EEF3E8',
@@ -285,6 +293,12 @@ const styles = StyleSheet.create({
     paddingBottom: 26,
     position: 'relative',
     width: '100%',
+  },
+  contentFull: {
+    alignSelf: 'stretch',
+    borderRadius: 0,
+    marginVertical: 0,
+    maxWidth: '100%',
   },
   ambientImage: {
     height: 560,
