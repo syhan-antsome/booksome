@@ -1,7 +1,7 @@
 import { Link, useFocusEffect } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
 import { Image, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { featuredRooms, type FeaturedRoom } from '../src/data/rooms';
 import { useAuth } from '../src/providers/auth-provider';
@@ -11,6 +11,7 @@ import { listFeaturedRooms, type RoomSummary } from '../src/services/rooms';
 export default function DiscoverScreen() {
   const { isLoading, profile, session, signOut } = useAuth();
   const { width } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
   const [remoteRooms, setRemoteRooms] = useState<RoomSummary[]>([]);
   const [connectionLabel, setConnectionLabel] = useState('연결 확인 중');
   const [isRefreshingRooms, setIsRefreshingRooms] = useState(false);
@@ -59,7 +60,7 @@ export default function DiscoverScreen() {
   return (
     <SafeAreaView style={[styles.safeArea, !isFramedPreview ? styles.safeAreaFull : null]}>
       <ScrollView
-        contentContainerStyle={[styles.content, !isFramedPreview ? styles.contentFull : null]}
+        contentContainerStyle={[styles.content, styles.contentWithTabBar, !isFramedPreview ? styles.contentFull : null]}
         showsVerticalScrollIndicator={false}
       >
         {leadCoverUrl ? (
@@ -131,14 +132,6 @@ export default function DiscoverScreen() {
             </View>
           </Link>
         ) : null}
-
-        <View style={styles.bottomDock}>
-          <Link href={session ? '/scan' : '/auth'} style={styles.dockItem}>⌕</Link>
-          <Link href="/" style={[styles.dockItem, styles.dockItemActive]}>⌂</Link>
-          <Link href="/meetups" style={styles.dockItem}>◎</Link>
-          <Link href={session ? '/create-room' : '/auth'} style={styles.dockItem}>＋</Link>
-          <Text style={styles.dockItem}>◌</Text>
-        </View>
 
         <View style={styles.sectionRow}>
           <Text style={styles.sectionTitle}>Popular</Text>
@@ -237,6 +230,35 @@ export default function DiscoverScreen() {
           </Pressable>
         ) : null}
       </ScrollView>
+      <View
+        style={[
+          styles.tabBarShell,
+          isFramedPreview ? styles.tabBarShellFramed : styles.tabBarShellFull,
+          { paddingBottom: Math.max(insets.bottom, 10) },
+        ]}
+      >
+        <View style={styles.tabBar}>
+          <Link href="/" style={[styles.tabItem, styles.tabItemActive]}>
+            <Text style={[styles.tabIcon, styles.tabIconActive]}>⌂</Text>
+            <Text style={[styles.tabLabel, styles.tabLabelActive]}>홈</Text>
+          </Link>
+          <Link href={session ? '/scan' : '/auth'} style={styles.tabItem}>
+            <Text style={styles.tabIcon}>⌕</Text>
+            <Text style={styles.tabLabel}>스캔</Text>
+          </Link>
+          <Link href={session ? '/create-room' : '/auth'} style={styles.tabCreate}>
+            <Text style={styles.tabCreateIcon}>＋</Text>
+          </Link>
+          <Link href="/meetups" style={styles.tabItem}>
+            <Text style={styles.tabIcon}>◎</Text>
+            <Text style={styles.tabLabel}>모임</Text>
+          </Link>
+          <Link href={session ? '/auth' : '/auth'} style={styles.tabItem}>
+            <Text style={styles.tabIcon}>◌</Text>
+            <Text style={styles.tabLabel}>내 서재</Text>
+          </Link>
+        </View>
+      </View>
     </SafeAreaView>
   );
 }
@@ -293,6 +315,9 @@ const styles = StyleSheet.create({
     paddingBottom: 26,
     position: 'relative',
     width: '100%',
+  },
+  contentWithTabBar: {
+    paddingBottom: 126,
   },
   contentFull: {
     alignSelf: 'stretch',
@@ -536,20 +561,6 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     paddingHorizontal: 20,
     paddingVertical: 10,
-  },
-  bottomDock: {
-    alignSelf: 'center',
-    alignItems: 'center',
-    backgroundColor: '#0E271B',
-    borderRadius: 30,
-    flexDirection: 'row',
-    gap: 12,
-    justifyContent: 'center',
-    marginTop: -26,
-    overflow: 'hidden',
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    zIndex: 2,
   },
   sectionRow: {
     alignItems: 'center',
@@ -838,21 +849,80 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 8,
   },
-  dockItem: {
+  tabBarShell: {
     alignItems: 'center',
-    color: 'rgba(255,255,255,0.62)',
-    fontSize: 18,
-    fontWeight: '900',
-    height: 34,
-    lineHeight: 31,
-    textAlign: 'center',
-    width: 34,
+    bottom: 0,
+    left: 0,
+    paddingHorizontal: 18,
+    paddingTop: 10,
+    position: 'absolute',
+    right: 0,
+    zIndex: 20,
   },
-  dockItemActive: {
+  tabBarShellFramed: {
+    alignSelf: 'center',
+  },
+  tabBarShellFull: {
+    backgroundColor: 'transparent',
+  },
+  tabBar: {
+    alignItems: 'center',
+    backgroundColor: '#0E271B',
+    borderRadius: 30,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    maxWidth: 354,
+    minHeight: 66,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    width: '100%',
+  },
+  tabItem: {
+    alignItems: 'center',
+    flex: 1,
+    gap: 3,
+    justifyContent: 'center',
+    minHeight: 48,
+  },
+  tabItemActive: {
     backgroundColor: '#DDE9C8',
-    borderRadius: 17,
+    borderRadius: 22,
+  },
+  tabIcon: {
+    color: 'rgba(255,255,255,0.72)',
+    fontSize: 16,
+    fontWeight: '900',
+    lineHeight: 18,
+    textAlign: 'center',
+  },
+  tabIconActive: {
     color: '#0E271B',
-    overflow: 'hidden',
+  },
+  tabLabel: {
+    color: 'rgba(255,255,255,0.68)',
+    fontSize: 10,
+    fontWeight: '900',
+    lineHeight: 12,
+    textAlign: 'center',
+  },
+  tabLabelActive: {
+    color: '#0E271B',
+  },
+  tabCreate: {
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 25,
+    height: 50,
+    justifyContent: 'center',
+    marginHorizontal: 6,
+    width: 50,
+  },
+  tabCreateIcon: {
+    color: '#0E271B',
+    fontSize: 24,
+    fontWeight: '900',
+    lineHeight: 28,
+    textAlign: 'center',
   },
   signOutButton: {
     alignItems: 'center',
