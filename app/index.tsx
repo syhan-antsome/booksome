@@ -39,7 +39,6 @@ export default function DiscoverScreen() {
   const { width } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const [remoteRooms, setRemoteRooms] = useState<RoomSummary[]>([]);
-  const [connectionLabel, setConnectionLabel] = useState('연결 확인 중');
   const [isRefreshingRooms, setIsRefreshingRooms] = useState(false);
   const [activeHeroIndex, setActiveHeroIndex] = useState(0);
   const [nextHeroIndex, setNextHeroIndex] = useState(1);
@@ -96,19 +95,15 @@ export default function DiscoverScreen() {
     let isMounted = true;
 
     setIsRefreshingRooms(true);
-    setConnectionLabel('새로고침 중');
 
     listFeaturedRooms()
       .then((rooms) => {
         if (!isMounted) return;
 
         setRemoteRooms(rooms);
-        setConnectionLabel(rooms.length > 0 ? 'Live' : 'Ready');
       })
       .catch(() => {
         if (!isMounted) return;
-
-        setConnectionLabel('Preview');
       })
       .finally(() => {
         if (isMounted) {
@@ -127,9 +122,7 @@ export default function DiscoverScreen() {
     () => (remoteRooms.length > 0 ? remoteRooms.map(toFeaturedRoom) : featuredRooms),
     [remoteRooms],
   );
-  const leadRoom = rooms[0];
-  const popularRooms = rooms.slice(0, 4);
-  const galleryRooms = rooms.length > 1 ? rooms.slice(1) : rooms;
+  const spotlightRooms = rooms.slice(0, 4);
   const isFramedPreview = width >= 640;
   const heroZoomScale = heroZoom.interpolate({
     inputRange: [0, 1],
@@ -233,9 +226,11 @@ export default function DiscoverScreen() {
           </View>
         </Link>
 
-        <View style={styles.sectionRow}>
-          <Text style={styles.sectionTitle}>Reading rooms</Text>
-          <Text style={styles.sectionMore}>{connectionLabel}</Text>
+        <View style={styles.shelfHeader}>
+          <View>
+            <Text style={styles.shelfKicker}>OPEN ROOMS</Text>
+            <Text style={styles.shelfTitle}>지금 함께 읽는 책</Text>
+          </View>
         </View>
         <View style={styles.lowerFlow}>
           <ScrollView
@@ -243,14 +238,14 @@ export default function DiscoverScreen() {
             horizontal
             showsHorizontalScrollIndicator={false}
           >
-            {popularRooms.map((room, index) => {
+            {spotlightRooms.map((room) => {
               const coverUrl = getRoomImageUrl(room);
 
               return (
                 <Link
                   key={room.slug}
                   href={`/room/${room.slug}`}
-                  style={[styles.popularItem, index === 0 ? styles.popularItemActive : null]}
+                  style={styles.popularItem}
                 >
                   {coverUrl ? (
                     <Image resizeMode="cover" source={{ uri: coverUrl }} style={styles.popularBackgroundImage} />
@@ -258,9 +253,6 @@ export default function DiscoverScreen() {
                     <View style={[styles.popularBackgroundFallback, { backgroundColor: room.accent }]} />
                   )}
                   <View style={styles.popularScrim} />
-                  <View style={styles.popularFloatingBadge}>
-                    <Text style={styles.popularBadgeText}>{index + 1}</Text>
-                  </View>
                   <View style={styles.popularCopy}>
                     <Text style={styles.popularTitle} numberOfLines={1}>
                       {room.title}
@@ -268,60 +260,12 @@ export default function DiscoverScreen() {
                     <Text style={styles.popularMeta} numberOfLines={1}>
                       {room.author}
                     </Text>
-                    <View style={styles.readerDots}>
-                      <Text style={styles.readerDot}>R</Text>
-                      <Text style={styles.readerDot}>B</Text>
-                      <Text style={styles.readerDotMore}>+{room.members}</Text>
-                    </View>
                   </View>
                   <Text style={styles.popularArrow}>→</Text>
                 </Link>
               );
             })}
           </ScrollView>
-        </View>
-
-        <View style={styles.sectionRow}>
-          <Text style={styles.sectionTitle}>Book moods</Text>
-          <Link href={session ? '/create-room' : '/auth'} style={styles.createRoomLink}>
-            + 방 만들기
-          </Link>
-        </View>
-
-        <View style={styles.galleryList}>
-          {galleryRooms.map((room, index) => {
-            const coverUrl = getRoomImageUrl(room);
-
-            return (
-              <Link key={room.slug} href={`/room/${room.slug}`} style={styles.galleryRoom}>
-                <View style={styles.galleryTextPanel}>
-                  <Text style={styles.galleryLocation}>ROOM PICK</Text>
-                  <Text style={styles.galleryPanelTitle} numberOfLines={2}>
-                    {room.title}
-                  </Text>
-                  <Text style={styles.galleryPanelQuestion} numberOfLines={2}>
-                    {room.question}
-                  </Text>
-                </View>
-                <View style={[styles.galleryImageWrap, { backgroundColor: room.accent }]}>
-                  {coverUrl ? (
-                    <Image resizeMode="cover" source={{ uri: coverUrl }} style={styles.galleryImage} />
-                  ) : (
-                    <View style={[styles.heroImageFallback, { backgroundColor: room.accent }]}>
-                      <Text style={styles.fallbackLetter}>{room.title.slice(0, 1)}</Text>
-                    </View>
-                  )}
-                  <View style={styles.galleryScrim} />
-                  <Text style={styles.galleryIndex}>{String(index + 1).padStart(2, '0')}</Text>
-                  <Text style={styles.gallerySave}>☆</Text>
-                  <View style={styles.galleryCopy}>
-                    <Text style={styles.galleryMeta}>{room.author} · {room.host}</Text>
-                    <Text style={styles.galleryArrow}>↗</Text>
-                  </View>
-                </View>
-              </Link>
-            );
-          })}
         </View>
 
         {session ? (
@@ -604,31 +548,25 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 10,
   },
-  sectionRow: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+  shelfHeader: {
     paddingHorizontal: 20,
-    paddingTop: 28,
+    paddingTop: 30,
     paddingBottom: 12,
     position: 'relative',
     zIndex: 3,
   },
-  sectionTitle: {
-    color: '#111910',
-    fontSize: 28,
+  shelfKicker: {
+    color: '#5E6F59',
+    fontSize: 11,
     fontWeight: '900',
     letterSpacing: 0,
+    marginBottom: 5,
   },
-  sectionMore: {
-    color: '#64715F',
-    fontSize: 12,
+  shelfTitle: {
+    color: '#111910',
+    fontSize: 24,
     fontWeight: '900',
-  },
-  createRoomLink: {
-    color: '#16311F',
-    fontSize: 13,
-    fontWeight: '900',
+    letterSpacing: 0,
   },
   popularRail: {
     gap: 12,
@@ -643,19 +581,16 @@ const styles = StyleSheet.create({
   },
   popularItem: {
     backgroundColor: '#0E271B',
-    borderRadius: 30,
-    height: 122,
+    borderRadius: 28,
+    height: 148,
     overflow: 'hidden',
     position: 'relative',
-    width: 238,
-  },
-  popularItemActive: {
-    backgroundColor: '#0E271B',
+    width: 214,
   },
   popularBackgroundImage: {
     bottom: 0,
     left: 0,
-    opacity: 0.72,
+    opacity: 0.84,
     position: 'absolute',
     right: 0,
     top: 0,
@@ -668,42 +603,23 @@ const styles = StyleSheet.create({
     top: 0,
   },
   popularScrim: {
-    backgroundColor: 'rgba(5, 17, 11, 0.42)',
+    backgroundColor: 'rgba(5, 17, 11, 0.34)',
     bottom: 0,
     left: 0,
     position: 'absolute',
     right: 0,
     top: 0,
   },
-  popularFloatingBadge: {
-    alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 22,
-    height: 44,
-    justifyContent: 'center',
-    left: 14,
-    position: 'absolute',
-    top: 14,
-    width: 44,
-  },
-  popularBadgeText: {
-    color: '#0E271B',
-    fontSize: 13,
-    fontWeight: '900',
-  },
   popularCopy: {
     bottom: 16,
-    left: 72,
+    left: 16,
     position: 'absolute',
-    right: 48,
+    right: 54,
   },
   popularTitle: {
     color: '#FFFFFF',
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: '900',
-  },
-  popularTitleActive: {
-    color: '#FFFFFF',
   },
   popularMeta: {
     color: 'rgba(255,255,255,0.78)',
@@ -711,185 +627,20 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     marginTop: 5,
   },
-  popularMetaActive: {
-    color: 'rgba(255,255,255,0.72)',
-  },
   popularArrow: {
     backgroundColor: 'rgba(255,255,255,0.92)',
-    borderRadius: 18,
+    borderRadius: 20,
     color: '#0E271B',
     fontSize: 17,
     fontWeight: '900',
-    height: 36,
-    lineHeight: 34,
-    overflow: 'hidden',
-    position: 'absolute',
-    right: 12,
-    textAlign: 'center',
-    top: 43,
-    width: 36,
-  },
-  popularArrowActive: {
-    color: '#FFFFFF',
-  },
-  readerDots: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    gap: 0,
-    marginTop: 6,
-  },
-  readerDot: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 9,
-    color: '#0E271B',
-    fontSize: 9,
-    fontWeight: '900',
-    height: 18,
-    lineHeight: 18,
-    marginRight: -4,
-    overflow: 'hidden',
-    textAlign: 'center',
-    width: 18,
-  },
-  readerDotMore: {
-    backgroundColor: '#DDE9C8',
-    borderRadius: 10,
-    color: '#0E271B',
-    fontSize: 9,
-    fontWeight: '900',
-    height: 19,
-    lineHeight: 19,
-    overflow: 'hidden',
-    paddingHorizontal: 6,
-  },
-  galleryList: {
-    gap: 18,
-    paddingHorizontal: 20,
-    position: 'relative',
-    zIndex: 3,
-  },
-  galleryRoom: {
-    borderRadius: 28,
-    backgroundColor: '#FFFFFF',
-    height: 342,
-    overflow: 'hidden',
-    position: 'relative',
-    width: '100%',
-  },
-  galleryTextPanel: {
-    backgroundColor: '#FFFFFF',
-    bottom: 0,
-    left: 0,
-    paddingBottom: 18,
-    paddingHorizontal: 18,
-    paddingTop: 118,
-    position: 'absolute',
-    right: 0,
-    top: 0,
-  },
-  galleryLocation: {
-    color: '#B85744',
-    fontSize: 11,
-    fontWeight: '900',
-    marginBottom: 8,
-  },
-  galleryPanelTitle: {
-    color: '#101910',
-    fontSize: 28,
-    fontWeight: '900',
-    letterSpacing: 0,
-    lineHeight: 30,
-  },
-  galleryPanelQuestion: {
-    color: '#52604E',
-    fontSize: 13,
-    fontWeight: '800',
-    lineHeight: 18,
-    marginTop: 10,
-    maxWidth: 250,
-  },
-  galleryImageWrap: {
-    height: 148,
-    left: 18,
-    overflow: 'hidden',
-    position: 'absolute',
-    right: 18,
-    top: 16,
-    borderRadius: 24,
-  },
-  galleryImage: {
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
-    right: 0,
-    top: 0,
-  },
-  galleryScrim: {
-    backgroundColor: 'rgba(7,12,8,0.18)',
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
-    right: 0,
-    top: 0,
-  },
-  galleryIndex: {
-    backgroundColor: 'rgba(255,255,255,0.88)',
-    borderRadius: 18,
-    color: '#16311F',
-    fontSize: 12,
-    fontWeight: '900',
-    left: 14,
-    overflow: 'hidden',
-    paddingHorizontal: 10,
-    paddingVertical: 7,
-    position: 'absolute',
-    top: 14,
-  },
-  gallerySave: {
-    backgroundColor: 'rgba(255,255,255,0.9)',
-    borderRadius: 20,
-    color: '#16311F',
-    fontSize: 22,
-    fontWeight: '900',
     height: 40,
-    lineHeight: 36,
+    lineHeight: 38,
     overflow: 'hidden',
     position: 'absolute',
     right: 14,
     textAlign: 'center',
     top: 14,
     width: 40,
-  },
-  galleryCopy: {
-    alignItems: 'center',
-    bottom: 14,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    left: 14,
-    position: 'absolute',
-    right: 14,
-  },
-  galleryArrow: {
-    backgroundColor: 'rgba(255,255,255,0.9)',
-    borderRadius: 19,
-    color: '#0E271B',
-    fontSize: 18,
-    fontWeight: '900',
-    height: 38,
-    lineHeight: 36,
-    overflow: 'hidden',
-    textAlign: 'center',
-    width: 38,
-  },
-  galleryMeta: {
-    backgroundColor: 'rgba(255,255,255,0.9)',
-    borderRadius: 17,
-    color: '#0E271B',
-    fontSize: 12,
-    fontWeight: '900',
-    overflow: 'hidden',
-    paddingHorizontal: 10,
-    paddingVertical: 8,
   },
   tabBarShell: {
     alignItems: 'center',
