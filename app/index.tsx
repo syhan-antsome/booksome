@@ -76,7 +76,7 @@ export default function DiscoverScreen() {
                   ? `Hi, ${profile?.display_name ?? 'Reader'}`
                   : 'Hi, Reader'}
             </Text>
-            <Text style={styles.brand}>BookSome</Text>
+            <Text style={styles.brand}>읽는 사람들의 소셜</Text>
           </View>
           {session ? (
             <Text style={styles.statusBadge}>Live 15°C</Text>
@@ -88,21 +88,21 @@ export default function DiscoverScreen() {
         </View>
 
         <View style={styles.searchLine}>
-          <Text style={styles.pageTitle}>Reading{'\n'}Power</Text>
+          <Text style={styles.pageTitle}>Book{'\n'}Some</Text>
           <Pressable onPress={refreshRooms} style={styles.iconButton}>
             <Text style={styles.iconText}>{isRefreshingRooms ? '...' : '⌕'}</Text>
           </Pressable>
         </View>
 
         <View style={styles.topicRail}>
-          <Text style={[styles.topicPill, styles.topicPillActive]}># 함께읽기</Text>
-          <Text style={styles.topicPill}>질문</Text>
-          <Text style={styles.topicPill}>감상</Text>
+          <Text style={[styles.topicPill, styles.topicPillActive]}># 발견</Text>
+          <Text style={styles.topicPill}>리딩룸</Text>
+          <Text style={styles.topicPill}>대화</Text>
           <Text style={styles.topicPill}>모임</Text>
         </View>
 
         {leadRoom ? (
-          <Link href={`/room/${leadRoom.slug}`} style={styles.heroRoom}>
+          <Link href={session ? '/scan' : '/auth'} style={styles.heroRoom}>
             {leadCoverUrl ? (
               <Image resizeMode="cover" source={{ uri: leadCoverUrl }} style={styles.heroRoomImage} />
             ) : (
@@ -113,28 +113,28 @@ export default function DiscoverScreen() {
             <View style={styles.heroScrim} />
             <View style={styles.heroSoftBase} />
             <View style={styles.heroTopMeta}>
-              <Text style={styles.countryLabel}>READING ROOM</Text>
+              <Text style={styles.countryLabel}>BOOKSOME TODAY</Text>
               <Text style={styles.saveDot}>☆</Text>
             </View>
             <View style={styles.heroRoomCopy}>
               <Text adjustsFontSizeToFit numberOfLines={2} style={styles.heroRoomTitle}>
-                {leadRoom.title}
+                책으로 이어지는 하루
               </Text>
               <Text style={styles.heroRoomQuestion} numberOfLines={2}>
-                {leadRoom.question}
+                책을 고르면 대화와 모임이 함께 열립니다.
               </Text>
               <View style={styles.heroFooter}>
-                <Text style={styles.heroFooterText}>읽는 중</Text>
-                <Text style={styles.heroFooterText}>{leadRoom.members}</Text>
-                <Text style={styles.heroFooterText}>{leadRoom.progress}%</Text>
+                <Text style={styles.heroFooterText}>책 발견</Text>
+                <Text style={styles.heroFooterText}>리딩룸</Text>
+                <Text style={styles.heroFooterText}>모임</Text>
               </View>
-              <Text style={styles.heroStart}>Start room</Text>
+              <Text style={styles.heroStart}>Start BookSome</Text>
             </View>
           </Link>
         ) : null}
 
         <View style={styles.sectionRow}>
-          <Text style={styles.sectionTitle}>Popular</Text>
+          <Text style={styles.sectionTitle}>Reading rooms</Text>
           <Text style={styles.sectionMore}>{connectionLabel}</Text>
         </View>
         <View style={styles.lowerFlow}>
@@ -182,7 +182,7 @@ export default function DiscoverScreen() {
         </View>
 
         <View style={styles.sectionRow}>
-          <Text style={styles.sectionTitle}>Today picks</Text>
+          <Text style={styles.sectionTitle}>Book moods</Text>
           <Link href={session ? '/create-room' : '/auth'} style={styles.createRoomLink}>
             + 방 만들기
           </Link>
@@ -195,7 +195,7 @@ export default function DiscoverScreen() {
             return (
               <Link key={room.slug} href={`/room/${room.slug}`} style={styles.galleryRoom}>
                 <View style={styles.galleryTextPanel}>
-                  <Text style={styles.galleryLocation}>BOOKSOME PICK</Text>
+                  <Text style={styles.galleryLocation}>ROOM PICK</Text>
                   <Text style={styles.galleryPanelTitle} numberOfLines={2}>
                     {room.title}
                   </Text>
