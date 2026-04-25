@@ -144,10 +144,6 @@ export default function DiscoverScreen() {
             style={[styles.cinematicHeroImage, { transform: [{ scale: heroZoomScale }] }]}
           />
           <View style={styles.cinematicShade} />
-          <View style={styles.cinematicTopMeta}>
-            <Text style={styles.countryLabel}>BOOKSOME TODAY</Text>
-            <Text style={styles.saveDot}>☆</Text>
-          </View>
           <View style={styles.sseomdiSticker}>
             <Image resizeMode="contain" source={sseomdiReadingSource} style={styles.sseomdiImage} />
           </View>
@@ -480,38 +476,6 @@ const styles = StyleSheet.create({
     color: 'rgba(255,255,255,0.7)',
     fontSize: 32,
     fontWeight: '900',
-  },
-  cinematicTopMeta: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    left: 16,
-    position: 'absolute',
-    right: 16,
-    top: 16,
-  },
-  countryLabel: {
-    backgroundColor: 'rgba(255,255,255,0.88)',
-    borderRadius: 18,
-    color: '#16311F',
-    fontSize: 11,
-    fontWeight: '900',
-    overflow: 'hidden',
-    paddingHorizontal: 10,
-    paddingVertical: 7,
-  },
-  saveDot: {
-    alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.88)',
-    borderRadius: 22,
-    color: '#16311F',
-    fontSize: 22,
-    fontWeight: '900',
-    height: 42,
-    lineHeight: 38,
-    overflow: 'hidden',
-    textAlign: 'center',
-    width: 42,
   },
   sseomdiSticker: {
     alignItems: 'center',
