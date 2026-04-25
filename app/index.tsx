@@ -130,42 +130,38 @@ export default function DiscoverScreen() {
   });
   const activeHeroSource = homeHeroSlides[activeHeroIndex];
   const nextHeroSource = homeHeroSlides[nextHeroIndex];
-  const activeHeroOpacity = heroFade.interpolate({
+  const activeAmbientOpacity = heroFade.interpolate({
     inputRange: [0, 1],
     outputRange: [1, 0],
   });
-  const nextHeroOpacity = heroFade.interpolate({
-    inputRange: [0, 1],
-    outputRange: [0, 1],
-  });
-  const activeAmbientOpacity = heroFade.interpolate({
-    inputRange: [0, 1],
-    outputRange: [0.56, 0],
-  });
   const nextAmbientOpacity = heroFade.interpolate({
     inputRange: [0, 1],
-    outputRange: [0, 0.56],
+    outputRange: [0, 1],
   });
 
   return (
     <SafeAreaView style={[styles.safeArea, !isFramedPreview ? styles.safeAreaFull : null]}>
+      <Animated.Image
+        resizeMode="cover"
+        source={activeHeroSource}
+        style={[
+          styles.fullBleedImage,
+          { opacity: activeAmbientOpacity, transform: [{ scale: heroZoomScale }] },
+        ]}
+      />
+      <Animated.Image
+        resizeMode="cover"
+        source={nextHeroSource}
+        style={[
+          styles.fullBleedImage,
+          { opacity: nextAmbientOpacity, transform: [{ scale: heroZoomScale }] },
+        ]}
+      />
+      <View style={styles.fullBleedShade} />
       <ScrollView
         contentContainerStyle={[styles.content, styles.contentWithTabBar, !isFramedPreview ? styles.contentFull : null]}
         showsVerticalScrollIndicator={false}
       >
-        <Animated.Image
-          blurRadius={10}
-          resizeMode="cover"
-          source={activeHeroSource}
-          style={[styles.ambientImage, { opacity: activeAmbientOpacity }]}
-        />
-        <Animated.Image
-          blurRadius={10}
-          resizeMode="cover"
-          source={nextHeroSource}
-          style={[styles.ambientImage, { opacity: nextAmbientOpacity }]}
-        />
-        <View style={styles.ambientVeil} />
         <View style={styles.appHeader}>
           <View>
             <Text style={styles.greeting}>
@@ -195,23 +191,6 @@ export default function DiscoverScreen() {
         </View>
 
         <Link href={session ? '/scan' : '/auth'} style={styles.cinematicHero}>
-          <Animated.Image
-            resizeMode="cover"
-            source={activeHeroSource}
-            style={[
-              styles.cinematicHeroImage,
-              { opacity: activeHeroOpacity, transform: [{ scale: heroZoomScale }] },
-            ]}
-          />
-          <Animated.Image
-            resizeMode="cover"
-            source={nextHeroSource}
-            style={[
-              styles.cinematicHeroImage,
-              { opacity: nextHeroOpacity, transform: [{ scale: heroZoomScale }] },
-            ]}
-          />
-          <View style={styles.cinematicShade} />
           <View style={styles.sseomdiSticker}>
             <Image resizeMode="contain" source={sseomdiReadingSource} style={styles.sseomdiImage} />
           </View>
@@ -226,46 +205,48 @@ export default function DiscoverScreen() {
           </View>
         </Link>
 
-        <View style={styles.shelfHeader}>
-          <View>
-            <Text style={styles.shelfKicker}>OPEN ROOMS</Text>
-            <Text style={styles.shelfTitle}>지금 함께 읽는 책</Text>
+        <View style={styles.discoveryPanel}>
+          <View style={styles.shelfHeader}>
+            <View>
+              <Text style={styles.shelfKicker}>OPEN ROOMS</Text>
+              <Text style={styles.shelfTitle}>지금 함께 읽는 책</Text>
+            </View>
           </View>
-        </View>
-        <View style={styles.lowerFlow}>
-          <ScrollView
-            contentContainerStyle={styles.popularRail}
-            horizontal
-            showsHorizontalScrollIndicator={false}
-          >
-            {spotlightRooms.map((room) => {
-              const coverUrl = getRoomImageUrl(room);
+          <View style={styles.lowerFlow}>
+            <ScrollView
+              contentContainerStyle={styles.popularRail}
+              horizontal
+              showsHorizontalScrollIndicator={false}
+            >
+              {spotlightRooms.map((room) => {
+                const coverUrl = getRoomImageUrl(room);
 
-              return (
-                <Link
-                  key={room.slug}
-                  href={`/room/${room.slug}`}
-                  style={styles.popularItem}
-                >
-                  {coverUrl ? (
-                    <Image resizeMode="cover" source={{ uri: coverUrl }} style={styles.popularBackgroundImage} />
-                  ) : (
-                    <View style={[styles.popularBackgroundFallback, { backgroundColor: room.accent }]} />
-                  )}
-                  <View style={styles.popularScrim} />
-                  <View style={styles.popularCopy}>
-                    <Text style={styles.popularTitle} numberOfLines={1}>
-                      {room.title}
-                    </Text>
-                    <Text style={styles.popularMeta} numberOfLines={1}>
-                      {room.author}
-                    </Text>
-                  </View>
-                  <Text style={styles.popularArrow}>→</Text>
-                </Link>
-              );
-            })}
-          </ScrollView>
+                return (
+                  <Link
+                    key={room.slug}
+                    href={`/room/${room.slug}`}
+                    style={styles.popularItem}
+                  >
+                    {coverUrl ? (
+                      <Image resizeMode="cover" source={{ uri: coverUrl }} style={styles.popularBackgroundImage} />
+                    ) : (
+                      <View style={[styles.popularBackgroundFallback, { backgroundColor: room.accent }]} />
+                    )}
+                    <View style={styles.popularScrim} />
+                    <View style={styles.popularCopy}>
+                      <Text style={styles.popularTitle} numberOfLines={1}>
+                        {room.title}
+                      </Text>
+                      <Text style={styles.popularMeta} numberOfLines={1}>
+                        {room.author}
+                      </Text>
+                    </View>
+                    <Text style={styles.popularArrow}>→</Text>
+                  </Link>
+                );
+              })}
+            </ScrollView>
+          </View>
         </View>
 
       </ScrollView>
@@ -333,17 +314,18 @@ function getRoomCoverUrl(coverPath: string) {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#BED3C0',
+    backgroundColor: '#101610',
+    overflow: 'hidden',
   },
   safeAreaFull: {
-    backgroundColor: '#EEF3E8',
+    backgroundColor: '#101610',
   },
   content: {
     alignSelf: 'center',
-    backgroundColor: '#EEF3E8',
-    borderRadius: 34,
+    backgroundColor: 'transparent',
+    borderRadius: 0,
     marginVertical: 14,
-    maxWidth: 390,
+    maxWidth: 430,
     overflow: 'hidden',
     paddingHorizontal: 0,
     paddingTop: 24,
@@ -360,18 +342,16 @@ const styles = StyleSheet.create({
     marginVertical: 0,
     maxWidth: '100%',
   },
-  ambientImage: {
-    height: 760,
+  fullBleedImage: {
+    bottom: -30,
     left: 0,
-    opacity: 0.56,
-    overflow: 'hidden',
     position: 'absolute',
     right: 0,
-    top: 0,
+    top: -30,
   },
-  ambientVeil: {
-    backgroundColor: 'rgba(238,243,232,0.48)',
-    height: 760,
+  fullBleedShade: {
+    backgroundColor: 'rgba(7, 13, 8, 0.34)',
+    bottom: 0,
     left: 0,
     position: 'absolute',
     right: 0,
@@ -386,13 +366,13 @@ const styles = StyleSheet.create({
     zIndex: 4,
   },
   greeting: {
-    color: '#64715F',
+    color: 'rgba(255,255,255,0.72)',
     fontSize: 13,
     fontWeight: '800',
     marginBottom: 3,
   },
   appLogo: {
-    color: '#111910',
+    color: '#FFFFFF',
     fontSize: 26,
     fontWeight: '900',
     letterSpacing: 0,
@@ -404,7 +384,7 @@ const styles = StyleSheet.create({
   },
   headerIconButton: {
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: 'rgba(255,255,255,0.92)',
     borderRadius: 21,
     height: 42,
     justifyContent: 'center',
@@ -417,7 +397,7 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   profileButton: {
-    backgroundColor: '#0E271B',
+    backgroundColor: 'rgba(14,39,27,0.92)',
     borderRadius: 21,
     color: '#FFFFFF',
     fontSize: 14,
@@ -437,65 +417,32 @@ const styles = StyleSheet.create({
     zIndex: 4,
   },
   appModeItem: {
-    color: '#63705E',
+    color: 'rgba(255,255,255,0.72)',
     fontSize: 13,
     fontWeight: '900',
     paddingBottom: 8,
   },
   appModeItemActive: {
-    borderBottomColor: '#0E271B',
+    borderBottomColor: '#FFFFFF',
     borderBottomWidth: 3,
-    color: '#0E271B',
+    color: '#FFFFFF',
   },
   cinematicHero: {
-    backgroundColor: '#0E271B',
-    borderRadius: 34,
-    height: 536,
-    marginHorizontal: 16,
-    marginTop: 16,
-    overflow: 'hidden',
+    backgroundColor: 'transparent',
+    height: 476,
+    marginHorizontal: 0,
+    marginTop: 8,
+    overflow: 'visible',
     position: 'relative',
     zIndex: 3,
   },
-  cinematicHeroImage: {
-    height: '100%',
-    position: 'absolute',
-    width: '100%',
-  },
-  cinematicShade: {
-    backgroundColor: 'rgba(7, 12, 8, 0.18)',
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
-    right: 0,
-    top: 0,
-  },
-  heroImageFallback: {
-    alignItems: 'center',
-    bottom: 0,
-    justifyContent: 'center',
-    left: 0,
-    position: 'absolute',
-    right: 0,
-    top: 0,
-  },
-  fallbackLetter: {
-    color: 'rgba(255,255,255,0.62)',
-    fontSize: 94,
-    fontWeight: '900',
-  },
-  fallbackLetterSmall: {
-    color: 'rgba(255,255,255,0.7)',
-    fontSize: 32,
-    fontWeight: '900',
-  },
   sseomdiSticker: {
     alignItems: 'center',
-    backgroundColor: '#F8F1E8',
-    borderColor: 'rgba(14,39,27,0.08)',
+    backgroundColor: 'rgba(248,241,232,0.94)',
+    borderColor: 'rgba(255,255,255,0.26)',
     borderRadius: 26,
     borderWidth: 1,
-    bottom: 144,
+    bottom: 146,
     height: 78,
     justifyContent: 'center',
     overflow: 'hidden',
@@ -510,10 +457,10 @@ const styles = StyleSheet.create({
   },
   cinematicCopy: {
     alignItems: 'center',
-    bottom: 24,
-    left: 18,
+    bottom: 32,
+    left: 24,
     position: 'absolute',
-    right: 18,
+    right: 24,
   },
   heroRoomTitle: {
     color: '#FFFFFF',
@@ -533,7 +480,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   heroStart: {
-    backgroundColor: '#0E271B',
+    backgroundColor: 'rgba(14,39,27,0.94)',
     borderRadius: 20,
     color: '#FFFFFF',
     fontSize: 12,
@@ -543,9 +490,19 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 10,
   },
+  discoveryPanel: {
+    backgroundColor: 'rgba(245,240,232,0.92)',
+    borderTopLeftRadius: 34,
+    borderTopRightRadius: 34,
+    marginTop: 0,
+    paddingBottom: 24,
+    paddingTop: 2,
+    position: 'relative',
+    zIndex: 4,
+  },
   shelfHeader: {
     paddingHorizontal: 20,
-    paddingTop: 30,
+    paddingTop: 28,
     paddingBottom: 12,
     position: 'relative',
     zIndex: 3,
