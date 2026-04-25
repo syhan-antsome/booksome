@@ -343,11 +343,13 @@ const styles = StyleSheet.create({
     maxWidth: '100%',
   },
   fullBleedImage: {
-    bottom: -30,
+    height: '112%',
     left: 0,
+    objectFit: 'cover',
     position: 'absolute',
     right: 0,
     top: -30,
+    width: '100%',
   },
   fullBleedShade: {
     backgroundColor: 'rgba(7, 13, 8, 0.34)',
