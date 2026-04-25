@@ -80,7 +80,7 @@ export default function DiscoverScreen() {
       >
         <Image blurRadius={10} resizeMode="cover" source={homeHeroSource} style={styles.ambientImage} />
         <View style={styles.ambientVeil} />
-        <View style={styles.topBar}>
+        <View style={styles.appHeader}>
           <View>
             <Text style={styles.greeting}>
               {isLoading
@@ -89,29 +89,23 @@ export default function DiscoverScreen() {
                   ? `Hi, ${profile?.display_name ?? 'Reader'}`
                   : 'Hi, Reader'}
             </Text>
-            <Text style={styles.brand}>읽는 사람들의 소셜</Text>
+            <Text style={styles.appLogo}>BookSome</Text>
           </View>
-          {session ? (
-            <Text style={styles.statusBadge}>Live 15°C</Text>
-          ) : (
-            <Link href="/auth" style={styles.headerAction}>
-              로그인
+          <View style={styles.headerActions}>
+            <Pressable onPress={refreshRooms} style={styles.headerIconButton}>
+              <Text style={styles.headerIconText}>{isRefreshingRooms ? '...' : '⌕'}</Text>
+            </Pressable>
+            <Link href={session ? '/auth' : '/auth'} style={styles.profileButton}>
+              {profile?.display_name?.slice(0, 1) ?? 'B'}
             </Link>
-          )}
+          </View>
         </View>
 
-        <View style={styles.searchLine}>
-          <Text style={styles.pageTitle}>Book{'\n'}Some</Text>
-          <Pressable onPress={refreshRooms} style={styles.iconButton}>
-            <Text style={styles.iconText}>{isRefreshingRooms ? '...' : '⌕'}</Text>
-          </Pressable>
-        </View>
-
-        <View style={styles.topicRail}>
-          <Text style={[styles.topicPill, styles.topicPillActive]}># 발견</Text>
-          <Text style={styles.topicPill}>리딩룸</Text>
-          <Text style={styles.topicPill}>대화</Text>
-          <Text style={styles.topicPill}>모임</Text>
+        <View style={styles.appModeRail}>
+          <Text style={[styles.appModeItem, styles.appModeItemActive]}>발견</Text>
+          <Text style={styles.appModeItem}>리딩룸</Text>
+          <Text style={styles.appModeItem}>대화</Text>
+          <Text style={styles.appModeItem}>모임</Text>
         </View>
 
         {leadRoom ? (
@@ -355,99 +349,80 @@ const styles = StyleSheet.create({
     right: 0,
     top: 0,
   },
-  topBar: {
+  appHeader: {
     alignItems: 'center',
     flexDirection: 'row',
     justifyContent: 'space-between',
     paddingHorizontal: 20,
-    paddingBottom: 14,
+    paddingBottom: 18,
     zIndex: 2,
   },
   greeting: {
-    color: '#253123',
-    fontSize: 15,
+    color: '#64715F',
+    fontSize: 13,
     fontWeight: '800',
-    marginBottom: 4,
+    marginBottom: 3,
   },
-  brand: {
+  appLogo: {
     color: '#111910',
-    fontSize: 22,
+    fontSize: 26,
     fontWeight: '900',
     letterSpacing: 0,
   },
-  statusBadge: {
-    backgroundColor: '#FFFFFF',
-    color: '#253123',
-    borderRadius: 22,
-    fontSize: 12,
-    fontWeight: '900',
-    overflow: 'hidden',
-    paddingHorizontal: 12,
-    paddingVertical: 9,
-  },
-  headerAction: {
-    backgroundColor: '#FFFFFF',
-    color: '#111910',
-    borderRadius: 22,
-    fontSize: 14,
-    fontWeight: '900',
-    overflow: 'hidden',
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-  },
-  searchLine: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    zIndex: 2,
-  },
-  pageTitle: {
-    color: '#111910',
-    fontSize: 44,
-    fontWeight: '900',
-    letterSpacing: 0,
-    lineHeight: 43,
-  },
-  iconButton: {
-    alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 24,
-    height: 48,
-    justifyContent: 'center',
-    width: 48,
-  },
-  iconText: {
-    color: '#111910',
-    fontSize: 20,
-    fontWeight: '900',
-  },
-  topicRail: {
+  headerActions: {
     alignItems: 'center',
     flexDirection: 'row',
     gap: 8,
+  },
+  headerIconButton: {
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 21,
+    height: 42,
+    justifyContent: 'center',
+    width: 42,
+  },
+  headerIconText: {
+    color: '#111910',
+    fontSize: 18,
+    fontWeight: '900',
+    lineHeight: 20,
+  },
+  profileButton: {
+    backgroundColor: '#0E271B',
+    borderRadius: 21,
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '900',
+    height: 42,
+    lineHeight: 42,
+    overflow: 'hidden',
+    textAlign: 'center',
+    width: 42,
+  },
+  appModeRail: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 18,
     paddingHorizontal: 20,
-    paddingTop: 16,
+    paddingBottom: 4,
     zIndex: 2,
   },
-  topicPill: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 20,
-    color: '#2A3828',
-    fontSize: 12,
+  appModeItem: {
+    color: '#63705E',
+    fontSize: 13,
     fontWeight: '900',
-    overflow: 'hidden',
-    paddingHorizontal: 12,
-    paddingVertical: 9,
+    paddingBottom: 8,
   },
-  topicPillActive: {
-    backgroundColor: '#0E271B',
-    color: '#FFFFFF',
+  appModeItemActive: {
+    borderBottomColor: '#0E271B',
+    borderBottomWidth: 3,
+    color: '#0E271B',
   },
   heroRoom: {
     height: 390,
     marginHorizontal: 0,
-    marginTop: 18,
+    marginTop: 4,
     overflow: 'visible',
     position: 'relative',
     zIndex: 1,
