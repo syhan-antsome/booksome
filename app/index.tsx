@@ -17,13 +17,22 @@ import { featuredRooms, type FeaturedRoom } from '../src/data/rooms';
 import { useAuth } from '../src/providers/auth-provider';
 import { getMediaUrl } from '../src/services/media';
 import { listFeaturedRooms, type RoomSummary } from '../src/services/rooms';
+import homeHeroBookStacksImage from '../assets/home-hero-book-stacks.jpg';
+import homeHeroWriterDeskImage from '../assets/home-hero-writer-desk.jpg';
 import homeHeroImage from '../assets/home-hero-reading-lounge.jpg';
 import sseomdiReadingImage from '../assets/sseomdi-reading.png';
 
-const homeHeroSource: ImageSourcePropType =
-  typeof homeHeroImage === 'string' ? { uri: homeHeroImage } : homeHeroImage;
+function toImageSource(image: string | number): ImageSourcePropType {
+  return typeof image === 'string' ? { uri: image } : image;
+}
+
+const homeHeroSlides: ImageSourcePropType[] = [
+  toImageSource(homeHeroImage),
+  toImageSource(homeHeroBookStacksImage),
+  toImageSource(homeHeroWriterDeskImage),
+];
 const sseomdiReadingSource: ImageSourcePropType =
-  typeof sseomdiReadingImage === 'string' ? { uri: sseomdiReadingImage } : sseomdiReadingImage;
+  toImageSource(sseomdiReadingImage);
 
 export default function DiscoverScreen() {
   const { isLoading, profile, session, signOut } = useAuth();
@@ -32,7 +41,11 @@ export default function DiscoverScreen() {
   const [remoteRooms, setRemoteRooms] = useState<RoomSummary[]>([]);
   const [connectionLabel, setConnectionLabel] = useState('연결 확인 중');
   const [isRefreshingRooms, setIsRefreshingRooms] = useState(false);
+  const [activeHeroIndex, setActiveHeroIndex] = useState(0);
+  const [nextHeroIndex, setNextHeroIndex] = useState(1);
   const heroZoom = useRef(new Animated.Value(0)).current;
+  const heroFade = useRef(new Animated.Value(0)).current;
+  const activeHeroIndexRef = useRef(0);
 
   useEffect(() => {
     const animation = Animated.loop(
@@ -40,12 +53,12 @@ export default function DiscoverScreen() {
         Animated.timing(heroZoom, {
           duration: 11000,
           toValue: 1,
-          useNativeDriver: true,
+          useNativeDriver: false,
         }),
         Animated.timing(heroZoom, {
           duration: 3500,
           toValue: 0,
-          useNativeDriver: true,
+          useNativeDriver: false,
         }),
       ]),
     );
@@ -56,6 +69,28 @@ export default function DiscoverScreen() {
       animation.stop();
     };
   }, [heroZoom]);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const nextIndex = (activeHeroIndexRef.current + 1) % homeHeroSlides.length;
+
+      setNextHeroIndex(nextIndex);
+      heroFade.setValue(0);
+      Animated.timing(heroFade, {
+        duration: 1400,
+        toValue: 1,
+        useNativeDriver: false,
+      }).start(() => {
+        activeHeroIndexRef.current = nextIndex;
+        setActiveHeroIndex(nextIndex);
+        heroFade.setValue(0);
+      });
+    }, 7200);
+
+    return () => {
+      clearInterval(interval);
+    };
+  }, [heroFade]);
 
   const refreshRooms = useCallback(() => {
     let isMounted = true;
@@ -100,6 +135,24 @@ export default function DiscoverScreen() {
     inputRange: [0, 1],
     outputRange: [1, 1.08],
   });
+  const activeHeroSource = homeHeroSlides[activeHeroIndex];
+  const nextHeroSource = homeHeroSlides[nextHeroIndex];
+  const activeHeroOpacity = heroFade.interpolate({
+    inputRange: [0, 1],
+    outputRange: [1, 0],
+  });
+  const nextHeroOpacity = heroFade.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, 1],
+  });
+  const activeAmbientOpacity = heroFade.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0.56, 0],
+  });
+  const nextAmbientOpacity = heroFade.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, 0.56],
+  });
 
   return (
     <SafeAreaView style={[styles.safeArea, !isFramedPreview ? styles.safeAreaFull : null]}>
@@ -107,7 +160,18 @@ export default function DiscoverScreen() {
         contentContainerStyle={[styles.content, styles.contentWithTabBar, !isFramedPreview ? styles.contentFull : null]}
         showsVerticalScrollIndicator={false}
       >
-        <Image blurRadius={10} resizeMode="cover" source={homeHeroSource} style={styles.ambientImage} />
+        <Animated.Image
+          blurRadius={10}
+          resizeMode="cover"
+          source={activeHeroSource}
+          style={[styles.ambientImage, { opacity: activeAmbientOpacity }]}
+        />
+        <Animated.Image
+          blurRadius={10}
+          resizeMode="cover"
+          source={nextHeroSource}
+          style={[styles.ambientImage, { opacity: nextAmbientOpacity }]}
+        />
         <View style={styles.ambientVeil} />
         <View style={styles.appHeader}>
           <View>
@@ -140,8 +204,19 @@ export default function DiscoverScreen() {
         <Link href={session ? '/scan' : '/auth'} style={styles.cinematicHero}>
           <Animated.Image
             resizeMode="cover"
-            source={homeHeroSource}
-            style={[styles.cinematicHeroImage, { transform: [{ scale: heroZoomScale }] }]}
+            source={activeHeroSource}
+            style={[
+              styles.cinematicHeroImage,
+              { opacity: activeHeroOpacity, transform: [{ scale: heroZoomScale }] },
+            ]}
+          />
+          <Animated.Image
+            resizeMode="cover"
+            source={nextHeroSource}
+            style={[
+              styles.cinematicHeroImage,
+              { opacity: nextHeroOpacity, transform: [{ scale: heroZoomScale }] },
+            ]}
           />
           <View style={styles.cinematicShade} />
           <View style={styles.sseomdiSticker}>
