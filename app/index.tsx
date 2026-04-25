@@ -1,6 +1,7 @@
 import { Link, useFocusEffect } from 'expo-router';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
+  Animated,
   Image,
   type ImageSourcePropType,
   Pressable,
@@ -31,6 +32,30 @@ export default function DiscoverScreen() {
   const [remoteRooms, setRemoteRooms] = useState<RoomSummary[]>([]);
   const [connectionLabel, setConnectionLabel] = useState('연결 확인 중');
   const [isRefreshingRooms, setIsRefreshingRooms] = useState(false);
+  const heroZoom = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    const animation = Animated.loop(
+      Animated.sequence([
+        Animated.timing(heroZoom, {
+          duration: 11000,
+          toValue: 1,
+          useNativeDriver: true,
+        }),
+        Animated.timing(heroZoom, {
+          duration: 3500,
+          toValue: 0,
+          useNativeDriver: true,
+        }),
+      ]),
+    );
+
+    animation.start();
+
+    return () => {
+      animation.stop();
+    };
+  }, [heroZoom]);
 
   const refreshRooms = useCallback(() => {
     let isMounted = true;
@@ -71,6 +96,10 @@ export default function DiscoverScreen() {
   const popularRooms = rooms.slice(0, 4);
   const galleryRooms = rooms.length > 1 ? rooms.slice(1) : rooms;
   const isFramedPreview = width >= 640;
+  const heroZoomScale = heroZoom.interpolate({
+    inputRange: [0, 1],
+    outputRange: [1, 1.08],
+  });
 
   return (
     <SafeAreaView style={[styles.safeArea, !isFramedPreview ? styles.safeAreaFull : null]}>
@@ -108,39 +137,30 @@ export default function DiscoverScreen() {
           <Text style={styles.appModeItem}>모임</Text>
         </View>
 
-        {leadRoom ? (
-          <Link href={session ? '/scan' : '/auth'} style={styles.heroRoom}>
-            <Image resizeMode="cover" source={homeHeroSource} style={styles.heroRoomImage} />
-            <View style={styles.heroScrim} />
-            <View style={styles.heroSoftBase} />
-            <View style={styles.heroTopMeta}>
-              <Text style={styles.countryLabel}>BOOKSOME TODAY</Text>
-              <Text style={styles.saveDot}>☆</Text>
-            </View>
-            <View style={styles.sseomdiSticker}>
-              <Image resizeMode="contain" source={sseomdiReadingSource} style={styles.sseomdiImage} />
-            </View>
-            <View style={styles.heroRoomCopy}>
-              <Text adjustsFontSizeToFit numberOfLines={2} style={styles.heroRoomTitle}>
-                책으로 이어지는 하루
-              </Text>
-              <Text style={styles.heroRoomQuestion} numberOfLines={2}>
-                책을 고르면 대화와 모임이 함께 열립니다.
-              </Text>
-              <View style={styles.heroFooter}>
-                <Text style={styles.heroFooterText}>책 발견</Text>
-                <Text style={styles.heroFooterText}>리딩룸</Text>
-                <Text style={styles.heroFooterText}>모임</Text>
-              </View>
-              <Text style={styles.heroStart}>Start BookSome</Text>
-            </View>
-          </Link>
-        ) : null}
-
-        <View style={styles.moodPhotoSection}>
-          <Image resizeMode="contain" source={homeHeroSource} style={styles.moodPhotoImage} />
-          <Text style={styles.moodPhotoKicker}>TODAY'S SPACE</Text>
-        </View>
+        <Link href={session ? '/scan' : '/auth'} style={styles.cinematicHero}>
+          <Animated.Image
+            resizeMode="cover"
+            source={homeHeroSource}
+            style={[styles.cinematicHeroImage, { transform: [{ scale: heroZoomScale }] }]}
+          />
+          <View style={styles.cinematicShade} />
+          <View style={styles.cinematicTopMeta}>
+            <Text style={styles.countryLabel}>BOOKSOME TODAY</Text>
+            <Text style={styles.saveDot}>☆</Text>
+          </View>
+          <View style={styles.sseomdiSticker}>
+            <Image resizeMode="contain" source={sseomdiReadingSource} style={styles.sseomdiImage} />
+          </View>
+          <View style={styles.cinematicCopy}>
+            <Text adjustsFontSizeToFit numberOfLines={2} style={styles.heroRoomTitle}>
+              책으로 이어지는 하루
+            </Text>
+            <Text style={styles.heroRoomQuestion} numberOfLines={2}>
+              책을 고르면 대화와 모임이 함께 열립니다.
+            </Text>
+            <Text style={styles.heroStart}>Start BookSome</Text>
+          </View>
+        </Link>
 
         <View style={styles.sectionRow}>
           <Text style={styles.sectionTitle}>Reading rooms</Text>
@@ -419,24 +439,28 @@ const styles = StyleSheet.create({
     borderBottomWidth: 3,
     color: '#0E271B',
   },
-  heroRoom: {
-    height: 390,
-    marginHorizontal: 0,
-    marginTop: 4,
-    overflow: 'visible',
-    position: 'relative',
-    zIndex: 1,
-  },
-  heroRoomImage: {
-    borderTopLeftRadius: 160,
-    borderTopRightRadius: 160,
-    height: 364,
-    left: 20,
-    opacity: 0.94,
+  cinematicHero: {
+    backgroundColor: '#0E271B',
+    borderRadius: 34,
+    height: 536,
+    marginHorizontal: 16,
+    marginTop: 16,
     overflow: 'hidden',
+    position: 'relative',
+    zIndex: 3,
+  },
+  cinematicHeroImage: {
+    height: '100%',
+    position: 'absolute',
+    width: '100%',
+  },
+  cinematicShade: {
+    backgroundColor: 'rgba(7, 12, 8, 0.18)',
+    bottom: 0,
+    left: 0,
     position: 'absolute',
     right: 0,
-    top: 18,
+    top: 0,
   },
   heroImageFallback: {
     alignItems: 'center',
@@ -457,35 +481,14 @@ const styles = StyleSheet.create({
     fontSize: 32,
     fontWeight: '900',
   },
-  heroScrim: {
-    backgroundColor: 'rgba(7, 12, 8, 0.1)',
-    borderTopLeftRadius: 160,
-    borderTopRightRadius: 160,
-    height: 364,
-    left: 20,
-    position: 'absolute',
-    right: 0,
-    top: 18,
-  },
-  heroSoftBase: {
-    backgroundColor: '#EEF3E8',
-    borderTopLeftRadius: 190,
-    borderTopRightRadius: 190,
-    bottom: -28,
-    height: 174,
-    left: -42,
-    opacity: 0.98,
-    position: 'absolute',
-    right: -42,
-  },
-  heroTopMeta: {
+  cinematicTopMeta: {
     alignItems: 'center',
     flexDirection: 'row',
     justifyContent: 'space-between',
-    left: 18,
+    left: 16,
     position: 'absolute',
-    right: 18,
-    top: 44,
+    right: 16,
+    top: 16,
   },
   countryLabel: {
     backgroundColor: 'rgba(255,255,255,0.88)',
@@ -516,22 +519,22 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(14,39,27,0.08)',
     borderRadius: 26,
     borderWidth: 1,
-    bottom: 48,
-    height: 88,
+    bottom: 144,
+    height: 78,
     justifyContent: 'center',
     overflow: 'hidden',
     position: 'absolute',
     right: 18,
-    width: 108,
+    width: 98,
     zIndex: 3,
   },
   sseomdiImage: {
-    height: 82,
-    width: 108,
+    height: 74,
+    width: 98,
   },
-  heroRoomCopy: {
+  cinematicCopy: {
     alignItems: 'center',
-    bottom: 66,
+    bottom: 24,
     left: 18,
     position: 'absolute',
     right: 18,
@@ -553,17 +556,6 @@ const styles = StyleSheet.create({
     maxWidth: 260,
     textAlign: 'center',
   },
-  heroFooter: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    gap: 10,
-    marginTop: 14,
-  },
-  heroFooterText: {
-    color: '#FFFFFF',
-    fontSize: 11,
-    fontWeight: '900',
-  },
   heroStart: {
     backgroundColor: '#0E271B',
     borderRadius: 20,
@@ -574,34 +566,6 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     paddingHorizontal: 20,
     paddingVertical: 10,
-  },
-  moodPhotoSection: {
-    backgroundColor: '#0E271B',
-    borderRadius: 34,
-    height: 536,
-    marginHorizontal: 16,
-    marginTop: 2,
-    overflow: 'hidden',
-    position: 'relative',
-    zIndex: 3,
-  },
-  moodPhotoImage: {
-    height: '100%',
-    position: 'absolute',
-    width: '100%',
-  },
-  moodPhotoKicker: {
-    backgroundColor: 'rgba(255,255,255,0.9)',
-    borderRadius: 17,
-    color: '#16311F',
-    fontSize: 11,
-    fontWeight: '900',
-    left: 16,
-    overflow: 'hidden',
-    paddingHorizontal: 10,
-    paddingVertical: 7,
-    position: 'absolute',
-    top: 16,
   },
   sectionRow: {
     alignItems: 'center',
