@@ -143,6 +143,11 @@ export default function DiscoverScreen() {
           </Link>
         ) : null}
 
+        <View style={styles.moodPhotoSection}>
+          <Image resizeMode="contain" source={homeHeroSource} style={styles.moodPhotoImage} />
+          <Text style={styles.moodPhotoKicker}>TODAY'S SPACE</Text>
+        </View>
+
         <View style={styles.sectionRow}>
           <Text style={styles.sectionTitle}>Reading rooms</Text>
           <Text style={styles.sectionMore}>{connectionLabel}</Text>
@@ -440,7 +445,7 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
   },
   heroRoom: {
-    height: 418,
+    height: 390,
     marginHorizontal: 0,
     marginTop: 18,
     overflow: 'visible',
@@ -450,7 +455,7 @@ const styles = StyleSheet.create({
   heroRoomImage: {
     borderTopLeftRadius: 160,
     borderTopRightRadius: 160,
-    height: 390,
+    height: 364,
     left: 20,
     opacity: 0.94,
     overflow: 'hidden',
@@ -481,7 +486,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(7, 12, 8, 0.1)',
     borderTopLeftRadius: 160,
     borderTopRightRadius: 160,
-    height: 390,
+    height: 364,
     left: 20,
     position: 'absolute',
     right: 0,
@@ -491,7 +496,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#EEF3E8',
     borderTopLeftRadius: 190,
     borderTopRightRadius: 190,
-    bottom: -36,
+    bottom: -28,
     height: 174,
     left: -42,
     opacity: 0.98,
@@ -536,7 +541,7 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(14,39,27,0.08)',
     borderRadius: 26,
     borderWidth: 1,
-    bottom: 52,
+    bottom: 48,
     height: 88,
     justifyContent: 'center',
     overflow: 'hidden',
@@ -551,7 +556,7 @@ const styles = StyleSheet.create({
   },
   heroRoomCopy: {
     alignItems: 'center',
-    bottom: 72,
+    bottom: 66,
     left: 18,
     position: 'absolute',
     right: 18,
@@ -594,6 +599,34 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     paddingHorizontal: 20,
     paddingVertical: 10,
+  },
+  moodPhotoSection: {
+    backgroundColor: '#0E271B',
+    borderRadius: 34,
+    height: 536,
+    marginHorizontal: 16,
+    marginTop: 2,
+    overflow: 'hidden',
+    position: 'relative',
+    zIndex: 3,
+  },
+  moodPhotoImage: {
+    height: '100%',
+    position: 'absolute',
+    width: '100%',
+  },
+  moodPhotoKicker: {
+    backgroundColor: 'rgba(255,255,255,0.9)',
+    borderRadius: 17,
+    color: '#16311F',
+    fontSize: 11,
+    fontWeight: '900',
+    left: 16,
+    overflow: 'hidden',
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    position: 'absolute',
+    top: 16,
   },
   sectionRow: {
     alignItems: 'center',
