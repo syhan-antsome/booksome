@@ -240,22 +240,18 @@ export default function DiscoverScreen() {
         <View style={styles.tabBar}>
           <Link href="/" style={[styles.tabItem, styles.tabItemActive]}>
             <Text style={[styles.tabIcon, styles.tabIconActive]}>⌂</Text>
-            <Text style={[styles.tabLabel, styles.tabLabelActive]}>홈</Text>
           </Link>
           <Link href={session ? '/scan' : '/auth'} style={styles.tabItem}>
             <Text style={styles.tabIcon}>⌕</Text>
-            <Text style={styles.tabLabel}>스캔</Text>
           </Link>
           <Link href={session ? '/create-room' : '/auth'} style={styles.tabCreate}>
             <Text style={styles.tabCreateIcon}>＋</Text>
           </Link>
           <Link href="/meetups" style={styles.tabItem}>
             <Text style={styles.tabIcon}>◎</Text>
-            <Text style={styles.tabLabel}>모임</Text>
           </Link>
           <Link href={session ? '/auth' : '/auth'} style={styles.tabItem}>
             <Text style={styles.tabIcon}>◌</Text>
-            <Text style={styles.tabLabel}>내 서재</Text>
           </Link>
         </View>
       </View>
@@ -326,15 +322,15 @@ const styles = StyleSheet.create({
     maxWidth: '100%',
   },
   ambientImage: {
-    height: 560,
+    height: 620,
     left: 0,
-    opacity: 0.34,
+    opacity: 0.52,
     position: 'absolute',
     right: 0,
     top: 0,
   },
   ambientVeil: {
-    backgroundColor: 'rgba(238,243,232,0.52)',
+    backgroundColor: 'rgba(238,243,232,0.28)',
     height: 620,
     left: 0,
     position: 'absolute',
@@ -431,7 +427,7 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
   },
   heroRoom: {
-    height: 350,
+    height: 374,
     marginHorizontal: 0,
     marginTop: 8,
     overflow: 'visible',
@@ -441,7 +437,7 @@ const styles = StyleSheet.create({
   heroRoomImage: {
     bottom: 0,
     left: 0,
-    opacity: 0.76,
+    opacity: 0.94,
     position: 'absolute',
     right: 0,
     top: -238,
@@ -466,7 +462,7 @@ const styles = StyleSheet.create({
     fontWeight: '900',
   },
   heroScrim: {
-    backgroundColor: 'rgba(7, 12, 8, 0.18)',
+    backgroundColor: 'rgba(7, 12, 8, 0.08)',
     bottom: 0,
     left: 0,
     position: 'absolute',
@@ -477,8 +473,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#EEF3E8',
     borderTopLeftRadius: 180,
     borderTopRightRadius: 180,
-    bottom: -82,
-    height: 192,
+    bottom: -84,
+    height: 206,
     left: -54,
     opacity: 0.98,
     position: 'absolute',
@@ -518,7 +514,7 @@ const styles = StyleSheet.create({
   },
   heroRoomCopy: {
     alignItems: 'center',
-    bottom: 42,
+    bottom: 52,
     left: 18,
     position: 'absolute',
     right: 18,
@@ -871,51 +867,43 @@ const styles = StyleSheet.create({
     borderRadius: 30,
     flexDirection: 'row',
     justifyContent: 'space-between',
-    maxWidth: 354,
-    minHeight: 66,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+    maxWidth: 320,
+    minHeight: 58,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
     width: '100%',
   },
   tabItem: {
     alignItems: 'center',
     flex: 1,
-    gap: 3,
     justifyContent: 'center',
-    minHeight: 48,
+    minHeight: 44,
   },
   tabItemActive: {
     backgroundColor: '#DDE9C8',
-    borderRadius: 22,
+    borderRadius: 20,
+    flex: 0,
+    height: 40,
+    width: 40,
   },
   tabIcon: {
     color: 'rgba(255,255,255,0.72)',
-    fontSize: 16,
+    fontSize: 17,
     fontWeight: '900',
-    lineHeight: 18,
+    lineHeight: 20,
     textAlign: 'center',
   },
   tabIconActive: {
     color: '#0E271B',
   },
-  tabLabel: {
-    color: 'rgba(255,255,255,0.68)',
-    fontSize: 10,
-    fontWeight: '900',
-    lineHeight: 12,
-    textAlign: 'center',
-  },
-  tabLabelActive: {
-    color: '#0E271B',
-  },
   tabCreate: {
     alignItems: 'center',
     backgroundColor: '#FFFFFF',
-    borderRadius: 25,
-    height: 50,
+    borderRadius: 26,
+    height: 52,
     justifyContent: 'center',
-    marginHorizontal: 6,
-    width: 50,
+    marginHorizontal: 8,
+    width: 52,
   },
   tabCreateIcon: {
     color: '#0E271B',
