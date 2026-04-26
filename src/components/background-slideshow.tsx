@@ -13,6 +13,7 @@ type BackgroundSlideshowProps = {
 
 const SLIDE_HOLD_MS = 3000;
 const FADE_MS = 1400;
+const MOTION_MS = SLIDE_HOLD_MS + FADE_MS + 220;
 
 export function BackgroundSlideshow({ sources }: BackgroundSlideshowProps) {
   const sourceCount = sources.length;
@@ -21,6 +22,7 @@ export function BackgroundSlideshow({ sources }: BackgroundSlideshowProps) {
   const opacities = useRef(
     sources.map((_, index) => new Animated.Value(index === 0 ? 1 : 0)),
   ).current;
+  const motions = useRef(sources.map(() => new Animated.Value(0))).current;
   const useNativeDriver = Platform.OS !== 'web';
 
   useEffect(() => {
@@ -28,13 +30,23 @@ export function BackgroundSlideshow({ sources }: BackgroundSlideshowProps) {
 
     let mounted = true;
     let animation: Animated.CompositeAnimation | null = null;
+    let motionAnimation: Animated.CompositeAnimation | null = null;
     const currentIndex = activeIndexRef.current;
     const nextIndex = (currentIndex + 1) % sourceCount;
+
+    motions[currentIndex]?.setValue(0);
+    motionAnimation = Animated.timing(motions[currentIndex], {
+      duration: MOTION_MS,
+      toValue: 1,
+      useNativeDriver,
+    });
+    motionAnimation.start();
 
     const timer = setTimeout(() => {
       if (!mounted) return;
 
       opacities[nextIndex]?.setValue(0);
+      motions[nextIndex]?.setValue(0);
       animation = Animated.parallel([
         Animated.timing(opacities[currentIndex], {
           duration: FADE_MS,
@@ -43,6 +55,11 @@ export function BackgroundSlideshow({ sources }: BackgroundSlideshowProps) {
         }),
         Animated.timing(opacities[nextIndex], {
           duration: FADE_MS,
+          toValue: 1,
+          useNativeDriver,
+        }),
+        Animated.timing(motions[nextIndex], {
+          duration: MOTION_MS,
           toValue: 1,
           useNativeDriver,
         }),
@@ -63,16 +80,18 @@ export function BackgroundSlideshow({ sources }: BackgroundSlideshowProps) {
       mounted = false;
       clearTimeout(timer);
       animation?.stop();
+      motionAnimation?.stop();
     };
-  }, [cycle, opacities, sourceCount, useNativeDriver]);
+  }, [cycle, motions, opacities, sourceCount, useNativeDriver]);
 
   const imageStyles = useMemo(
     () =>
       sources.map((_, index) => ({
         ...styles.image,
         opacity: opacities[index],
+        transform: getSlideTransform(index, motions[index]),
       })),
-    [opacities, sources],
+    [motions, opacities, sources],
   );
 
   if (sourceCount === 0) return null;
@@ -89,6 +108,40 @@ export function BackgroundSlideshow({ sources }: BackgroundSlideshowProps) {
       ))}
     </View>
   );
+}
+
+function getSlideTransform(index: number, motion: Animated.Value) {
+  if (index % 3 === 0) {
+    return [
+      {
+        scale: motion.interpolate({
+          inputRange: [0, 1],
+          outputRange: [1.02, 1.18],
+        }),
+      },
+    ];
+  }
+
+  if (index % 3 === 1) {
+    return [
+      {
+        scale: motion.interpolate({
+          inputRange: [0, 1],
+          outputRange: [1.18, 1.03],
+        }),
+      },
+    ];
+  }
+
+  return [
+    { scale: 1.12 },
+    {
+      translateY: motion.interpolate({
+        inputRange: [0, 1],
+        outputRange: [-22, 18],
+      }),
+    },
+  ];
 }
 
 const styles = StyleSheet.create({
