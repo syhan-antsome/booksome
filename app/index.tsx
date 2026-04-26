@@ -1,5 +1,5 @@
-import { Link, useFocusEffect } from 'expo-router';
-import { useCallback, useMemo, useState } from 'react';
+import { Link } from 'expo-router';
+import { useMemo } from 'react';
 import {
   Image,
   type ImageSourcePropType,
@@ -13,10 +13,7 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { BackgroundSlideshow } from '../src/components/background-slideshow';
-import { featuredRooms, type FeaturedRoom } from '../src/data/rooms';
 import { useAuth } from '../src/providers/auth-provider';
-import { getMediaUrl } from '../src/services/media';
-import { listFeaturedRooms, type RoomSummary } from '../src/services/rooms';
 import homeHeroBookStacksImage from '../assets/home-hero-book-stacks.jpg';
 import homeHeroWriterDeskImage from '../assets/home-hero-writer-desk.jpg';
 import homeHeroImage from '../assets/home-hero-reading-lounge.jpg';
@@ -38,43 +35,8 @@ export default function DiscoverScreen() {
   const { isLoading, profile, session } = useAuth();
   const { height, width } = useWindowDimensions();
   const insets = useSafeAreaInsets();
-  const [remoteRooms, setRemoteRooms] = useState<RoomSummary[]>([]);
-  const [isRefreshingRooms, setIsRefreshingRooms] = useState(false);
-
-  const refreshRooms = useCallback(() => {
-    let isMounted = true;
-
-    setIsRefreshingRooms(true);
-
-    listFeaturedRooms()
-      .then((rooms) => {
-        if (!isMounted) return;
-
-        setRemoteRooms(rooms);
-      })
-      .catch(() => {
-        if (!isMounted) return;
-      })
-      .finally(() => {
-        if (isMounted) {
-          setIsRefreshingRooms(false);
-        }
-      });
-
-    return () => {
-      isMounted = false;
-    };
-  }, []);
-
-  useFocusEffect(refreshRooms);
-
-  const rooms = useMemo(
-    () => (remoteRooms.length > 0 ? remoteRooms.map(toFeaturedRoom) : featuredRooms),
-    [remoteRooms],
-  );
-  const spotlightRooms = rooms.slice(0, 4);
   const isFramedPreview = width >= 640;
-  const heroStageHeight = Math.max(350, Math.min(430, height - 330));
+  const heroStageHeight = Math.max(470, height - 206);
   const safeAreaStyle = !isFramedPreview
     ? StyleSheet.compose(styles.safeArea, styles.safeAreaFull)
     : styles.safeArea;
@@ -121,9 +83,11 @@ export default function DiscoverScreen() {
             <Text style={styles.appLogo}>BookSome</Text>
           </View>
           <View style={styles.headerActions}>
-            <Pressable onPress={refreshRooms} style={styles.headerIconButton}>
-              <Text style={styles.headerIconText}>{isRefreshingRooms ? '...' : '⌕'}</Text>
-            </Pressable>
+            <Link asChild href={session ? '/scan' : '/auth'}>
+              <Pressable style={styles.headerIconButton}>
+                <Text style={styles.headerIconText}>⌕</Text>
+              </Pressable>
+            </Link>
             <Link asChild href={session ? '/profile' : '/auth'}>
               <Pressable style={styles.profileButton}>
                 <Text style={styles.profileButtonText}>{profile?.display_name?.slice(0, 1) ?? 'B'}</Text>
@@ -155,65 +119,19 @@ export default function DiscoverScreen() {
             </View>
           </Pressable>
         </Link>
-
-        <View style={styles.discoveryPanel}>
-          <View style={styles.shelfHeader}>
-            <View>
-              <Text style={styles.shelfKicker}>OPEN ROOMS</Text>
-              <Text style={styles.shelfTitle}>지금 함께 읽는 책</Text>
-            </View>
-          </View>
-          <View style={styles.lowerFlow}>
-            <ScrollView
-              contentContainerStyle={styles.popularRail}
-              horizontal
-              showsHorizontalScrollIndicator={false}
-            >
-              {spotlightRooms.map((room) => {
-                const coverUrl = getRoomImageUrl(room);
-
-                return (
-                  <Link asChild href={`/room/${room.slug}`} key={room.slug}>
-                    <Pressable style={styles.popularItem}>
-                      {coverUrl ? (
-                        <Image resizeMode="cover" source={{ uri: coverUrl }} style={styles.popularBackgroundImage} />
-                      ) : (
-                        <View
-                          style={StyleSheet.compose(
-                            styles.popularBackgroundFallback,
-                            { backgroundColor: room.accent },
-                          )}
-                        />
-                      )}
-                      <View style={styles.popularScrim} />
-                      <View style={styles.popularCopy}>
-                        <Text style={styles.popularTitle} numberOfLines={1}>
-                          {room.title}
-                        </Text>
-                        <Text style={styles.popularMeta} numberOfLines={1}>
-                          {room.author}
-                        </Text>
-                      </View>
-                      <Text style={styles.popularArrow}>→</Text>
-                    </Pressable>
-                  </Link>
-                );
-              })}
-            </ScrollView>
-          </View>
-        </View>
-
       </ScrollView>
       <View style={tabBarShellStyle}>
         <View style={styles.tabBar}>
           <Link asChild href="/">
             <Pressable style={activeTabStyle}>
               <Text style={activeTabIconStyle}>⌂</Text>
+              <Text style={styles.tabLabelActive}>홈</Text>
             </Pressable>
           </Link>
           <Link asChild href={session ? '/scan' : '/auth'}>
             <Pressable style={styles.tabItem}>
               <Text style={styles.tabIcon}>⌕</Text>
+              <Text style={styles.tabLabel}>발견</Text>
             </Pressable>
           </Link>
           <Link asChild href={session ? '/create-room' : '/auth'}>
@@ -224,49 +142,19 @@ export default function DiscoverScreen() {
           <Link asChild href="/meetups">
             <Pressable style={styles.tabItem}>
               <Text style={styles.tabIcon}>◎</Text>
+              <Text style={styles.tabLabel}>모임</Text>
             </Pressable>
           </Link>
           <Link asChild href={session ? '/profile' : '/auth'}>
             <Pressable style={styles.tabItem}>
               <Text style={styles.tabIcon}>◌</Text>
+              <Text style={styles.tabLabel}>나</Text>
             </Pressable>
           </Link>
         </View>
       </View>
     </SafeAreaView>
   );
-}
-
-function toFeaturedRoom(room: RoomSummary): FeaturedRoom {
-  return {
-    slug: room.slug,
-    title: room.title,
-    author: room.subtitle ?? 'BookSome',
-    host: room.host_name ?? 'Host',
-    members: room.member_count.toLocaleString(),
-    accent: room.accent_color,
-    progress: room.progress_percent,
-    next: room.next_event ?? '새로운 함께 읽기 일정을 준비 중입니다',
-    question: room.pinned_question ?? '이 책은 당신에게 어떤 질문을 남겼나요?',
-    coverPath: room.cover_path ?? null,
-    coverUrl: null,
-  };
-}
-
-function getRoomImageUrl(room: FeaturedRoom) {
-  if (room.coverPath) {
-    return getRoomCoverUrl(room.coverPath);
-  }
-
-  return room.coverUrl ?? null;
-}
-
-function getRoomCoverUrl(coverPath: string) {
-  try {
-    return getMediaUrl(coverPath);
-  } catch {
-    return null;
-  }
 }
 
 const styles = StyleSheet.create({
@@ -292,7 +180,7 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   contentWithTabBar: {
-    paddingBottom: 116,
+    paddingBottom: 104,
   },
   contentFull: {
     alignSelf: 'stretch',
@@ -442,117 +330,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 10,
   },
-  discoveryPanel: {
-    backgroundColor: 'rgba(245,240,232,0.92)',
-    borderTopLeftRadius: 34,
-    borderTopRightRadius: 34,
-    marginTop: 0,
-    paddingBottom: 122,
-    paddingTop: 2,
-    position: 'relative',
-    zIndex: 4,
-  },
-  shelfHeader: {
-    paddingHorizontal: 20,
-    paddingTop: 28,
-    paddingBottom: 12,
-    position: 'relative',
-    zIndex: 3,
-  },
-  shelfKicker: {
-    color: '#5E6F59',
-    fontSize: 11,
-    fontWeight: '900',
-    letterSpacing: 0,
-    marginBottom: 5,
-  },
-  shelfTitle: {
-    color: '#111910',
-    fontSize: 24,
-    fontWeight: '900',
-    letterSpacing: 0,
-  },
-  popularRail: {
-    gap: 12,
-    paddingHorizontal: 0,
-    zIndex: 3,
-  },
-  lowerFlow: {
-    marginHorizontal: 20,
-    overflow: 'visible',
-    position: 'relative',
-    zIndex: 3,
-  },
-  popularItem: {
-    backgroundColor: '#0E271B',
-    borderRadius: 24,
-    height: 122,
-    overflow: 'hidden',
-    position: 'relative',
-    width: 186,
-  },
-  popularBackgroundImage: {
-    bottom: 0,
-    left: 0,
-    opacity: 0.84,
-    position: 'absolute',
-    right: 0,
-    top: 0,
-  },
-  popularBackgroundFallback: {
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
-    right: 0,
-    top: 0,
-  },
-  popularScrim: {
-    backgroundColor: 'rgba(5, 17, 11, 0.34)',
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
-    right: 0,
-    top: 0,
-  },
-  popularCopy: {
-    bottom: 16,
-    left: 16,
-    position: 'absolute',
-    right: 54,
-  },
-  popularTitle: {
-    color: '#FFFFFF',
-    fontSize: 20,
-    fontWeight: '900',
-  },
-  popularMeta: {
-    color: 'rgba(255,255,255,0.78)',
-    fontSize: 12,
-    fontWeight: '900',
-    marginTop: 5,
-  },
-  popularArrow: {
-    backgroundColor: 'rgba(255,255,255,0.92)',
-    borderRadius: 20,
-    color: '#0E271B',
-    fontSize: 17,
-    fontWeight: '900',
-    height: 40,
-    lineHeight: 38,
-    overflow: 'hidden',
-    position: 'absolute',
-    right: 14,
-    textAlign: 'center',
-    top: 14,
-    width: 40,
-  },
   tabBarShell: {
     alignItems: 'center',
-    backgroundColor: '#0E271B',
+    backgroundColor: 'rgba(14,39,27,0.98)',
     bottom: 0,
     left: 0,
     paddingHorizontal: 18,
-    paddingTop: 8,
+    paddingTop: 10,
     position: 'absolute',
     right: 0,
     zIndex: 20,
@@ -570,7 +354,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     maxWidth: 430,
-    minHeight: 62,
+    minHeight: 66,
     paddingHorizontal: 0,
     paddingVertical: 0,
     width: '100%',
@@ -578,15 +362,16 @@ const styles = StyleSheet.create({
   tabItem: {
     alignItems: 'center',
     flex: 1,
+    gap: 3,
     justifyContent: 'center',
-    minHeight: 44,
+    minHeight: 50,
   },
   tabItemActive: {
-    backgroundColor: '#DDE9C8',
-    borderRadius: 24,
+    backgroundColor: '#EEF4DF',
+    borderRadius: 26,
     flex: 0,
-    height: 46,
-    width: 46,
+    height: 52,
+    width: 62,
   },
   tabIcon: {
     color: 'rgba(255,255,255,0.72)',
@@ -597,6 +382,18 @@ const styles = StyleSheet.create({
   },
   tabIconActive: {
     color: '#0E271B',
+  },
+  tabLabel: {
+    color: 'rgba(255,255,255,0.58)',
+    fontSize: 10,
+    fontWeight: '900',
+    lineHeight: 12,
+  },
+  tabLabelActive: {
+    color: '#0E271B',
+    fontSize: 10,
+    fontWeight: '900',
+    lineHeight: 12,
   },
   tabCreate: {
     alignItems: 'center',
