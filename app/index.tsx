@@ -141,28 +141,58 @@ export default function DiscoverScreen() {
     inputRange: [0, 1],
     outputRange: [0, 1],
   });
+  const safeAreaStyle = !isFramedPreview
+    ? StyleSheet.compose(styles.safeArea, styles.safeAreaFull)
+    : styles.safeArea;
+  const contentStyle = useMemo(
+    () =>
+      StyleSheet.compose(
+        styles.content,
+        StyleSheet.compose(styles.contentWithTabBar, !isFramedPreview ? styles.contentFull : null),
+      ),
+    [isFramedPreview],
+  );
+  const activeModeStyle = StyleSheet.compose(styles.appModeItem, styles.appModeItemActive);
+  const heroPressableStyle = useMemo(
+    () => ({ ...styles.cinematicHero, height: heroStageHeight }),
+    [heroStageHeight],
+  );
+  const tabBarShellStyle = useMemo(
+    () => ({
+      ...styles.tabBarShell,
+      ...(isFramedPreview ? styles.tabBarShellFramed : styles.tabBarShellFull),
+      paddingBottom: Math.max(insets.bottom, 10),
+    }),
+    [insets.bottom, isFramedPreview],
+  );
+  const activeTabStyle = StyleSheet.compose(styles.tabItem, styles.tabItemActive);
+  const activeTabIconStyle = StyleSheet.compose(styles.tabIcon, styles.tabIconActive);
+  const activeFullBleedStyle = {
+    ...styles.fullBleedImage,
+    opacity: activeAmbientOpacity,
+    transform: [{ scale: heroZoomScale }],
+  };
+  const nextFullBleedStyle = {
+    ...styles.fullBleedImage,
+    opacity: nextAmbientOpacity,
+    transform: [{ scale: heroZoomScale }],
+  };
 
   return (
-    <SafeAreaView style={[styles.safeArea, !isFramedPreview ? styles.safeAreaFull : null]}>
+    <SafeAreaView style={safeAreaStyle}>
       <Animated.Image
         resizeMode="cover"
         source={activeHeroSource}
-        style={[
-          styles.fullBleedImage,
-          { opacity: activeAmbientOpacity, transform: [{ scale: heroZoomScale }] },
-        ]}
+        style={activeFullBleedStyle}
       />
       <Animated.Image
         resizeMode="cover"
         source={nextHeroSource}
-        style={[
-          styles.fullBleedImage,
-          { opacity: nextAmbientOpacity, transform: [{ scale: heroZoomScale }] },
-        ]}
+        style={nextFullBleedStyle}
       />
       <View style={styles.fullBleedShade} />
       <ScrollView
-        contentContainerStyle={[styles.content, styles.contentWithTabBar, !isFramedPreview ? styles.contentFull : null]}
+        contentContainerStyle={contentStyle}
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.appHeader}>
@@ -189,14 +219,14 @@ export default function DiscoverScreen() {
         </View>
 
         <View style={styles.appModeRail}>
-          <Text style={[styles.appModeItem, styles.appModeItemActive]}>발견</Text>
+          <Text style={activeModeStyle}>발견</Text>
           <Text style={styles.appModeItem}>리딩룸</Text>
           <Text style={styles.appModeItem}>대화</Text>
           <Text style={styles.appModeItem}>모임</Text>
         </View>
 
         <Link asChild href={session ? '/scan' : '/auth'}>
-          <Pressable style={[styles.cinematicHero, { height: heroStageHeight }]}>
+          <Pressable style={heroPressableStyle}>
             <View style={styles.sseomdiSticker}>
               <Image resizeMode="contain" source={sseomdiReadingSource} style={styles.sseomdiImage} />
             </View>
@@ -234,7 +264,12 @@ export default function DiscoverScreen() {
                       {coverUrl ? (
                         <Image resizeMode="cover" source={{ uri: coverUrl }} style={styles.popularBackgroundImage} />
                       ) : (
-                        <View style={[styles.popularBackgroundFallback, { backgroundColor: room.accent }]} />
+                        <View
+                          style={StyleSheet.compose(
+                            styles.popularBackgroundFallback,
+                            { backgroundColor: room.accent },
+                          )}
+                        />
                       )}
                       <View style={styles.popularScrim} />
                       <View style={styles.popularCopy}>
@@ -255,17 +290,11 @@ export default function DiscoverScreen() {
         </View>
 
       </ScrollView>
-      <View
-        style={[
-          styles.tabBarShell,
-          isFramedPreview ? styles.tabBarShellFramed : styles.tabBarShellFull,
-          { paddingBottom: Math.max(insets.bottom, 10) },
-        ]}
-      >
+      <View style={tabBarShellStyle}>
         <View style={styles.tabBar}>
           <Link asChild href="/">
-            <Pressable style={[styles.tabItem, styles.tabItemActive]}>
-              <Text style={[styles.tabIcon, styles.tabIconActive]}>⌂</Text>
+            <Pressable style={activeTabStyle}>
+              <Text style={activeTabIconStyle}>⌂</Text>
             </Pressable>
           </Link>
           <Link asChild href={session ? '/scan' : '/auth'}>
