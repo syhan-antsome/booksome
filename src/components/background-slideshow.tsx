@@ -11,7 +11,7 @@ type BackgroundSlideshowProps = {
   sources: ImageSourcePropType[];
 };
 
-const SLIDE_HOLD_MS = 6500;
+const SLIDE_HOLD_MS = 3000;
 const FADE_MS = 1400;
 
 export function BackgroundSlideshow({ sources }: BackgroundSlideshowProps) {
