@@ -50,8 +50,11 @@ const styles = StyleSheet.create({
   shell: {
     alignItems: 'center',
     backgroundColor: 'rgba(13, 47, 34, 0.72)',
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
     bottom: 0,
     left: 0,
+    overflow: 'hidden',
     paddingHorizontal: 14,
     paddingTop: 10,
     position: 'absolute',
