@@ -45,38 +45,32 @@ export default function DiscoverScreen() {
   const [nextHeroIndex, setNextHeroIndex] = useState(1);
   const heroZoom = useRef(new Animated.Value(0)).current;
   const heroFade = useRef(new Animated.Value(0)).current;
+  const nextHeroZoom = useRef(new Animated.Value(0)).current;
   const activeHeroIndexRef = useRef(0);
   const useNativeHeroDriver = Platform.OS !== 'web';
 
   useEffect(() => {
-    const animation = Animated.loop(
-      Animated.sequence([
-        Animated.timing(heroZoom, {
-          duration: 11000,
-          toValue: 1,
-          useNativeDriver: useNativeHeroDriver,
-        }),
-        Animated.timing(heroZoom, {
-          duration: 3500,
-          toValue: 0,
-          useNativeDriver: useNativeHeroDriver,
-        }),
-      ]),
-    );
+    const animation = Animated.timing(heroZoom, {
+      duration: 9000,
+      toValue: 1,
+      useNativeDriver: useNativeHeroDriver,
+    });
 
     animation.start();
 
-    return () => {
-      animation.stop();
-    };
-  }, [heroZoom, useNativeHeroDriver]);
-
-  useEffect(() => {
-    const interval = setInterval(() => {
+    const timeout = setTimeout(() => {
       const nextIndex = (activeHeroIndexRef.current + 1) % homeHeroSlides.length;
 
       setNextHeroIndex(nextIndex);
       heroFade.setValue(0);
+      nextHeroZoom.setValue(0);
+
+      Animated.timing(nextHeroZoom, {
+        duration: 1800,
+        toValue: 0.2,
+        useNativeDriver: useNativeHeroDriver,
+      }).start();
+
       Animated.timing(heroFade, {
         duration: 1800,
         toValue: 1,
@@ -85,13 +79,16 @@ export default function DiscoverScreen() {
         activeHeroIndexRef.current = nextIndex;
         setActiveHeroIndex(nextIndex);
         heroFade.setValue(0);
+        heroZoom.setValue(0.2);
+        nextHeroZoom.setValue(0);
       });
-    }, 7200);
+    }, 7000);
 
     return () => {
-      clearInterval(interval);
+      animation.stop();
+      clearTimeout(timeout);
     };
-  }, [heroFade, useNativeHeroDriver]);
+  }, [activeHeroIndex, heroFade, heroZoom, nextHeroZoom, useNativeHeroDriver]);
 
   const refreshRooms = useCallback(() => {
     let isMounted = true;
@@ -129,7 +126,11 @@ export default function DiscoverScreen() {
   const heroStageHeight = Math.max(350, Math.min(430, height - 330));
   const heroZoomScale = heroZoom.interpolate({
     inputRange: [0, 1],
-    outputRange: [1, 1.08],
+    outputRange: [1.04, 1.18],
+  });
+  const nextHeroZoomScale = nextHeroZoom.interpolate({
+    inputRange: [0, 1],
+    outputRange: [1.04, 1.18],
   });
   const activeHeroSource = homeHeroSlides[activeHeroIndex];
   const nextHeroSource = homeHeroSlides[nextHeroIndex];
@@ -175,7 +176,7 @@ export default function DiscoverScreen() {
   const nextFullBleedStyle = {
     ...styles.fullBleedImage,
     opacity: nextAmbientOpacity,
-    transform: [{ scale: heroZoomScale }],
+    transform: [{ scale: nextHeroZoomScale }],
   };
 
   return (
