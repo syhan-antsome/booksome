@@ -49,7 +49,7 @@ export function BottomNavigation({ active }: { active: BottomNavKey }) {
 const styles = StyleSheet.create({
   shell: {
     alignItems: 'center',
-    backgroundColor: '#0D2F22',
+    backgroundColor: 'rgba(13, 47, 34, 0.72)',
     bottom: 0,
     left: 0,
     paddingHorizontal: 14,
@@ -74,7 +74,7 @@ const styles = StyleSheet.create({
   },
   plate: {
     alignItems: 'center',
-    backgroundColor: 'rgba(247, 241, 229, 0.08)',
+    backgroundColor: 'rgba(247, 241, 229, 0.12)',
     borderRadius: 24,
     height: 48,
     justifyContent: 'center',
@@ -83,7 +83,7 @@ const styles = StyleSheet.create({
     width: 48,
   },
   plateActive: {
-    backgroundColor: '#F7F1E5',
+    backgroundColor: 'rgba(247, 241, 229, 0.9)',
   },
   icon: {
     color: '#F7F1E5',
