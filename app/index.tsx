@@ -42,7 +42,7 @@ export default function DiscoverScreen() {
   const [remoteRooms, setRemoteRooms] = useState<RoomSummary[]>([]);
   const [isRefreshingRooms, setIsRefreshingRooms] = useState(false);
   const [activeHeroIndex, setActiveHeroIndex] = useState(0);
-  const [nextHeroIndex, setNextHeroIndex] = useState(1);
+  const [incomingHeroIndex, setIncomingHeroIndex] = useState<number | null>(null);
   const heroZoom = useRef(new Animated.Value(0)).current;
   const heroFade = useRef(new Animated.Value(0)).current;
   const nextHeroZoom = useRef(new Animated.Value(0)).current;
@@ -61,7 +61,7 @@ export default function DiscoverScreen() {
     const timeout = setTimeout(() => {
       const nextIndex = (activeHeroIndexRef.current + 1) % homeHeroSlides.length;
 
-      setNextHeroIndex(nextIndex);
+      setIncomingHeroIndex(nextIndex);
       heroFade.setValue(0);
       nextHeroZoom.setValue(0);
 
@@ -77,9 +77,10 @@ export default function DiscoverScreen() {
         useNativeDriver: useNativeHeroDriver,
       }).start(() => {
         activeHeroIndexRef.current = nextIndex;
-        setActiveHeroIndex(nextIndex);
-        heroFade.setValue(0);
         heroZoom.setValue(0.2);
+        setActiveHeroIndex(nextIndex);
+        setIncomingHeroIndex(null);
+        heroFade.setValue(0);
         nextHeroZoom.setValue(0);
       });
     }, 7000);
@@ -133,11 +134,8 @@ export default function DiscoverScreen() {
     outputRange: [1.04, 1.18],
   });
   const activeHeroSource = homeHeroSlides[activeHeroIndex];
-  const nextHeroSource = homeHeroSlides[nextHeroIndex];
-  const activeAmbientOpacity = heroFade.interpolate({
-    inputRange: [0, 1],
-    outputRange: [1, 0],
-  });
+  const incomingHeroSource =
+    incomingHeroIndex === null ? null : homeHeroSlides[incomingHeroIndex];
   const nextAmbientOpacity = heroFade.interpolate({
     inputRange: [0, 1],
     outputRange: [0, 1],
@@ -170,7 +168,7 @@ export default function DiscoverScreen() {
   const activeTabIconStyle = StyleSheet.compose(styles.tabIcon, styles.tabIconActive);
   const activeFullBleedStyle = {
     ...styles.fullBleedImage,
-    opacity: activeAmbientOpacity,
+    opacity: 1,
     transform: [{ scale: heroZoomScale }],
   };
   const nextFullBleedStyle = {
@@ -186,11 +184,13 @@ export default function DiscoverScreen() {
         source={activeHeroSource}
         style={activeFullBleedStyle}
       />
-      <Animated.Image
-        resizeMode="cover"
-        source={nextHeroSource}
-        style={nextFullBleedStyle}
-      />
+      {incomingHeroSource ? (
+        <Animated.Image
+          resizeMode="cover"
+          source={incomingHeroSource}
+          style={nextFullBleedStyle}
+        />
+      ) : null}
       <View style={styles.fullBleedShade} />
       <ScrollView
         contentContainerStyle={contentStyle}
