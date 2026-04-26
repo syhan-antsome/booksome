@@ -62,7 +62,6 @@ export default function DiscoverScreen() {
     [insets.bottom, isFramedPreview],
   );
   const activeTabStyle = StyleSheet.compose(styles.tabItem, styles.tabItemActive);
-  const activeTabIconStyle = StyleSheet.compose(styles.tabIcon, styles.tabIconActive);
   return (
     <SafeAreaView style={safeAreaStyle}>
       <BackgroundSlideshow sources={homeHeroSlides} />
@@ -125,37 +124,90 @@ export default function DiscoverScreen() {
       <View style={tabBarShellStyle}>
         <View style={styles.tabBar}>
           <Link asChild href="/">
-            <Pressable style={activeTabStyle}>
-              <Text style={activeTabIconStyle}>⌂</Text>
-              <Text style={styles.tabLabelActive}>홈</Text>
+            <Pressable accessibilityLabel="홈" style={activeTabStyle}>
+              <TabGlyph name="home" active />
             </Pressable>
           </Link>
           <Link asChild href={session ? '/scan' : '/auth'}>
-            <Pressable style={styles.tabItem}>
-              <Text style={styles.tabIcon}>⌕</Text>
-              <Text style={styles.tabLabel}>발견</Text>
+            <Pressable accessibilityLabel="발견" style={styles.tabItem}>
+              <TabGlyph name="discover" />
             </Pressable>
           </Link>
           <Link asChild href={session ? '/create-room' : '/auth'}>
-            <Pressable style={styles.tabCreate}>
-              <Text style={styles.tabCreateIcon}>＋</Text>
+            <Pressable accessibilityLabel="리딩룸 만들기" style={styles.tabCreate}>
+              <TabGlyph name="create" active />
             </Pressable>
           </Link>
           <Link asChild href="/meetups">
-            <Pressable style={styles.tabItem}>
-              <Text style={styles.tabIcon}>◎</Text>
-              <Text style={styles.tabLabel}>모임</Text>
+            <Pressable accessibilityLabel="모임" style={styles.tabItem}>
+              <TabGlyph name="meetups" />
             </Pressable>
           </Link>
           <Link asChild href={session ? '/profile' : '/auth'}>
-            <Pressable style={styles.tabItem}>
-              <Text style={styles.tabIcon}>◌</Text>
-              <Text style={styles.tabLabel}>나</Text>
+            <Pressable accessibilityLabel="나의 정보" style={styles.tabItem}>
+              <TabGlyph name="profile" />
             </Pressable>
           </Link>
         </View>
       </View>
     </SafeAreaView>
+  );
+}
+
+type TabGlyphName = 'home' | 'discover' | 'create' | 'meetups' | 'profile';
+
+function TabGlyph({ active = false, name }: { active?: boolean; name: TabGlyphName }) {
+  const inkStyle = active ? styles.glyphInkActive : styles.glyphInk;
+  const softStyle = active ? styles.glyphSoftActive : styles.glyphSoft;
+  const lineStyle = active ? styles.glyphLineActive : styles.glyphLine;
+
+  if (name === 'home') {
+    return (
+      <View style={styles.glyphFrame}>
+        <View style={StyleSheet.compose(styles.glyphBookSpread, lineStyle)}>
+          <View style={StyleSheet.compose(styles.glyphBookFold, lineStyle)} />
+          <View style={StyleSheet.compose(styles.glyphBookMark, inkStyle)} />
+        </View>
+      </View>
+    );
+  }
+
+  if (name === 'discover') {
+    return (
+      <View style={styles.glyphFrame}>
+        <View style={StyleSheet.compose(styles.glyphCompass, lineStyle)}>
+          <View style={StyleSheet.compose(styles.glyphCompassNeedle, inkStyle)} />
+        </View>
+        <View style={StyleSheet.compose(styles.glyphCompassDot, softStyle)} />
+      </View>
+    );
+  }
+
+  if (name === 'create') {
+    return (
+      <View style={styles.glyphFrameLarge}>
+        <View style={StyleSheet.compose(styles.glyphPlusVertical, inkStyle)} />
+        <View style={StyleSheet.compose(styles.glyphPlusHorizontal, inkStyle)} />
+      </View>
+    );
+  }
+
+  if (name === 'meetups') {
+    return (
+      <View style={styles.glyphFrame}>
+        <View style={StyleSheet.compose(styles.glyphPersonMain, inkStyle)} />
+        <View style={StyleSheet.compose(styles.glyphPersonLeft, softStyle)} />
+        <View style={StyleSheet.compose(styles.glyphPersonRight, softStyle)} />
+        <View style={StyleSheet.compose(styles.glyphPeopleBase, lineStyle)} />
+      </View>
+    );
+  }
+
+  return (
+    <View style={styles.glyphFrame}>
+      <View style={StyleSheet.compose(styles.glyphProfileHead, inkStyle)} />
+      <View style={StyleSheet.compose(styles.glyphProfileBody, lineStyle)} />
+    </View>
   );
 }
 
@@ -336,11 +388,11 @@ const styles = StyleSheet.create({
   },
   tabBarShell: {
     alignItems: 'center',
-    backgroundColor: 'rgba(14,39,27,0.98)',
+    backgroundColor: 'rgba(247, 241, 229, 0.98)',
     bottom: 0,
     left: 0,
-    paddingHorizontal: 18,
-    paddingTop: 10,
+    paddingHorizontal: 16,
+    paddingTop: 12,
     position: 'absolute',
     right: 0,
     zIndex: 20,
@@ -349,7 +401,7 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
   },
   tabBarShellFull: {
-    backgroundColor: '#0E271B',
+    backgroundColor: 'rgba(247, 241, 229, 0.98)',
   },
   tabBar: {
     alignItems: 'center',
@@ -358,7 +410,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     maxWidth: 430,
-    minHeight: 66,
+    minHeight: 72,
     paddingHorizontal: 0,
     paddingVertical: 0,
     width: '100%',
@@ -366,53 +418,164 @@ const styles = StyleSheet.create({
   tabItem: {
     alignItems: 'center',
     flex: 1,
-    gap: 3,
     justifyContent: 'center',
-    minHeight: 50,
+    minHeight: 58,
   },
   tabItemActive: {
-    backgroundColor: '#EEF4DF',
-    borderRadius: 26,
+    backgroundColor: '#103D2B',
+    borderRadius: 29,
     flex: 0,
-    height: 52,
-    width: 62,
-  },
-  tabIcon: {
-    color: 'rgba(255,255,255,0.72)',
-    fontSize: 17,
-    fontWeight: '900',
-    lineHeight: 20,
-    textAlign: 'center',
-  },
-  tabIconActive: {
-    color: '#0E271B',
-  },
-  tabLabel: {
-    color: 'rgba(255,255,255,0.58)',
-    fontSize: 10,
-    fontWeight: '900',
-    lineHeight: 12,
-  },
-  tabLabelActive: {
-    color: '#0E271B',
-    fontSize: 10,
-    fontWeight: '900',
-    lineHeight: 12,
+    height: 58,
+    width: 58,
   },
   tabCreate: {
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 26,
-    height: 54,
+    backgroundColor: '#103D2B',
+    borderColor: '#F7F1E5',
+    borderRadius: 32,
+    borderWidth: 4,
+    height: 64,
     justifyContent: 'center',
     marginHorizontal: 6,
-    width: 54,
+    transform: [{ translateY: -12 }],
+    width: 64,
   },
-  tabCreateIcon: {
-    color: '#0E271B',
-    fontSize: 24,
-    fontWeight: '900',
-    lineHeight: 28,
-    textAlign: 'center',
+  glyphFrame: {
+    alignItems: 'center',
+    height: 34,
+    justifyContent: 'center',
+    position: 'relative',
+    width: 34,
+  },
+  glyphFrameLarge: {
+    alignItems: 'center',
+    height: 36,
+    justifyContent: 'center',
+    position: 'relative',
+    width: 36,
+  },
+  glyphInk: {
+    backgroundColor: '#163B2A',
+  },
+  glyphInkActive: {
+    backgroundColor: '#F7F1E5',
+  },
+  glyphLine: {
+    borderColor: '#163B2A',
+  },
+  glyphLineActive: {
+    borderColor: '#F7F1E5',
+  },
+  glyphSoft: {
+    backgroundColor: 'rgba(22, 59, 42, 0.48)',
+  },
+  glyphSoftActive: {
+    backgroundColor: 'rgba(247, 241, 229, 0.58)',
+  },
+  glyphBookSpread: {
+    borderBottomLeftRadius: 7,
+    borderBottomRightRadius: 7,
+    borderTopLeftRadius: 10,
+    borderTopRightRadius: 10,
+    borderWidth: 2.4,
+    height: 24,
+    position: 'relative',
+    width: 29,
+  },
+  glyphBookFold: {
+    borderLeftWidth: 2,
+    bottom: 3,
+    left: 13,
+    position: 'absolute',
+    top: 3,
+  },
+  glyphBookMark: {
+    borderBottomLeftRadius: 2,
+    borderBottomRightRadius: 2,
+    height: 9,
+    position: 'absolute',
+    right: 5,
+    top: -1,
+    width: 5,
+  },
+  glyphCompass: {
+    alignItems: 'center',
+    borderRadius: 14,
+    borderWidth: 2.6,
+    height: 28,
+    justifyContent: 'center',
+    width: 28,
+  },
+  glyphCompassNeedle: {
+    borderRadius: 3,
+    height: 16,
+    transform: [{ rotate: '38deg' }],
+    width: 5,
+  },
+  glyphCompassDot: {
+    borderRadius: 3,
+    height: 6,
+    position: 'absolute',
+    width: 6,
+  },
+  glyphPlusVertical: {
+    borderRadius: 3,
+    height: 26,
+    position: 'absolute',
+    width: 6,
+  },
+  glyphPlusHorizontal: {
+    borderRadius: 3,
+    height: 6,
+    position: 'absolute',
+    width: 26,
+  },
+  glyphPersonMain: {
+    borderRadius: 9,
+    height: 18,
+    position: 'absolute',
+    top: 4,
+    width: 18,
+    zIndex: 2,
+  },
+  glyphPersonLeft: {
+    borderRadius: 7,
+    height: 14,
+    left: 2,
+    position: 'absolute',
+    top: 10,
+    width: 14,
+  },
+  glyphPersonRight: {
+    borderRadius: 7,
+    height: 14,
+    position: 'absolute',
+    right: 2,
+    top: 10,
+    width: 14,
+  },
+  glyphPeopleBase: {
+    borderBottomWidth: 2.8,
+    borderRadius: 12,
+    bottom: 4,
+    height: 15,
+    position: 'absolute',
+    width: 29,
+  },
+  glyphProfileHead: {
+    borderRadius: 9,
+    height: 18,
+    position: 'absolute',
+    top: 4,
+    width: 18,
+  },
+  glyphProfileBody: {
+    borderTopLeftRadius: 14,
+    borderTopRightRadius: 14,
+    borderTopWidth: 3,
+    bottom: 3,
+    height: 14,
+    position: 'absolute',
+    width: 27,
   },
 });
