@@ -37,9 +37,6 @@ export function BottomNavigation({ active }: { active: BottomNavKey }) {
                 <View style={[styles.plate, isActive ? styles.plateActive : null]}>
                   <Text style={[styles.icon, isActive ? styles.iconActive : null]}>{item.icon}</Text>
                 </View>
-                <Text numberOfLines={1} style={[styles.label, isActive ? styles.labelActive : null]}>
-                  {item.label}
-                </Text>
               </Pressable>
             </Link>
           );
@@ -52,11 +49,11 @@ export function BottomNavigation({ active }: { active: BottomNavKey }) {
 const styles = StyleSheet.create({
   shell: {
     alignItems: 'center',
-    backgroundColor: 'rgba(247, 241, 229, 0.98)',
+    backgroundColor: '#0D2F22',
     bottom: 0,
     left: 0,
-    paddingHorizontal: 0,
-    paddingTop: 7,
+    paddingHorizontal: 14,
+    paddingTop: 10,
     position: 'absolute',
     right: 0,
     zIndex: 30,
@@ -66,46 +63,36 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'center',
     maxWidth: 430,
-    minHeight: 78,
+    minHeight: 66,
     width: '100%',
   },
   slot: {
     alignItems: 'center',
     flex: 1,
-    gap: 4,
     justifyContent: 'center',
-    minHeight: 78,
+    minHeight: 66,
   },
   plate: {
     alignItems: 'center',
-    borderRadius: 26,
-    height: 52,
+    backgroundColor: 'rgba(247, 241, 229, 0.08)',
+    borderRadius: 24,
+    height: 48,
     justifyContent: 'center',
     overflow: 'hidden',
     position: 'relative',
-    width: 52,
+    width: 48,
   },
   plateActive: {
-    backgroundColor: '#103D2B',
+    backgroundColor: '#F7F1E5',
   },
   icon: {
-    color: '#103D2B',
-    fontSize: 28,
+    color: '#F7F1E5',
+    fontSize: 27,
     fontWeight: '900',
-    lineHeight: 31,
+    lineHeight: 30,
     textAlign: 'center',
   },
   iconActive: {
-    color: '#F7F1E5',
-  },
-  label: {
-    color: 'rgba(16, 61, 43, 0.58)',
-    fontSize: 11,
-    fontWeight: '900',
-    letterSpacing: 0,
-    lineHeight: 13,
-  },
-  labelActive: {
     color: '#103D2B',
   },
 });
