@@ -18,6 +18,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import authHeroImage from '../assets/home-hero-writer-desk.jpg';
 import sseomdiReadingImage from '../assets/sseomdi-reading.png';
+import { BottomNavigation } from '../src/components/bottom-navigation';
 import { useAuth } from '../src/providers/auth-provider';
 import { signInWithEmail, signUpWithEmail } from '../src/services/auth';
 
@@ -52,7 +53,7 @@ export default function AuthScreen() {
         : '좋아하는 책을 고르고, 질문을 남기고, 독서 친구를 만나보세요.',
     [mode],
   );
-  const heroHeight = Math.max(330, Math.min(440, height * 0.48));
+  const heroHeight = Math.max(300, Math.min(390, height * 0.43));
 
   const submit = async () => {
     setFeedback(null);
@@ -188,6 +189,7 @@ export default function AuthScreen() {
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
+      <BottomNavigation active="profile" />
     </SafeAreaView>
   );
 }
@@ -195,20 +197,21 @@ export default function AuthScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#0D130E',
+    backgroundColor: '#0D2F22',
   },
   keyboard: {
     flex: 1,
   },
   content: {
     alignSelf: 'center',
-    backgroundColor: '#F5F0E8',
+    backgroundColor: '#F7F1E5',
     flexGrow: 1,
     maxWidth: 430,
+    paddingBottom: 108,
     width: '100%',
   },
   hero: {
-    backgroundColor: '#162216',
+    backgroundColor: '#0D2F22',
     overflow: 'hidden',
     position: 'relative',
   },
@@ -221,7 +224,7 @@ const styles = StyleSheet.create({
     top: 0,
   },
   heroShade: {
-    backgroundColor: 'rgba(5, 10, 7, 0.38)',
+    backgroundColor: 'rgba(5, 10, 7, 0.46)',
     bottom: 0,
     left: 0,
     position: 'absolute',
@@ -239,14 +242,14 @@ const styles = StyleSheet.create({
   },
   backButton: {
     alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.9)',
+    backgroundColor: 'rgba(247, 241, 229, 0.9)',
     borderRadius: 22,
     height: 44,
     justifyContent: 'center',
     width: 44,
   },
   backText: {
-    color: '#111910',
+    color: '#103D2B',
     fontSize: 34,
     fontWeight: '800',
     lineHeight: 38,
@@ -287,17 +290,17 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   sheet: {
-    backgroundColor: '#F5F0E8',
+    backgroundColor: '#F7F1E5',
     borderTopLeftRadius: 34,
     borderTopRightRadius: 34,
     marginTop: -30,
-    paddingBottom: 30,
+    paddingBottom: 28,
     paddingHorizontal: 20,
     paddingTop: 46,
     position: 'relative',
   },
   switchRow: {
-    backgroundColor: '#E7DECE',
+    backgroundColor: '#E7DDCA',
     borderRadius: 22,
     flexDirection: 'row',
     padding: 5,
@@ -308,7 +311,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
   switchChipActive: {
-    backgroundColor: '#111910',
+    backgroundColor: '#103D2B',
   },
   switchText: {
     color: '#6A665E',
@@ -324,9 +327,9 @@ const styles = StyleSheet.create({
     marginTop: 20,
   },
   input: {
-    backgroundColor: '#FFFCF6',
+    backgroundColor: '#FFF9EF',
     borderRadius: 22,
-    color: '#111910',
+    color: '#14251B',
     fontSize: 16,
     fontWeight: '700',
     minHeight: 58,
@@ -334,7 +337,7 @@ const styles = StyleSheet.create({
   },
   submitButton: {
     alignItems: 'center',
-    backgroundColor: '#111910',
+    backgroundColor: '#103D2B',
     borderRadius: 23,
     justifyContent: 'center',
     marginTop: 8,
@@ -362,7 +365,7 @@ const styles = StyleSheet.create({
   },
   mascotBadge: {
     alignItems: 'center',
-    backgroundColor: '#FFFCF6',
+    backgroundColor: '#FFF9EF',
     borderRadius: 26,
     height: 76,
     justifyContent: 'center',
