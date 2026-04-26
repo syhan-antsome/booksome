@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Animated,
+  Easing,
   type ImageSourcePropType,
   Platform,
   StyleSheet,
@@ -13,7 +14,7 @@ type BackgroundSlideshowProps = {
 
 const SLIDE_HOLD_MS = 3000;
 const FADE_MS = 1400;
-const MOTION_MS = SLIDE_HOLD_MS + FADE_MS + 220;
+const MOTION_MS = 18000;
 
 export function BackgroundSlideshow({ sources }: BackgroundSlideshowProps) {
   const sourceCount = sources.length;
@@ -25,23 +26,34 @@ export function BackgroundSlideshow({ sources }: BackgroundSlideshowProps) {
   const useNativeDriver = Platform.OS !== 'web';
 
   useEffect(() => {
-    if (sourceCount <= 1) return;
+    if (sourceCount === 0) return;
 
     let mounted = true;
     let timer: ReturnType<typeof setTimeout> | null = null;
     const runningAnimations: Animated.CompositeAnimation[] = [];
 
-    const startMotion = (index: number) => {
-      motions[index]?.setValue(0);
-      const motion = Animated.timing(motions[index], {
-        duration: MOTION_MS,
-        toValue: 1,
-        useNativeDriver,
-      });
+    motions.forEach((motionValue) => {
+      motionValue.setValue(0);
+      const motion = Animated.loop(
+        Animated.sequence([
+          Animated.timing(motionValue, {
+            duration: MOTION_MS,
+            easing: Easing.inOut(Easing.cubic),
+            toValue: 1,
+            useNativeDriver,
+          }),
+          Animated.timing(motionValue, {
+            duration: MOTION_MS,
+            easing: Easing.inOut(Easing.cubic),
+            toValue: 0,
+            useNativeDriver,
+          }),
+        ]),
+      );
 
       runningAnimations.push(motion);
       motion.start();
-    };
+    });
 
     const scheduleTransition = () => {
       timer = setTimeout(() => {
@@ -72,7 +84,6 @@ export function BackgroundSlideshow({ sources }: BackgroundSlideshowProps) {
             opacity.setValue(index === nextIndex ? 1 : 0);
           });
           activeIndexRef.current = nextIndex;
-          startMotion(nextIndex);
           scheduleTransition();
         });
       }, SLIDE_HOLD_MS);
@@ -81,8 +92,10 @@ export function BackgroundSlideshow({ sources }: BackgroundSlideshowProps) {
     opacities.forEach((opacity, index) => {
       opacity.setValue(index === activeIndexRef.current ? 1 : 0);
     });
-    startMotion(activeIndexRef.current);
-    scheduleTransition();
+
+    if (sourceCount > 1) {
+      scheduleTransition();
+    }
 
     return () => {
       mounted = false;
