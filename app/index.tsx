@@ -164,9 +164,9 @@ function TabGlyph({ active = false, name }: { active?: boolean; name: TabGlyphNa
   if (name === 'home') {
     return (
       <View style={styles.glyphFrame}>
-        <View style={StyleSheet.compose(styles.glyphBookSpread, lineStyle)}>
-          <View style={StyleSheet.compose(styles.glyphBookFold, lineStyle)} />
-          <View style={StyleSheet.compose(styles.glyphBookMark, inkStyle)} />
+        <View style={StyleSheet.compose(styles.glyphHomeRoof, lineStyle)} />
+        <View style={StyleSheet.compose(styles.glyphHomeBody, lineStyle)}>
+          <View style={StyleSheet.compose(styles.glyphHomeDoor, inkStyle)} />
         </View>
       </View>
     );
@@ -472,31 +472,33 @@ const styles = StyleSheet.create({
   glyphSoftActive: {
     backgroundColor: 'rgba(247, 241, 229, 0.58)',
   },
-  glyphBookSpread: {
-    borderBottomLeftRadius: 7,
-    borderBottomRightRadius: 7,
-    borderTopLeftRadius: 10,
-    borderTopRightRadius: 10,
-    borderWidth: 2.4,
-    height: 24,
-    position: 'relative',
-    width: 29,
-  },
-  glyphBookFold: {
-    borderLeftWidth: 2,
-    bottom: 3,
-    left: 13,
+  glyphHomeRoof: {
+    borderLeftWidth: 3,
+    borderTopWidth: 3,
+    height: 18,
     position: 'absolute',
-    top: 3,
+    top: 4,
+    transform: [{ rotate: '45deg' }],
+    width: 18,
   },
-  glyphBookMark: {
-    borderBottomLeftRadius: 2,
-    borderBottomRightRadius: 2,
+  glyphHomeBody: {
+    borderBottomLeftRadius: 5,
+    borderBottomRightRadius: 5,
+    borderBottomWidth: 3,
+    borderLeftWidth: 3,
+    borderRightWidth: 3,
+    bottom: 4,
+    height: 18,
+    position: 'absolute',
+    width: 23,
+  },
+  glyphHomeDoor: {
+    borderTopLeftRadius: 3,
+    borderTopRightRadius: 3,
+    bottom: 0,
     height: 9,
     position: 'absolute',
-    right: 5,
-    top: -1,
-    width: 5,
+    width: 7,
   },
   glyphCompass: {
     alignItems: 'center',
