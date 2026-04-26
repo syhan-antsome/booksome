@@ -10,9 +10,10 @@ import {
   useWindowDimensions,
   View,
 } from 'react-native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { BackgroundSlideshow } from '../src/components/background-slideshow';
+import { BottomNavigation } from '../src/components/bottom-navigation';
 import { useAuth } from '../src/providers/auth-provider';
 import homeHeroBookStacksImage from '../assets/home-hero-book-stacks.jpg';
 import homeHeroWriterDeskImage from '../assets/home-hero-writer-desk.jpg';
@@ -34,7 +35,6 @@ const sseomdiReadingSource: ImageSourcePropType =
 export default function DiscoverScreen() {
   const { isLoading, profile, session } = useAuth();
   const { height, width } = useWindowDimensions();
-  const insets = useSafeAreaInsets();
   const isFramedPreview = width >= 640;
   const heroStageHeight = Math.max(470, height - 206);
   const safeAreaStyle = !isFramedPreview
@@ -52,14 +52,6 @@ export default function DiscoverScreen() {
   const heroPressableStyle = useMemo(
     () => ({ ...styles.cinematicHero, height: heroStageHeight }),
     [heroStageHeight],
-  );
-  const tabBarShellStyle = useMemo(
-    () => ({
-      ...styles.tabBarShell,
-      ...(isFramedPreview ? styles.tabBarShellFramed : styles.tabBarShellFull),
-      paddingBottom: Math.max(insets.bottom, 8),
-    }),
-    [insets.bottom, isFramedPreview],
   );
   return (
     <SafeAreaView style={safeAreaStyle}>
@@ -81,7 +73,7 @@ export default function DiscoverScreen() {
             <Text style={styles.appLogo}>BookSome</Text>
           </View>
           <View style={styles.headerActions}>
-            <Link asChild href={session ? '/scan' : '/auth'}>
+            <Link asChild href="/rooms">
               <Pressable style={styles.headerIconButton}>
                 <Text style={styles.headerIconText}>⌕</Text>
               </Pressable>
@@ -95,20 +87,19 @@ export default function DiscoverScreen() {
         </View>
 
         <View style={styles.appModeRail}>
-          <Text style={activeModeStyle}>발견</Text>
-          <Text style={styles.appModeItem}>리딩룸</Text>
-          <Text style={styles.appModeItem}>대화</Text>
-          <Text style={styles.appModeItem}>모임</Text>
+          <Text style={activeModeStyle}>리딩방</Text>
+          <Text style={styles.appModeItem}>독서생활</Text>
+          <Text style={styles.appModeItem}>책마켓</Text>
         </View>
 
-        <Link asChild href={session ? '/scan' : '/auth'}>
+        <Link asChild href="/rooms">
           <Pressable style={heroPressableStyle}>
             <View style={styles.cinematicCopy}>
               <Text adjustsFontSizeToFit numberOfLines={2} style={styles.heroRoomTitle}>
                 책으로 이어지는 하루
               </Text>
               <Text style={styles.heroRoomQuestion} numberOfLines={2}>
-                책을 고르면 대화와 모임이 함께 열립니다.
+                책을 고르면 리딩방과 나의 기록이 함께 열립니다.
               </Text>
               <View style={styles.heroActionRow}>
                 <View style={styles.sseomdiGuide}>
@@ -120,105 +111,8 @@ export default function DiscoverScreen() {
           </Pressable>
         </Link>
       </ScrollView>
-      <View style={tabBarShellStyle}>
-        <View style={styles.tabBar}>
-          <Link asChild href="/">
-            <Pressable accessibilityLabel="홈" style={styles.tabSlot}>
-              <View style={styles.tabIconPlateActive}>
-                <TabGlyph name="home" active />
-              </View>
-            </Pressable>
-          </Link>
-          <Link asChild href={session ? '/scan' : '/auth'}>
-            <Pressable accessibilityLabel="발견" style={styles.tabSlot}>
-              <View style={styles.tabIconPlate}>
-                <TabGlyph name="discover" />
-              </View>
-            </Pressable>
-          </Link>
-          <Link asChild href="/rooms">
-            <Pressable accessibilityLabel="리딩룸" style={styles.tabSlot}>
-              <View style={styles.tabIconPlate}>
-                <TabGlyph name="rooms" />
-              </View>
-            </Pressable>
-          </Link>
-          <Link asChild href="/meetups">
-            <Pressable accessibilityLabel="모임" style={styles.tabSlot}>
-              <View style={styles.tabIconPlate}>
-                <TabGlyph name="meetups" />
-              </View>
-            </Pressable>
-          </Link>
-          <Link asChild href={session ? '/profile' : '/auth'}>
-            <Pressable accessibilityLabel="나의 정보" style={styles.tabSlot}>
-              <View style={styles.tabIconPlate}>
-                <TabGlyph name="profile" />
-              </View>
-            </Pressable>
-          </Link>
-        </View>
-      </View>
+      <BottomNavigation active="home" />
     </SafeAreaView>
-  );
-}
-
-type TabGlyphName = 'home' | 'discover' | 'rooms' | 'meetups' | 'profile';
-
-function TabGlyph({ active = false, name }: { active?: boolean; name: TabGlyphName }) {
-  const inkStyle = active ? styles.glyphInkActive : styles.glyphInk;
-  const softStyle = active ? styles.glyphSoftActive : styles.glyphSoft;
-  const lineStyle = active ? styles.glyphLineActive : styles.glyphLine;
-
-  if (name === 'home') {
-    return (
-      <View style={styles.glyphFrame}>
-        <View style={StyleSheet.compose(styles.glyphHomeRoof, lineStyle)} />
-        <View style={StyleSheet.compose(styles.glyphHomeBody, lineStyle)}>
-          <View style={StyleSheet.compose(styles.glyphHomeDoor, inkStyle)} />
-        </View>
-      </View>
-    );
-  }
-
-  if (name === 'discover') {
-    return (
-      <View style={styles.glyphFrame}>
-        <View style={StyleSheet.compose(styles.glyphCompass, lineStyle)}>
-          <View style={StyleSheet.compose(styles.glyphCompassNeedle, inkStyle)} />
-        </View>
-        <View style={StyleSheet.compose(styles.glyphCompassDot, softStyle)} />
-      </View>
-    );
-  }
-
-  if (name === 'rooms') {
-    return (
-      <View style={styles.glyphFrame}>
-        <View style={StyleSheet.compose(styles.glyphBookSpread, lineStyle)}>
-          <View style={StyleSheet.compose(styles.glyphBookFold, lineStyle)} />
-          <View style={StyleSheet.compose(styles.glyphBookMark, inkStyle)} />
-        </View>
-      </View>
-    );
-  }
-
-  if (name === 'meetups') {
-    return (
-      <View style={styles.glyphFrame}>
-        <View style={StyleSheet.compose(styles.glyphPersonMain, inkStyle)} />
-        <View style={StyleSheet.compose(styles.glyphPersonLeft, softStyle)} />
-        <View style={StyleSheet.compose(styles.glyphPersonRight, softStyle)} />
-        <View style={StyleSheet.compose(styles.glyphPeopleBase, lineStyle)} />
-      </View>
-    );
-  }
-
-  return (
-    <View style={styles.glyphFrame}>
-      <View style={StyleSheet.compose(styles.glyphProfileHead, inkStyle)} />
-      <View style={StyleSheet.compose(styles.glyphProfileBody, lineStyle)} />
-    </View>
   );
 }
 
@@ -396,202 +290,5 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     paddingHorizontal: 20,
     paddingVertical: 10,
-  },
-  tabBarShell: {
-    alignItems: 'center',
-    backgroundColor: 'rgba(247, 241, 229, 0.98)',
-    bottom: 0,
-    left: 0,
-    paddingHorizontal: 0,
-    paddingTop: 8,
-    position: 'absolute',
-    right: 0,
-    zIndex: 20,
-  },
-  tabBarShellFramed: {
-    alignSelf: 'center',
-  },
-  tabBarShellFull: {
-    backgroundColor: 'rgba(247, 241, 229, 0.98)',
-  },
-  tabBar: {
-    alignItems: 'center',
-    backgroundColor: 'transparent',
-    borderRadius: 0,
-    flexDirection: 'row',
-    justifyContent: 'center',
-    maxWidth: 430,
-    minHeight: 76,
-    paddingHorizontal: 0,
-    paddingVertical: 0,
-    width: '100%',
-  },
-  tabSlot: {
-    alignItems: 'center',
-    flex: 1,
-    justifyContent: 'center',
-    minHeight: 76,
-  },
-  tabIconPlate: {
-    alignItems: 'center',
-    borderRadius: 27,
-    height: 54,
-    justifyContent: 'center',
-    width: 54,
-  },
-  tabIconPlateActive: {
-    alignItems: 'center',
-    backgroundColor: '#103D2B',
-    borderRadius: 27,
-    height: 54,
-    justifyContent: 'center',
-    width: 54,
-  },
-  glyphFrame: {
-    alignItems: 'center',
-    height: 34,
-    justifyContent: 'center',
-    position: 'relative',
-    width: 34,
-  },
-  glyphInk: {
-    backgroundColor: '#163B2A',
-  },
-  glyphInkActive: {
-    backgroundColor: '#F7F1E5',
-  },
-  glyphLine: {
-    borderColor: '#163B2A',
-  },
-  glyphLineActive: {
-    borderColor: '#F7F1E5',
-  },
-  glyphSoft: {
-    backgroundColor: 'rgba(22, 59, 42, 0.48)',
-  },
-  glyphSoftActive: {
-    backgroundColor: 'rgba(247, 241, 229, 0.58)',
-  },
-  glyphHomeRoof: {
-    borderLeftWidth: 3,
-    borderTopWidth: 3,
-    height: 18,
-    position: 'absolute',
-    top: 4,
-    transform: [{ rotate: '45deg' }],
-    width: 18,
-  },
-  glyphHomeBody: {
-    borderBottomLeftRadius: 5,
-    borderBottomRightRadius: 5,
-    borderBottomWidth: 3,
-    borderLeftWidth: 3,
-    borderRightWidth: 3,
-    bottom: 4,
-    height: 18,
-    position: 'absolute',
-    width: 23,
-  },
-  glyphHomeDoor: {
-    borderTopLeftRadius: 3,
-    borderTopRightRadius: 3,
-    bottom: 0,
-    height: 9,
-    position: 'absolute',
-    width: 7,
-  },
-  glyphBookSpread: {
-    borderBottomLeftRadius: 7,
-    borderBottomRightRadius: 7,
-    borderTopLeftRadius: 10,
-    borderTopRightRadius: 10,
-    borderWidth: 2.6,
-    height: 24,
-    position: 'relative',
-    width: 29,
-  },
-  glyphBookFold: {
-    borderLeftWidth: 2.2,
-    bottom: 3,
-    left: 13,
-    position: 'absolute',
-    top: 3,
-  },
-  glyphBookMark: {
-    borderBottomLeftRadius: 2,
-    borderBottomRightRadius: 2,
-    height: 9,
-    position: 'absolute',
-    right: 5,
-    top: -1,
-    width: 5,
-  },
-  glyphCompass: {
-    alignItems: 'center',
-    borderRadius: 14,
-    borderWidth: 2.6,
-    height: 28,
-    justifyContent: 'center',
-    width: 28,
-  },
-  glyphCompassNeedle: {
-    borderRadius: 3,
-    height: 16,
-    transform: [{ rotate: '38deg' }],
-    width: 5,
-  },
-  glyphCompassDot: {
-    borderRadius: 3,
-    height: 6,
-    position: 'absolute',
-    width: 6,
-  },
-  glyphPersonMain: {
-    borderRadius: 9,
-    height: 18,
-    position: 'absolute',
-    top: 4,
-    width: 18,
-    zIndex: 2,
-  },
-  glyphPersonLeft: {
-    borderRadius: 7,
-    height: 14,
-    left: 2,
-    position: 'absolute',
-    top: 10,
-    width: 14,
-  },
-  glyphPersonRight: {
-    borderRadius: 7,
-    height: 14,
-    position: 'absolute',
-    right: 2,
-    top: 10,
-    width: 14,
-  },
-  glyphPeopleBase: {
-    borderBottomWidth: 2.8,
-    borderRadius: 12,
-    bottom: 4,
-    height: 15,
-    position: 'absolute',
-    width: 29,
-  },
-  glyphProfileHead: {
-    borderRadius: 9,
-    height: 18,
-    position: 'absolute',
-    top: 4,
-    width: 18,
-  },
-  glyphProfileBody: {
-    borderTopLeftRadius: 14,
-    borderTopRightRadius: 14,
-    borderTopWidth: 3,
-    bottom: 3,
-    height: 14,
-    position: 'absolute',
-    width: 27,
   },
 });

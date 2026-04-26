@@ -14,6 +14,7 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import homeHeroBookStacksImage from '../assets/home-hero-book-stacks.jpg';
 import sseomdiReadingImage from '../assets/sseomdi-reading.png';
 import { AuthRequired } from '../src/components/auth-required';
+import { BottomNavigation } from '../src/components/bottom-navigation';
 import { useAuth } from '../src/providers/auth-provider';
 
 function toImageSource(image: string | number): ImageSourcePropType {
@@ -32,7 +33,7 @@ const readingMarkers = [
 const menuGroups = [
   [
     { icon: '◐', label: '나의 독서 생활', meta: '책, 문장, 사진 기록' },
-    { icon: '□', label: '내 리딩룸', meta: '참여 중인 방과 내가 만든 방' },
+    { icon: '□', label: '내 리딩방', meta: '참여 중인 방과 내가 만든 방' },
     { icon: '♡', label: '저장한 글', meta: '공감한 감상과 질문' },
   ],
   [
@@ -61,7 +62,7 @@ export default function ProfileScreen() {
         <View style={styles.requiredWrap}>
           <AuthRequired
             title="내 책장을 열려면 로그인이 필요합니다"
-            copy="나의 독서 생활, 저장한 문장, 참여 중인 리딩룸은 계정에 연결됩니다."
+            copy="나의 독서 생활, 저장한 문장, 참여 중인 리딩방은 계정에 연결됩니다."
           />
         </View>
       </SafeAreaView>
@@ -74,7 +75,7 @@ export default function ProfileScreen() {
         contentContainerStyle={[
           styles.content,
           !isFramedPreview ? styles.contentFull : null,
-          { paddingBottom: Math.max(insets.bottom + 28, 52) },
+          { paddingBottom: Math.max(insets.bottom + 126, 148) },
         ]}
         showsVerticalScrollIndicator={false}
       >
@@ -174,6 +175,7 @@ export default function ProfileScreen() {
           </Pressable>
         </View>
       </ScrollView>
+      <BottomNavigation active="profile" />
     </SafeAreaView>
   );
 }

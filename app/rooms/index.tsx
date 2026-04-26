@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { BottomNavigation } from '../../src/components/bottom-navigation';
 import { featuredRooms, type FeaturedRoom } from '../../src/data/rooms';
 import { useAuth } from '../../src/providers/auth-provider';
 import { getMediaUrl } from '../../src/services/media';
@@ -59,7 +60,7 @@ export default function RoomsScreen() {
             <Text style={styles.backText}>Back</Text>
           </Pressable>
           <Link asChild href={session ? '/create-room' : '/auth'}>
-            <Pressable accessibilityLabel="리딩룸 만들기" style={styles.createButton}>
+            <Pressable accessibilityLabel="리딩방 만들기" style={styles.createButton}>
               <Text style={styles.createButtonText}>＋</Text>
             </Pressable>
           </Link>
@@ -72,7 +73,7 @@ export default function RoomsScreen() {
         </Text>
 
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>열려 있는 리딩룸</Text>
+          <Text style={styles.sectionTitle}>열려 있는 리딩방</Text>
           <Text style={styles.sectionMeta}>{isLoadingRooms ? '불러오는 중' : `${rooms.length} rooms`}</Text>
         </View>
 
@@ -109,6 +110,7 @@ export default function RoomsScreen() {
           })}
         </View>
       </ScrollView>
+      <BottomNavigation active="rooms" />
     </SafeAreaView>
   );
 }
@@ -152,7 +154,7 @@ const styles = StyleSheet.create({
   },
   content: {
     padding: 20,
-    paddingBottom: 34,
+    paddingBottom: 124,
   },
   header: {
     alignItems: 'center',
