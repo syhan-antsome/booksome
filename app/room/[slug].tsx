@@ -2,6 +2,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import {
   Image,
+  type ImageSourcePropType,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -12,6 +13,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import roomFallbackImage from '../../assets/home-hero-book-stacks.jpg';
 import { BackButton } from '../../src/components/back-button';
 import { featuredRooms } from '../../src/data/rooms';
 import { useAuth } from '../../src/providers/auth-provider';
@@ -265,32 +267,36 @@ export default function RoomScreen() {
   }, [fallbackRoom, remoteRoom]);
 
   const coverUrl = room.coverPath ? getMediaUrl(room.coverPath) : null;
+  const heroSource: ImageSourcePropType = coverUrl ? { uri: coverUrl } : (roomFallbackImage as ImageSourcePropType);
   const isMember = Boolean(room.viewerRole);
   const isCompact = width < 430;
 
   return (
     <SafeAreaView style={styles.safeArea}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <View style={styles.topBar}>
-          <BackButton />
-          <Text style={styles.topStatus}>{isLoading ? '불러오는 중' : isMember ? '참여중' : '열린 북룸'}</Text>
-        </View>
-
         <View style={styles.heroStage}>
-          {coverUrl ? (
-            <Image resizeMode="cover" source={{ uri: coverUrl }} style={styles.heroBackdrop} />
-          ) : (
-            <View style={[styles.heroFallback, { backgroundColor: room.accent }]} />
-          )}
+          <Image resizeMode="cover" source={heroSource} style={styles.heroBackdrop} />
           <View style={styles.heroVeil} />
           <View style={styles.heroGlow} />
+          <View style={styles.heroTopBar}>
+            <BackButton />
+            <Text style={styles.topStatus}>{isLoading ? '불러오는 중' : isMember ? '참여중' : '열린 북룸'}</Text>
+          </View>
+          <View style={styles.heroOrnament} />
           <View style={[styles.heroCopy, isCompact ? styles.heroCopyCompact : null]}>
             <View style={styles.roomMarker}>
+              <Text style={styles.roomMarkerText}>BOOKSOME ROOM</Text>
               <View style={styles.roomMarkerLine} />
-              <Text style={styles.roomMarkerText}>BookSome 북룸</Text>
             </View>
-            <Text style={[styles.heroTitle, isCompact ? styles.heroTitleCompact : null]}>{room.title}</Text>
-            <Text style={styles.heroAuthor}>{room.author}</Text>
+            <View style={styles.heroMainRow}>
+              <View style={styles.heroTextBlock}>
+                <Text style={[styles.heroTitle, isCompact ? styles.heroTitleCompact : null]}>{room.title}</Text>
+                <Text style={styles.heroAuthor}>{room.author}</Text>
+              </View>
+              <View style={styles.heroPoster}>
+                <Image resizeMode="cover" source={heroSource} style={styles.heroPosterImage} />
+              </View>
+            </View>
             <View style={styles.heroMeta}>
               <Text style={styles.heroMetaText}>{room.host}</Text>
               <View style={styles.heroMetaDot} />
@@ -317,16 +323,21 @@ export default function RoomScreen() {
           </View>
         ) : null}
 
+        <View style={styles.roomSheetIntro}>
+          <Text style={styles.roomSheetEyebrow}>책 한 권의 작은 라운지</Text>
+          <Text style={styles.roomSheetTitle}>질문을 따라 읽고, 문장을 따라 만납니다.</Text>
+        </View>
+
         <View style={styles.tabs}>
           {[
-            { key: 'talk', label: '이야기', number: '01' },
-            { key: 'reading', label: '함께읽기', number: '02' },
-            { key: 'info', label: '정보', number: '03' },
+            { key: 'talk', label: '대화', number: 'Talk' },
+            { key: 'reading', label: '읽기', number: 'Read' },
+            { key: 'info', label: '노트', number: 'Note' },
           ].map((tab) => (
             <Pressable
               key={tab.key}
               onPress={() => setActiveTab(tab.key as RoomTab)}
-              style={styles.tabButton}
+              style={[styles.tabButton, activeTab === tab.key ? styles.tabButtonActive : null]}
             >
               <Text style={[styles.tabNumber, activeTab === tab.key ? styles.tabNumberActive : null]}>
                 {tab.number}
@@ -366,7 +377,7 @@ export default function RoomScreen() {
             <View style={styles.composer}>
               <View style={styles.composerHeader}>
                 <View>
-                  <Text style={styles.sectionLabel}>새 메모</Text>
+                  <Text style={styles.sectionLabel}>내 문장</Text>
                   <Text style={styles.composerTitle}>책장을 덮기 전 남기기</Text>
                 </View>
                 <Text style={styles.composerState}>{isMember ? '참여 중' : '참여 필요'}</Text>
@@ -410,7 +421,10 @@ export default function RoomScreen() {
 
             <View style={styles.postsSection}>
               <View style={styles.sectionHeader}>
-                <Text style={styles.sectionTitle}>최근 이야기</Text>
+                <View>
+                  <Text style={styles.sectionLabel}>Room notes</Text>
+                  <Text style={styles.sectionTitle}>서로의 문장들</Text>
+                </View>
                 <Text style={styles.sectionCount}>{posts.length}</Text>
               </View>
               {posts.length > 0 ? (
@@ -550,11 +564,11 @@ function getErrorMessage(error: unknown, fallback: string) {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#F7F3EC',
+    backgroundColor: '#EFE6DA',
   },
   content: {
     paddingHorizontal: 18,
-    paddingTop: 18,
+    paddingTop: 0,
     paddingBottom: 56,
   },
   topBar: {
@@ -564,14 +578,20 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   topStatus: {
-    color: '#776E63',
+    backgroundColor: 'rgba(255,255,255,0.82)',
+    borderRadius: 18,
+    color: '#201B16',
     fontSize: 12,
-    fontWeight: '800',
+    fontWeight: '900',
+    overflow: 'hidden',
+    paddingHorizontal: 14,
+    paddingVertical: 10,
   },
   heroStage: {
-    borderRadius: 0,
+    borderBottomLeftRadius: 42,
+    borderBottomRightRadius: 42,
     marginHorizontal: -18,
-    minHeight: 520,
+    minHeight: 590,
     overflow: 'hidden',
     position: 'relative',
     shadowColor: '#2A241D',
@@ -586,16 +606,8 @@ const styles = StyleSheet.create({
     right: 0,
     top: 0,
   },
-  heroFallback: {
-    bottom: 0,
-    left: 0,
-    opacity: 0.86,
-    position: 'absolute',
-    right: 0,
-    top: 0,
-  },
   heroVeil: {
-    backgroundColor: 'rgba(15, 13, 11, 0.22)',
+    backgroundColor: 'rgba(14, 11, 8, 0.32)',
     bottom: 0,
     left: 0,
     position: 'absolute',
@@ -603,16 +615,36 @@ const styles = StyleSheet.create({
     top: 0,
   },
   heroGlow: {
-    backgroundColor: 'rgba(0, 0, 0, 0.18)',
+    backgroundColor: 'rgba(0, 0, 0, 0.22)',
     bottom: 0,
     left: 0,
     position: 'absolute',
     right: 0,
     top: 0,
   },
+  heroTopBar: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    left: 18,
+    position: 'absolute',
+    right: 18,
+    top: 18,
+    zIndex: 3,
+  },
+  heroOrnament: {
+    borderColor: 'rgba(255,255,255,0.2)',
+    borderRadius: 999,
+    borderWidth: 1,
+    height: 260,
+    position: 'absolute',
+    right: -120,
+    top: 106,
+    width: 260,
+  },
   heroCopy: {
     alignItems: 'flex-start',
-    bottom: 48,
+    bottom: 42,
     left: 22,
     position: 'absolute',
     right: 22,
@@ -623,22 +655,32 @@ const styles = StyleSheet.create({
   roomMarker: {
     alignItems: 'center',
     flexDirection: 'row',
-    gap: 10,
-    marginBottom: 16,
+    gap: 12,
+    marginBottom: 18,
   },
   roomMarkerLine: {
     backgroundColor: 'rgba(255,255,255,0.72)',
     height: 1,
-    width: 34,
+    width: 54,
   },
   roomMarkerText: {
     color: '#FFFFFF',
     fontSize: 12,
-    fontWeight: '800',
+    fontWeight: '900',
+    letterSpacing: 0,
+  },
+  heroMainRow: {
+    alignItems: 'flex-end',
+    flexDirection: 'row',
+    gap: 18,
+    width: '100%',
+  },
+  heroTextBlock: {
+    flex: 1,
   },
   heroTitle: {
     color: '#FFFFFF',
-    fontSize: 44,
+    fontSize: 43,
     fontWeight: '900',
     letterSpacing: 0,
     lineHeight: 50,
@@ -650,19 +692,35 @@ const styles = StyleSheet.create({
   heroAuthor: {
     color: 'rgba(255,255,255,0.84)',
     fontSize: 16,
-    fontWeight: '700',
+    fontWeight: '800',
     marginTop: 12,
+  },
+  heroPoster: {
+    borderColor: 'rgba(255,255,255,0.55)',
+    borderRadius: 22,
+    borderWidth: 1,
+    height: 148,
+    overflow: 'hidden',
+    shadowColor: '#000000',
+    shadowOffset: { height: 14, width: 0 },
+    shadowOpacity: 0.32,
+    shadowRadius: 22,
+    width: 108,
+  },
+  heroPosterImage: {
+    height: '100%',
+    width: '100%',
   },
   heroMeta: {
     alignItems: 'center',
     flexDirection: 'row',
     flexWrap: 'wrap',
-    marginTop: 18,
+    marginTop: 22,
   },
   heroMetaText: {
     color: 'rgba(255,255,255,0.86)',
     fontSize: 13,
-    fontWeight: '700',
+    fontWeight: '900',
   },
   heroMetaDot: {
     backgroundColor: 'rgba(255,255,255,0.45)',
@@ -673,25 +731,30 @@ const styles = StyleSheet.create({
   },
   joinNote: {
     alignItems: 'center',
+    backgroundColor: '#201B16',
+    borderRadius: 28,
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginTop: 30,
+    marginTop: -32,
     overflow: 'hidden',
-    paddingHorizontal: 2,
-    paddingVertical: 4,
+    padding: 18,
     position: 'relative',
+    shadowColor: '#2A241D',
+    shadowOffset: { height: 16, width: 0 },
+    shadowOpacity: 0.16,
+    shadowRadius: 26,
   },
   joinCopy: {
     flex: 1,
     paddingRight: 12,
   },
   joinTitle: {
-    color: '#24201B',
+    color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '900',
   },
   joinText: {
-    color: '#83796D',
+    color: 'rgba(255,255,255,0.62)',
     fontSize: 13,
     fontWeight: '600',
     lineHeight: 19,
@@ -699,18 +762,18 @@ const styles = StyleSheet.create({
   },
   joinButton: {
     alignItems: 'center',
-    backgroundColor: '#24201B',
-    borderRadius: 18,
-    minHeight: 36,
-    minWidth: 76,
+    backgroundColor: '#F4D38A',
+    borderRadius: 22,
     justifyContent: 'center',
+    minHeight: 44,
+    minWidth: 78,
     paddingHorizontal: 18,
   },
   joinButtonDisabled: {
     backgroundColor: '#EEE7DC',
   },
   joinButtonText: {
-    color: '#FFFFFF',
+    color: '#201B16',
     fontSize: 14,
     fontWeight: '900',
   },
@@ -718,7 +781,7 @@ const styles = StyleSheet.create({
     color: '#4E463C',
   },
   messagePanel: {
-    backgroundColor: '#F1E9DD',
+    backgroundColor: '#FFF6E2',
     borderRadius: 20,
     marginTop: 18,
     padding: 14,
@@ -728,53 +791,80 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '700',
   },
+  roomSheetIntro: {
+    marginTop: 32,
+    paddingHorizontal: 2,
+  },
+  roomSheetEyebrow: {
+    color: '#846F5B',
+    fontSize: 12,
+    fontWeight: '900',
+  },
+  roomSheetTitle: {
+    color: '#201B16',
+    fontSize: 28,
+    fontWeight: '900',
+    letterSpacing: 0,
+    lineHeight: 35,
+    marginTop: 8,
+  },
   tabs: {
-    borderTopColor: 'rgba(36,32,27,0.12)',
-    borderTopWidth: 1,
+    backgroundColor: 'rgba(32,27,22,0.08)',
+    borderRadius: 26,
     flexDirection: 'row',
-    gap: 12,
-    marginTop: 34,
-    paddingTop: 18,
+    gap: 6,
+    marginTop: 22,
+    padding: 6,
   },
   tabButton: {
-    alignItems: 'flex-start',
+    alignItems: 'center',
+    borderRadius: 21,
     flex: 1,
-    minHeight: 52,
     justifyContent: 'center',
+    minHeight: 54,
+  },
+  tabButtonActive: {
+    backgroundColor: '#201B16',
   },
   tabNumber: {
-    color: '#B0A69A',
-    fontSize: 11,
+    color: '#938475',
+    fontSize: 10,
     fontWeight: '900',
-    marginBottom: 5,
+    marginBottom: 3,
   },
   tabNumberActive: {
-    color: '#24201B',
+    color: '#F4D38A',
   },
   tabText: {
-    color: '#8A8074',
-    fontSize: 16,
+    color: '#7B6F63',
+    fontSize: 15,
     fontWeight: '900',
   },
   tabTextActive: {
-    color: '#24201B',
+    color: '#FFFFFF',
   },
   tabActiveLine: {
-    backgroundColor: '#24201B',
-    height: 2,
-    marginTop: 10,
-    width: 28,
+    backgroundColor: '#F4D38A',
+    borderRadius: 2,
+    height: 4,
+    marginTop: 6,
+    width: 18,
   },
   tabPanel: {
-    marginTop: 30,
+    marginTop: 24,
   },
   pinnedQuestion: {
-    backgroundColor: '#201B16',
+    backgroundColor: '#221A14',
     borderRadius: 34,
     marginHorizontal: -2,
+    marginTop: 4,
     overflow: 'hidden',
-    padding: 24,
+    padding: 26,
     position: 'relative',
+    shadowColor: '#2A241D',
+    shadowOffset: { height: 14, width: 0 },
+    shadowOpacity: 0.14,
+    shadowRadius: 26,
   },
   questionPrelude: {
     alignItems: 'center',
@@ -818,12 +908,12 @@ const styles = StyleSheet.create({
   },
   questionQuote: {
     color: 'rgba(244,211,138,0.24)',
-    fontSize: 98,
+    fontSize: 108,
     fontWeight: '900',
     left: 20,
-    lineHeight: 104,
+    lineHeight: 112,
     position: 'absolute',
-    top: 74,
+    top: 76,
   },
   sectionLabel: {
     color: '#8E7F70',
@@ -833,10 +923,11 @@ const styles = StyleSheet.create({
   },
   question: {
     color: '#FFFFFF',
-    fontSize: 31,
+    fontSize: 32,
     fontWeight: '900',
-    lineHeight: 42,
-    paddingTop: 10,
+    lineHeight: 43,
+    paddingLeft: 2,
+    paddingTop: 12,
   },
   questionFooter: {
     alignItems: 'center',
@@ -876,10 +967,14 @@ const styles = StyleSheet.create({
     lineHeight: 19,
   },
   composer: {
-    borderTopColor: 'rgba(36,32,27,0.1)',
-    borderTopWidth: 1,
-    marginTop: 36,
-    paddingTop: 24,
+    backgroundColor: '#FFF8EA',
+    borderRadius: 30,
+    marginTop: 26,
+    padding: 20,
+    shadowColor: '#2A241D',
+    shadowOffset: { height: 10, width: 0 },
+    shadowOpacity: 0.08,
+    shadowRadius: 20,
   },
   composerHeader: {
     alignItems: 'flex-start',
@@ -888,8 +983,8 @@ const styles = StyleSheet.create({
     marginBottom: 14,
   },
   composerTitle: {
-    color: '#24201B',
-    fontSize: 22,
+    color: '#201B16',
+    fontSize: 21,
     fontWeight: '900',
   },
   composerState: {
@@ -899,20 +994,22 @@ const styles = StyleSheet.create({
   },
   segmented: {
     alignSelf: 'flex-start',
+    backgroundColor: 'rgba(32,27,22,0.08)',
+    borderRadius: 18,
     flexDirection: 'row',
-    gap: 18,
+    gap: 4,
     marginBottom: 16,
+    padding: 4,
   },
   segmentButton: {
     alignItems: 'center',
-    borderBottomColor: 'transparent',
-    borderBottomWidth: 2,
+    borderRadius: 14,
     minHeight: 38,
     justifyContent: 'center',
-    paddingHorizontal: 2,
+    paddingHorizontal: 15,
   },
   segmentButtonActive: {
-    borderBottomColor: '#24201B',
+    backgroundColor: '#201B16',
   },
   segmentText: {
     color: '#7E7469',
@@ -920,24 +1017,24 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   segmentTextActive: {
-    color: '#24201B',
+    color: '#FFFFFF',
   },
   postInput: {
-    backgroundColor: 'rgba(255,255,255,0.58)',
-    borderColor: 'rgba(36,32,27,0.08)',
-    borderRadius: 22,
+    backgroundColor: '#FFFFFF',
+    borderColor: 'rgba(32,27,22,0.08)',
+    borderRadius: 24,
     borderWidth: 1,
-    color: '#24201B',
+    color: '#201B16',
     fontSize: 16,
     fontWeight: '600',
     minHeight: 124,
-    paddingHorizontal: 16,
-    paddingVertical: 15,
+    paddingHorizontal: 18,
+    paddingVertical: 17,
     textAlignVertical: 'top',
   },
   postButton: {
     alignItems: 'center',
-    backgroundColor: '#24201B',
+    backgroundColor: '#116653',
     borderRadius: 24,
     height: 48,
     justifyContent: 'center',
@@ -952,7 +1049,7 @@ const styles = StyleSheet.create({
     lineHeight: 26,
   },
   postsSection: {
-    marginTop: 40,
+    marginTop: 34,
   },
   sectionHeader: {
     alignItems: 'center',
@@ -961,25 +1058,38 @@ const styles = StyleSheet.create({
     marginBottom: 14,
   },
   sectionTitle: {
-    color: '#24201B',
-    fontSize: 24,
+    color: '#201B16',
+    fontSize: 26,
     fontWeight: '900',
   },
   sectionCount: {
-    color: '#8E7F70',
+    backgroundColor: 'rgba(32,27,22,0.08)',
+    borderRadius: 14,
+    color: '#6D5D4F',
     fontSize: 14,
-    fontWeight: '800',
+    fontWeight: '900',
+    overflow: 'hidden',
+    paddingHorizontal: 11,
+    paddingVertical: 7,
   },
   postCard: {
-    borderBottomColor: 'rgba(36,32,27,0.1)',
-    borderBottomWidth: 1,
-    marginBottom: 0,
+    backgroundColor: 'rgba(255,255,255,0.52)',
+    borderColor: 'rgba(32,27,22,0.08)',
+    borderRadius: 28,
+    borderWidth: 1,
+    marginBottom: 14,
     overflow: 'hidden',
-    paddingVertical: 22,
+    paddingHorizontal: 18,
+    paddingVertical: 20,
     position: 'relative',
   },
   postSpine: {
-    display: 'none',
+    borderRadius: 2,
+    bottom: 20,
+    left: 0,
+    position: 'absolute',
+    top: 20,
+    width: 4,
   },
   postSpineQuestion: {
     backgroundColor: '#7DAF9C',
@@ -994,9 +1104,9 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   postKind: {
-    color: '#665D52',
+    color: '#116653',
     fontSize: 12,
-    fontWeight: '800',
+    fontWeight: '900',
     overflow: 'hidden',
   },
   postAuthor: {
@@ -1005,10 +1115,10 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   postBody: {
-    color: '#24201B',
+    color: '#201B16',
     fontSize: 17,
-    fontWeight: '600',
-    lineHeight: 27,
+    fontWeight: '700',
+    lineHeight: 28,
   },
   postActions: {
     alignItems: 'center',
@@ -1026,7 +1136,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
   },
   reactionIcon: {
-    color: '#24201B',
+    color: '#201B16',
     fontSize: 25,
     fontWeight: '800',
     lineHeight: 28,
@@ -1046,7 +1156,7 @@ const styles = StyleSheet.create({
     minHeight: 34,
   },
   feedIcon: {
-    color: '#24201B',
+    color: '#201B16',
     fontSize: 25,
     fontWeight: '800',
     lineHeight: 28,
@@ -1055,7 +1165,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   commentsList: {
-    borderTopColor: 'rgba(36,32,27,0.08)',
+    borderTopColor: 'rgba(32,27,22,0.08)',
     borderTopWidth: 1,
     gap: 8,
     marginTop: 16,
@@ -1082,8 +1192,8 @@ const styles = StyleSheet.create({
     marginTop: 12,
   },
   commentInput: {
-    backgroundColor: 'rgba(255,255,255,0.58)',
-    borderColor: 'rgba(36,32,27,0.08)',
+    backgroundColor: '#FFF8EA',
+    borderColor: 'rgba(32,27,22,0.08)',
     borderRadius: 18,
     borderWidth: 1,
     color: '#24201B',
@@ -1095,7 +1205,7 @@ const styles = StyleSheet.create({
   },
   commentButton: {
     alignItems: 'center',
-    backgroundColor: '#24201B',
+    backgroundColor: '#201B16',
     borderRadius: 18,
     height: 36,
     justifyContent: 'center',
@@ -1108,9 +1218,9 @@ const styles = StyleSheet.create({
     lineHeight: 21,
   },
   emptyPanel: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 24,
-    padding: 22,
+    backgroundColor: 'rgba(255,255,255,0.5)',
+    borderRadius: 28,
+    padding: 24,
   },
   emptyText: {
     color: '#82776B',
@@ -1118,65 +1228,62 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   readingLead: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 28,
-    padding: 22,
+    backgroundColor: '#201B16',
+    borderRadius: 32,
+    padding: 24,
     shadowColor: '#2A241D',
-    shadowOffset: { height: 8, width: 0 },
-    shadowOpacity: 0.05,
-    shadowRadius: 18,
+    shadowOffset: { height: 14, width: 0 },
+    shadowOpacity: 0.12,
+    shadowRadius: 24,
   },
   readingTitle: {
-    color: '#24201B',
+    color: '#FFFFFF',
     fontSize: 24,
     fontWeight: '900',
     lineHeight: 32,
   },
   readingCopy: {
-    color: '#82776B',
+    color: 'rgba(255,255,255,0.68)',
     fontSize: 14,
     fontWeight: '600',
     lineHeight: 21,
     marginTop: 10,
   },
   timelineItem: {
-    borderTopColor: 'rgba(36,32,27,0.1)',
+    borderTopColor: 'rgba(32,27,22,0.1)',
     borderTopWidth: 1,
     flexDirection: 'row',
     gap: 16,
-    paddingVertical: 18,
+    paddingVertical: 20,
   },
   timelineTime: {
-    color: '#8E7F70',
+    color: '#116653',
     fontSize: 13,
-    fontWeight: '800',
+    fontWeight: '900',
     width: 48,
   },
   timelineCopy: {
-    color: '#38312A',
+    color: '#352D25',
     flex: 1,
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: '700',
     lineHeight: 24,
   },
   infoBlock: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 28,
-    padding: 22,
-    shadowColor: '#2A241D',
-    shadowOffset: { height: 8, width: 0 },
-    shadowOpacity: 0.05,
-    shadowRadius: 18,
+    borderBottomColor: 'rgba(32,27,22,0.14)',
+    borderBottomWidth: 1,
+    paddingBottom: 24,
   },
   infoTitle: {
-    color: '#24201B',
-    fontSize: 26,
+    color: '#201B16',
+    fontSize: 30,
     fontWeight: '900',
+    lineHeight: 36,
   },
   infoCopy: {
-    color: '#82776B',
+    color: '#6F6255',
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: '700',
     lineHeight: 25,
     marginTop: 10,
   },
@@ -1186,7 +1293,7 @@ const styles = StyleSheet.create({
     marginTop: 16,
   },
   infoCell: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: 'rgba(255,255,255,0.54)',
     borderRadius: 22,
     flex: 1,
     padding: 14,
@@ -1199,15 +1306,15 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
   },
   infoCellValue: {
-    color: '#24201B',
+    color: '#201B16',
     fontSize: 16,
     fontWeight: '900',
   },
   ruleBlock: {
-    backgroundColor: '#EFE8DD',
-    borderRadius: 24,
+    backgroundColor: '#FFF8EA',
+    borderRadius: 28,
     marginTop: 16,
-    padding: 18,
+    padding: 20,
   },
   ruleText: {
     color: '#4F473D',
