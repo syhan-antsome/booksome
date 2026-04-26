@@ -19,6 +19,11 @@ export type ReadingLifeBook = {
   updatedAt: string;
 };
 
+export type UpdateReadingLifeBookInput = {
+  status?: ReadingBookStatus;
+  progressPercent?: number;
+};
+
 type ReadingBookRow = {
   id: string;
   profile_id: string;
@@ -50,6 +55,23 @@ export async function listReadingLifeBooks(profileId: string) {
   }
 
   return (data ?? []).map(mapReadingBook);
+}
+
+export async function getReadingLifeBook(profileId: string, bookId: string) {
+  const { data, error } = await supabase
+    .from('reading_books')
+    .select(
+      'id, profile_id, isbn13, title, author, publisher, published_date, description, external_cover_url, status, progress_percent, created_at, updated_at',
+    )
+    .eq('profile_id', profileId)
+    .eq('id', bookId)
+    .maybeSingle<ReadingBookRow>();
+
+  if (error) {
+    throw error;
+  }
+
+  return data ? mapReadingBook(data) : null;
 }
 
 export async function addBookToReadingLife(profileId: string, book: BookSearchItem) {
@@ -92,6 +114,40 @@ export async function addBookToReadingLife(profileId: string, book: BookSearchIt
       source: book.source,
       source_payload: book.sourcePayload,
     })
+    .select(
+      'id, profile_id, isbn13, title, author, publisher, published_date, description, external_cover_url, status, progress_percent, created_at, updated_at',
+    )
+    .single<ReadingBookRow>();
+
+  if (error) {
+    throw error;
+  }
+
+  return mapReadingBook(data);
+}
+
+export async function updateReadingLifeBook(
+  profileId: string,
+  bookId: string,
+  input: UpdateReadingLifeBookInput,
+) {
+  const updatePayload: Record<string, unknown> = {
+    updated_at: new Date().toISOString(),
+  };
+
+  if (input.status) {
+    updatePayload.status = input.status;
+  }
+
+  if (typeof input.progressPercent === 'number') {
+    updatePayload.progress_percent = Math.min(100, Math.max(0, Math.round(input.progressPercent)));
+  }
+
+  const { data, error } = await supabase
+    .from('reading_books')
+    .update(updatePayload)
+    .eq('profile_id', profileId)
+    .eq('id', bookId)
     .select(
       'id, profile_id, isbn13, title, author, publisher, published_date, description, external_cover_url, status, progress_percent, created_at, updated_at',
     )

@@ -1,4 +1,4 @@
-import { Link } from 'expo-router';
+import { Link, router } from 'expo-router';
 import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
@@ -26,9 +26,9 @@ function toImageSource(image: string | number): ImageSourcePropType {
 const sseomdiReadingSource = toImageSource(sseomdiReadingImage);
 
 const recordTypes = [
-  { title: '읽는 책', copy: '현재 읽는 책과 진행률을 기록합니다.' },
-  { title: '문장 메모', copy: '오래 남기고 싶은 문장을 모읍니다.' },
-  { title: '사진 메모', copy: '책상, 페이지, 장소까지 독서의 순간을 남깁니다.' },
+  { title: '읽는 책', copy: '현재 읽는 책과 진행률을 기록합니다.', section: 'progress' },
+  { title: '문장 메모', copy: '오래 남기고 싶은 문장을 모읍니다.', section: 'quote' },
+  { title: '사진 메모', copy: '책상, 페이지, 장소까지 독서의 순간을 남깁니다.', section: 'photo' },
 ];
 
 export default function ReadingLifeScreen() {
@@ -110,7 +110,13 @@ export default function ReadingLifeScreen() {
           ))}
         </View>
 
-        <View style={styles.currentBook}>
+        <Pressable
+          disabled={!currentBook}
+          onPress={() => {
+            if (currentBook) router.push(`/reading-life/${currentBook.id}`);
+          }}
+          style={styles.currentBook}
+        >
           <View style={styles.bookCover}>
             {currentBook?.externalCoverUrl ? (
               <Image resizeMode="cover" source={{ uri: currentBook.externalCoverUrl }} style={styles.bookCoverImage} />
@@ -131,7 +137,7 @@ export default function ReadingLifeScreen() {
               {currentBook ? '이제 진행률, 문장, 사진 메모를 이어서 붙일 수 있습니다.' : '책을 추가하면 진행률과 메모가 여기에 모입니다.'}
             </Text>
           </View>
-        </View>
+        </Pressable>
 
         {isLoadingBooks ? (
           <View style={styles.loadingPanel}>
@@ -146,7 +152,11 @@ export default function ReadingLifeScreen() {
           <View style={styles.myBooks}>
             <Text style={styles.sectionTitle}>내 책장</Text>
             {books.map((book) => (
-              <View key={book.id} style={styles.myBookItem}>
+              <Pressable
+                key={book.id}
+                onPress={() => router.push(`/reading-life/${book.id}`)}
+                style={styles.myBookItem}
+              >
                 {book.externalCoverUrl ? (
                   <Image resizeMode="cover" source={{ uri: book.externalCoverUrl }} style={styles.myBookImage} />
                 ) : (
@@ -163,14 +173,28 @@ export default function ReadingLifeScreen() {
                     {book.publisher ? ` · ${book.publisher}` : ''}
                   </Text>
                 </View>
-              </View>
+              </Pressable>
             ))}
           </View>
         ) : null}
 
         <View style={styles.recordList}>
           {recordTypes.map((item) => (
-            <Pressable key={item.title} style={styles.recordItem}>
+            <Pressable
+              key={item.title}
+              onPress={() => {
+                if (currentBook) {
+                  router.push({
+                    pathname: '/reading-life/[id]',
+                    params: { id: currentBook.id, section: item.section },
+                  });
+                  return;
+                }
+
+                router.push(session ? '/scan' : '/auth');
+              }}
+              style={styles.recordItem}
+            >
               <View style={styles.recordMark} />
               <View style={styles.recordCopy}>
                 <Text style={styles.recordTitle}>{item.title}</Text>
