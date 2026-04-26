@@ -42,16 +42,16 @@ export default function DiscoverScreen() {
   const [remoteRooms, setRemoteRooms] = useState<RoomSummary[]>([]);
   const [isRefreshingRooms, setIsRefreshingRooms] = useState(false);
   const [activeHeroIndex, setActiveHeroIndex] = useState(0);
-  const [incomingHeroIndex, setIncomingHeroIndex] = useState<number | null>(null);
   const heroZoom = useRef(new Animated.Value(0)).current;
-  const heroFade = useRef(new Animated.Value(0)).current;
-  const nextHeroZoom = useRef(new Animated.Value(0)).current;
+  const heroVeil = useRef(new Animated.Value(0)).current;
   const activeHeroIndexRef = useRef(0);
   const useNativeHeroDriver = Platform.OS !== 'web';
 
   useEffect(() => {
+    heroZoom.setValue(0);
+
     const animation = Animated.timing(heroZoom, {
-      duration: 9000,
+      duration: 9800,
       toValue: 1,
       useNativeDriver: useNativeHeroDriver,
     });
@@ -61,40 +61,30 @@ export default function DiscoverScreen() {
     const timeout = setTimeout(() => {
       const nextIndex = (activeHeroIndexRef.current + 1) % homeHeroSlides.length;
 
-      setIncomingHeroIndex(nextIndex);
-      heroFade.setValue(0);
-      nextHeroZoom.setValue(0);
-
-      Animated.timing(nextHeroZoom, {
-        duration: 1800,
-        toValue: 0.2,
-        useNativeDriver: useNativeHeroDriver,
-      }).start();
-
-      Animated.timing(heroFade, {
-        duration: 1800,
+      Animated.timing(heroVeil, {
+        duration: 520,
         toValue: 1,
         useNativeDriver: useNativeHeroDriver,
       }).start(() => {
         activeHeroIndexRef.current = nextIndex;
-        heroZoom.setValue(0.2);
+        heroZoom.setValue(0);
         setActiveHeroIndex(nextIndex);
 
         requestAnimationFrame(() => {
-          requestAnimationFrame(() => {
-            setIncomingHeroIndex(null);
-            heroFade.setValue(0);
-            nextHeroZoom.setValue(0);
-          });
+          Animated.timing(heroVeil, {
+            duration: 900,
+            toValue: 0,
+            useNativeDriver: useNativeHeroDriver,
+          }).start();
         });
       });
-    }, 7000);
+    }, 7600);
 
     return () => {
       animation.stop();
       clearTimeout(timeout);
     };
-  }, [activeHeroIndex, heroFade, heroZoom, nextHeroZoom, useNativeHeroDriver]);
+  }, [activeHeroIndex, heroVeil, heroZoom, useNativeHeroDriver]);
 
   const refreshRooms = useCallback(() => {
     let isMounted = true;
@@ -132,19 +122,9 @@ export default function DiscoverScreen() {
   const heroStageHeight = Math.max(350, Math.min(430, height - 330));
   const heroZoomScale = heroZoom.interpolate({
     inputRange: [0, 1],
-    outputRange: [1.04, 1.18],
-  });
-  const nextHeroZoomScale = nextHeroZoom.interpolate({
-    inputRange: [0, 1],
-    outputRange: [1.04, 1.18],
+    outputRange: [1.02, 1.2],
   });
   const activeHeroSource = homeHeroSlides[activeHeroIndex];
-  const incomingHeroSource =
-    incomingHeroIndex === null ? null : homeHeroSlides[incomingHeroIndex];
-  const nextAmbientOpacity = heroFade.interpolate({
-    inputRange: [0, 1],
-    outputRange: [0, 1],
-  });
   const safeAreaStyle = !isFramedPreview
     ? StyleSheet.compose(styles.safeArea, styles.safeAreaFull)
     : styles.safeArea;
@@ -176,10 +156,9 @@ export default function DiscoverScreen() {
     opacity: 1,
     transform: [{ scale: heroZoomScale }],
   };
-  const nextFullBleedStyle = {
-    ...styles.fullBleedImage,
-    opacity: nextAmbientOpacity,
-    transform: [{ scale: nextHeroZoomScale }],
+  const transitionVeilStyle = {
+    ...styles.fullBleedTransitionShade,
+    opacity: heroVeil,
   };
 
   return (
@@ -189,14 +168,8 @@ export default function DiscoverScreen() {
         source={activeHeroSource}
         style={activeFullBleedStyle}
       />
-      {incomingHeroSource ? (
-        <Animated.Image
-          resizeMode="cover"
-          source={incomingHeroSource}
-          style={nextFullBleedStyle}
-        />
-      ) : null}
       <View style={styles.fullBleedShade} />
+      <Animated.View pointerEvents="none" style={transitionVeilStyle} />
       <ScrollView
         contentContainerStyle={contentStyle}
         showsVerticalScrollIndicator={false}
@@ -403,6 +376,14 @@ const styles = StyleSheet.create({
   },
   fullBleedShade: {
     backgroundColor: 'rgba(7, 13, 8, 0.34)',
+    bottom: 0,
+    left: 0,
+    position: 'absolute',
+    right: 0,
+    top: 0,
+  },
+  fullBleedTransitionShade: {
+    backgroundColor: '#070D08',
     bottom: 0,
     left: 0,
     position: 'absolute',
