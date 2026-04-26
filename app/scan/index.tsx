@@ -8,6 +8,7 @@ import { AuthRequired } from '../../src/components/auth-required';
 import { BackButton } from '../../src/components/back-button';
 import { useAuth } from '../../src/providers/auth-provider';
 import { lookupBookByIsbn, type BookSearchItem } from '../../src/services/books';
+import { addBookToReadingLife } from '../../src/services/reading-life';
 
 export default function ScanScreen() {
   const { session } = useAuth();
@@ -18,6 +19,8 @@ export default function ScanScreen() {
   const [bookLookupError, setBookLookupError] = useState<string | null>(null);
   const [bookResults, setBookResults] = useState<BookSearchItem[]>([]);
   const [isLookingUpBook, setIsLookingUpBook] = useState(false);
+  const [isAddingToReadingLife, setIsAddingToReadingLife] = useState(false);
+  const [registrationError, setRegistrationError] = useState<string | null>(null);
   const isGranted = permission?.granted;
   const isRoomContext = params.context === 'create-room';
   const scannedCode = scanResult?.data ?? '';
@@ -29,6 +32,7 @@ export default function ScanScreen() {
     setScanResult(result);
     setBookResults([]);
     setBookLookupError(null);
+    setRegistrationError(null);
 
     const isbn = normalizeIsbn(result.data);
     if (result.type === 'ean13' && /^(978|979)\d{10}$/.test(isbn)) {
@@ -39,17 +43,33 @@ export default function ScanScreen() {
   const resetScanner = () => {
     setCameraError(null);
     setBookLookupError(null);
+    setRegistrationError(null);
     setBookResults([]);
     setScanResult(null);
   };
 
-  const useScannedBook = () => {
-    if (!looksLikeIsbn || !selectedBook) return;
+  const useScannedBook = async () => {
+    if (!looksLikeIsbn || !selectedBook || !session) return;
 
-    router.replace({
-      pathname: '/create-room',
-      params: { isbn13: selectedBook.isbn },
-    });
+    if (isRoomContext) {
+      router.replace({
+        pathname: '/create-room',
+        params: { isbn13: selectedBook.isbn },
+      });
+      return;
+    }
+
+    setIsAddingToReadingLife(true);
+    setRegistrationError(null);
+
+    try {
+      await addBookToReadingLife(session.user.id, selectedBook);
+      router.replace('/reading-life');
+    } catch (error) {
+      setRegistrationError(getErrorMessage(error, '독서생활에 등록하지 못했습니다.'));
+    } finally {
+      setIsAddingToReadingLife(false);
+    }
   };
 
   const lookupScannedBook = async (isbn: string) => {
@@ -169,20 +189,21 @@ export default function ScanScreen() {
                   </View>
                 ) : null}
                 {bookLookupError ? <Text style={styles.lookupError}>{bookLookupError}</Text> : null}
+                {registrationError ? <Text style={styles.lookupError}>{registrationError}</Text> : null}
                 <View style={styles.resultActions}>
                   <Pressable onPress={resetScanner} style={styles.secondaryButton}>
                     <Text style={styles.secondaryButtonText}>다시 스캔</Text>
                   </Pressable>
                   <Pressable
-                    disabled={!isRoomContext || !looksLikeIsbn || isLookingUpBook || !selectedBook}
+                    disabled={!looksLikeIsbn || isLookingUpBook || isAddingToReadingLife || !selectedBook}
                     onPress={useScannedBook}
                     style={[
                       styles.resultButton,
-                      !isRoomContext || !looksLikeIsbn || isLookingUpBook || !selectedBook ? styles.disabledButton : null,
+                      !looksLikeIsbn || isLookingUpBook || isAddingToReadingLife || !selectedBook ? styles.disabledButton : null,
                     ]}
                   >
                     <Text style={styles.resultButtonText}>
-                      {isRoomContext ? '북룸 책으로 사용' : '독서생활에 등록'}
+                      {isAddingToReadingLife ? '등록 중' : isRoomContext ? '북룸 책으로 사용' : '독서생활에 등록'}
                     </Text>
                   </Pressable>
                 </View>
@@ -197,7 +218,7 @@ export default function ScanScreen() {
             <Text style={styles.tipCopy}>
               {isRoomContext
                 ? '스캔된 ISBN은 북룸 생성 화면의 책 정보에 임시로 적용됩니다.'
-                : '지금은 Expo Go에서 카메라 권한과 ISBN 인식이 되는지 확인하는 단계입니다.'}
+                : '스캔된 책은 나의 독서생활에 저장되고, 이후 진행률과 메모를 이어서 붙일 수 있습니다.'}
             </Text>
           </View>
         ) : null}

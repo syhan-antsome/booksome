@@ -27,6 +27,12 @@ exception
   when duplicate_object then null;
 end $$;
 
+do $$ begin
+  create type public.reading_book_status as enum ('want_to_read', 'reading', 'finished', 'paused');
+exception
+  when duplicate_object then null;
+end $$;
+
 create table if not exists public.profiles (
   id uuid primary key references auth.users(id) on delete cascade,
   display_name text not null,
@@ -142,6 +148,26 @@ create table if not exists public.reading_sessions (
   created_at timestamptz not null default now()
 );
 
+create table if not exists public.reading_books (
+  id uuid primary key default gen_random_uuid(),
+  profile_id uuid not null references public.profiles(id) on delete cascade,
+  isbn13 text,
+  title text not null,
+  author text not null,
+  publisher text,
+  published_date date,
+  description text,
+  external_cover_url text,
+  status public.reading_book_status not null default 'reading',
+  progress_percent integer not null default 0 check (progress_percent >= 0 and progress_percent <= 100),
+  visibility text not null default 'private',
+  source text,
+  source_payload jsonb,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  unique (profile_id, isbn13)
+);
+
 create table if not exists public.meetups (
   id uuid primary key default gen_random_uuid(),
   room_id uuid references public.rooms(id) on delete cascade,
@@ -251,4 +277,5 @@ create index if not exists rooms_work_id_idx on public.rooms(work_id);
 create index if not exists room_members_profile_id_idx on public.room_members(profile_id);
 create index if not exists posts_room_id_created_at_idx on public.posts(room_id, created_at desc);
 create index if not exists comments_post_id_created_at_idx on public.comments(post_id, created_at asc);
+create index if not exists reading_books_profile_id_updated_at_idx on public.reading_books(profile_id, updated_at desc);
 create index if not exists meetups_city_starts_at_idx on public.meetups(city, starts_at);

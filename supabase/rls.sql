@@ -11,6 +11,7 @@ alter table public.posts enable row level security;
 alter table public.comments enable row level security;
 alter table public.reactions enable row level security;
 alter table public.reading_sessions enable row level security;
+alter table public.reading_books enable row level security;
 alter table public.meetups enable row level security;
 alter table public.media_assets enable row level security;
 alter table public.push_tokens enable row level security;
@@ -212,6 +213,27 @@ on public.reading_sessions for all
 to authenticated
 using (public.is_room_operator(room_id))
 with check (public.is_room_operator(room_id));
+
+create policy "Users read their reading books"
+on public.reading_books for select
+to authenticated
+using (profile_id = auth.uid());
+
+create policy "Users create their reading books"
+on public.reading_books for insert
+to authenticated
+with check (profile_id = auth.uid());
+
+create policy "Users update their reading books"
+on public.reading_books for update
+to authenticated
+using (profile_id = auth.uid())
+with check (profile_id = auth.uid());
+
+create policy "Users delete their reading books"
+on public.reading_books for delete
+to authenticated
+using (profile_id = auth.uid());
 
 create policy "Scheduled meetups are readable"
 on public.meetups for select
