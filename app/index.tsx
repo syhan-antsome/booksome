@@ -79,9 +79,14 @@ export default function DiscoverScreen() {
         activeHeroIndexRef.current = nextIndex;
         heroZoom.setValue(0.2);
         setActiveHeroIndex(nextIndex);
-        setIncomingHeroIndex(null);
-        heroFade.setValue(0);
-        nextHeroZoom.setValue(0);
+
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            setIncomingHeroIndex(null);
+            heroFade.setValue(0);
+            nextHeroZoom.setValue(0);
+          });
+        });
       });
     }, 7000);
 
