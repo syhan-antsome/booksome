@@ -1,10 +1,8 @@
 import { Link, useFocusEffect } from 'expo-router';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import {
-  Animated,
   Image,
   type ImageSourcePropType,
-  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -14,6 +12,7 @@ import {
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { BackgroundSlideshow } from '../src/components/background-slideshow';
 import { featuredRooms, type FeaturedRoom } from '../src/data/rooms';
 import { useAuth } from '../src/providers/auth-provider';
 import { getMediaUrl } from '../src/services/media';
@@ -41,50 +40,6 @@ export default function DiscoverScreen() {
   const insets = useSafeAreaInsets();
   const [remoteRooms, setRemoteRooms] = useState<RoomSummary[]>([]);
   const [isRefreshingRooms, setIsRefreshingRooms] = useState(false);
-  const [activeHeroIndex, setActiveHeroIndex] = useState(0);
-  const heroZoom = useRef(new Animated.Value(0)).current;
-  const heroVeil = useRef(new Animated.Value(0)).current;
-  const activeHeroIndexRef = useRef(0);
-  const useNativeHeroDriver = Platform.OS !== 'web';
-
-  useEffect(() => {
-    heroZoom.setValue(0);
-
-    const animation = Animated.timing(heroZoom, {
-      duration: 9800,
-      toValue: 1,
-      useNativeDriver: useNativeHeroDriver,
-    });
-
-    animation.start();
-
-    const timeout = setTimeout(() => {
-      const nextIndex = (activeHeroIndexRef.current + 1) % homeHeroSlides.length;
-
-      Animated.timing(heroVeil, {
-        duration: 520,
-        toValue: 1,
-        useNativeDriver: useNativeHeroDriver,
-      }).start(() => {
-        activeHeroIndexRef.current = nextIndex;
-        heroZoom.setValue(0);
-        setActiveHeroIndex(nextIndex);
-
-        requestAnimationFrame(() => {
-          Animated.timing(heroVeil, {
-            duration: 900,
-            toValue: 0,
-            useNativeDriver: useNativeHeroDriver,
-          }).start();
-        });
-      });
-    }, 7600);
-
-    return () => {
-      animation.stop();
-      clearTimeout(timeout);
-    };
-  }, [activeHeroIndex, heroVeil, heroZoom, useNativeHeroDriver]);
 
   const refreshRooms = useCallback(() => {
     let isMounted = true;
@@ -120,11 +75,6 @@ export default function DiscoverScreen() {
   const spotlightRooms = rooms.slice(0, 4);
   const isFramedPreview = width >= 640;
   const heroStageHeight = Math.max(350, Math.min(430, height - 330));
-  const heroZoomScale = heroZoom.interpolate({
-    inputRange: [0, 1],
-    outputRange: [1.02, 1.2],
-  });
-  const activeHeroSource = homeHeroSlides[activeHeroIndex];
   const safeAreaStyle = !isFramedPreview
     ? StyleSheet.compose(styles.safeArea, styles.safeAreaFull)
     : styles.safeArea;
@@ -151,25 +101,10 @@ export default function DiscoverScreen() {
   );
   const activeTabStyle = StyleSheet.compose(styles.tabItem, styles.tabItemActive);
   const activeTabIconStyle = StyleSheet.compose(styles.tabIcon, styles.tabIconActive);
-  const activeFullBleedStyle = {
-    ...styles.fullBleedImage,
-    opacity: 1,
-    transform: [{ scale: heroZoomScale }],
-  };
-  const transitionVeilStyle = {
-    ...styles.fullBleedTransitionShade,
-    opacity: heroVeil,
-  };
-
   return (
     <SafeAreaView style={safeAreaStyle}>
-      <Animated.Image
-        resizeMode="cover"
-        source={activeHeroSource}
-        style={activeFullBleedStyle}
-      />
+      <BackgroundSlideshow sources={homeHeroSlides} />
       <View style={styles.fullBleedShade} />
-      <Animated.View pointerEvents="none" style={transitionVeilStyle} />
       <ScrollView
         contentContainerStyle={contentStyle}
         showsVerticalScrollIndicator={false}
@@ -365,25 +300,8 @@ const styles = StyleSheet.create({
     marginVertical: 0,
     maxWidth: '100%',
   },
-  fullBleedImage: {
-    height: '112%',
-    left: 0,
-    objectFit: 'cover',
-    position: 'absolute',
-    right: 0,
-    top: -30,
-    width: '100%',
-  },
   fullBleedShade: {
     backgroundColor: 'rgba(7, 13, 8, 0.34)',
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
-    right: 0,
-    top: 0,
-  },
-  fullBleedTransitionShade: {
-    backgroundColor: '#070D08',
     bottom: 0,
     left: 0,
     position: 'absolute',
