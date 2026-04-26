@@ -18,15 +18,15 @@ export default function ScanScreen() {
           <BackButton />
         </View>
 
-        <Text style={styles.title}>책을 스캔하면 북룸으로 이어집니다.</Text>
+        <Text style={styles.title}>책을 스캔해 독서생활에 등록합니다.</Text>
         <Text style={styles.copy}>
-          책 뒷면의 ISBN 바코드를 인식해 기존 북룸을 찾고, 없으면 새 북룸 생성을 제안합니다.
+          책 뒷면의 ISBN 바코드를 인식해 나의 책장에 추가하고, 읽는 상태와 메모를 이어서 기록합니다.
         </Text>
 
         {!session ? (
           <AuthRequired
             title="ISBN 스캔은 로그인 후 사용할 수 있습니다."
-            copy="내가 스캔한 책을 북룸과 연결하고, 생성 여부를 계정에 남기기 위해 로그인이 필요합니다."
+            copy="내가 스캔한 책을 독서생활 기록에 저장하고 진행률과 메모를 이어가기 위해 로그인이 필요합니다."
           />
         ) : null}
 
@@ -54,7 +54,7 @@ export default function ScanScreen() {
         <View style={styles.tip}>
           <Text style={styles.tipTitle}>MVP note</Text>
           <Text style={styles.tipCopy}>
-            다음 단계에서 바코드 값을 책 검색 API와 연결하고, 북룸 진입 또는 생성 플로우를 붙입니다.
+            다음 단계에서 바코드 값을 책 검색 API와 연결하고, 나의 독서생활에 책 추가 플로우를 붙입니다.
           </Text>
         </View>
         ) : null}
