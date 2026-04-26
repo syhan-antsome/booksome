@@ -1,6 +1,6 @@
 import * as ImagePicker from 'expo-image-picker';
-import { router } from 'expo-router';
-import { useState } from 'react';
+import { router, useLocalSearchParams } from 'expo-router';
+import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Image,
@@ -22,8 +22,10 @@ import { createRoom } from '../../src/services/rooms';
 
 export default function CreateRoomScreen() {
   const { session } = useAuth();
+  const params = useLocalSearchParams<{ isbn13?: string }>();
   const [bookTitle, setBookTitle] = useState('');
   const [author, setAuthor] = useState('');
+  const [isbn13, setIsbn13] = useState('');
   const [roomTitle, setRoomTitle] = useState('');
   const [roomSubtitle, setRoomSubtitle] = useState('');
   const [roomDescription, setRoomDescription] = useState('');
@@ -35,6 +37,13 @@ export default function CreateRoomScreen() {
   const [isUploading, setIsUploading] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const scannedIsbn = Array.isArray(params.isbn13) ? params.isbn13[0] : params.isbn13;
+    if (scannedIsbn) {
+      setIsbn13(scannedIsbn);
+    }
+  }, [params.isbn13]);
 
   const pickCover = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -107,6 +116,7 @@ export default function CreateRoomScreen() {
       const room = await createRoom({
         bookTitle,
         author,
+        isbn13,
         roomTitle: roomTitle || bookTitle,
         roomSubtitle,
         roomDescription,
@@ -132,7 +142,7 @@ export default function CreateRoomScreen() {
 
         <Text style={styles.title}>당신이 사랑하는 책의 첫 번째 방장이 되어보세요.</Text>
         <Text style={styles.copy}>
-          첫 버전은 직접 입력으로 북룸을 만들고, 이후 책 검색과 ISBN 스캔 흐름으로 확장합니다.
+          직접 입력하거나 책 뒷면의 ISBN을 스캔해 북룸의 책을 설정할 수 있습니다.
         </Text>
 
         {!session ? (
@@ -146,6 +156,34 @@ export default function CreateRoomScreen() {
           <>
             <View style={styles.formPanel}>
               <Text style={styles.label}>Book</Text>
+              <View style={styles.scanChoice}>
+                <View style={styles.scanChoiceCopy}>
+                  <Text style={styles.scanChoiceTitle}>ISBN으로 책 설정</Text>
+                  <Text style={styles.scanChoiceText}>
+                    바코드를 스캔하면 책 고유번호를 북룸에 연결합니다.
+                  </Text>
+                </View>
+                <Pressable
+                  onPress={() =>
+                    router.push({
+                      pathname: '/scan',
+                      params: { context: 'create-room' },
+                    })
+                  }
+                  style={styles.scanButton}
+                >
+                  <Text style={styles.scanButtonIcon}>⌕</Text>
+                </Pressable>
+              </View>
+              {isbn13 ? (
+                <View style={styles.isbnChip}>
+                  <Text style={styles.isbnLabel}>ISBN</Text>
+                  <Text style={styles.isbnValue}>{isbn13}</Text>
+                  <Pressable onPress={() => setIsbn13('')} hitSlop={10}>
+                    <Text style={styles.isbnRemove}>×</Text>
+                  </Pressable>
+                </View>
+              ) : null}
               <TextInput
                 onChangeText={setBookTitle}
                 placeholder="책 제목"
@@ -314,6 +352,72 @@ const styles = StyleSheet.create({
     gap: 12,
     marginTop: 24,
     padding: 18,
+  },
+  scanChoice: {
+    alignItems: 'center',
+    backgroundColor: '#F2ECE1',
+    borderRadius: 22,
+    flexDirection: 'row',
+    gap: 14,
+    marginBottom: 4,
+    padding: 14,
+  },
+  scanChoiceCopy: {
+    flex: 1,
+  },
+  scanChoiceTitle: {
+    color: '#142326',
+    fontSize: 16,
+    fontWeight: '900',
+  },
+  scanChoiceText: {
+    color: '#66716E',
+    fontSize: 13,
+    fontWeight: '700',
+    lineHeight: 19,
+    marginTop: 4,
+  },
+  scanButton: {
+    alignItems: 'center',
+    backgroundColor: '#116653',
+    borderRadius: 24,
+    height: 48,
+    justifyContent: 'center',
+    width: 48,
+  },
+  scanButtonIcon: {
+    color: '#FFFFFF',
+    fontSize: 24,
+    fontWeight: '900',
+    lineHeight: 28,
+  },
+  isbnChip: {
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    backgroundColor: '#123D31',
+    borderRadius: 18,
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 2,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+  },
+  isbnLabel: {
+    color: '#F4D38A',
+    fontSize: 11,
+    fontWeight: '900',
+    letterSpacing: 0,
+  },
+  isbnValue: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '900',
+  },
+  isbnRemove: {
+    color: 'rgba(255,255,255,0.75)',
+    fontSize: 18,
+    fontWeight: '900',
+    lineHeight: 20,
   },
   spacedLabel: {
     marginTop: 10,

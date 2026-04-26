@@ -52,6 +52,7 @@ export type RoomComment = {
 export type CreateRoomInput = {
   bookTitle: string;
   author: string;
+  isbn13?: string;
   roomTitle: string;
   roomSubtitle: string;
   roomDescription: string;
@@ -345,23 +346,55 @@ export async function togglePostReaction(postId: string, profileId: string, acti
 }
 
 export async function createRoom(input: CreateRoomInput) {
+  const payload = {
+    p_book_title: input.bookTitle.trim(),
+    p_author: input.author.trim(),
+    p_isbn13: input.isbn13?.trim() || null,
+    p_room_title: (input.roomTitle || input.bookTitle).trim(),
+    p_room_subtitle: input.roomSubtitle.trim() || null,
+    p_room_description: input.roomDescription.trim() || null,
+    p_first_question: input.firstQuestion.trim(),
+    p_cover_path: input.coverPath ?? null,
+  };
+
   const { data, error } = await supabase
     .rpc('create_reading_room', {
-      p_book_title: input.bookTitle.trim(),
-      p_author: input.author.trim(),
-      p_room_title: (input.roomTitle || input.bookTitle).trim(),
-      p_room_subtitle: input.roomSubtitle.trim() || null,
-      p_room_description: input.roomDescription.trim() || null,
-      p_first_question: input.firstQuestion.trim(),
-      p_cover_path: input.coverPath ?? null,
+      ...payload,
     })
     .single();
 
   if (error) {
+    if (input.isbn13 && isRpcSignatureError(error.message)) {
+      const fallbackPayload = {
+        p_book_title: payload.p_book_title,
+        p_author: payload.p_author,
+        p_room_title: payload.p_room_title,
+        p_room_subtitle: payload.p_room_subtitle,
+        p_room_description: payload.p_room_description,
+        p_first_question: payload.p_first_question,
+        p_cover_path: payload.p_cover_path,
+      };
+      const fallback = await supabase.rpc('create_reading_room', fallbackPayload).single();
+
+      if (fallback.error) {
+        throw fallback.error;
+      }
+
+      return fallback.data as { id: string; slug: string };
+    }
+
     throw error;
   }
 
   return data as { id: string; slug: string };
+}
+
+function isRpcSignatureError(message?: string) {
+  return Boolean(
+    message?.includes('Could not find the function') ||
+      message?.includes('function public.create_reading_room') ||
+      message?.includes('schema cache')
+  );
 }
 
 export async function joinRoom(roomId: string) {

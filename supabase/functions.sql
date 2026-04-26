@@ -1,9 +1,12 @@
 -- BookSome server-side functions.
 -- Run after schema.sql and rls.sql.
 
+drop function if exists public.create_reading_room(text, text, text, text, text, text, text);
+
 create or replace function public.create_reading_room(
   p_book_title text,
   p_author text,
+  p_isbn13 text default null,
   p_room_title text default null,
   p_room_subtitle text default null,
   p_room_description text default null,
@@ -18,7 +21,9 @@ as $$
 declare
   current_profile_id uuid := auth.uid();
   new_work_id uuid;
+  new_edition_id uuid;
   new_room_id uuid;
+  clean_isbn13 text := nullif(regexp_replace(coalesce(p_isbn13, ''), '[^0-9Xx]', '', 'g'), '');
   slug_base text;
   candidate_slug text;
 begin
@@ -38,6 +43,10 @@ begin
     raise exception '저자는 꼭 필요합니다.';
   end if;
 
+  if clean_isbn13 is not null and clean_isbn13 !~ '^(978|979)[0-9]{10}$' then
+    raise exception '올바른 ISBN-13 형식이 아닙니다.';
+  end if;
+
   if nullif(trim(coalesce(p_first_question, '')), '') is null then
     raise exception '첫 질문은 꼭 필요합니다.';
   end if;
@@ -51,29 +60,62 @@ begin
     slug_base := 'room';
   end if;
 
+  if clean_isbn13 is not null then
+    select book_editions.id, book_editions.work_id
+    into new_edition_id, new_work_id
+    from public.book_editions
+    where book_editions.isbn13 = clean_isbn13
+    limit 1;
+  end if;
+
   loop
     candidate_slug := slug_base || '-' || substr(replace(gen_random_uuid()::text, '-', ''), 1, 8);
     exit when not exists (select 1 from public.rooms where rooms.slug = candidate_slug);
   end loop;
 
-  insert into public.book_works (
-    title,
-    author,
-    description,
-    primary_language,
-    cover_path
-  )
-  values (
-    trim(p_book_title),
-    trim(p_author),
-    nullif(trim(coalesce(p_room_description, '')), ''),
-    'ko',
-    p_cover_path
-  )
-  returning book_works.id into new_work_id;
+  if new_work_id is null then
+    insert into public.book_works (
+      title,
+      author,
+      description,
+      primary_language,
+      cover_path
+    )
+    values (
+      trim(p_book_title),
+      trim(p_author),
+      nullif(trim(coalesce(p_room_description, '')), ''),
+      'ko',
+      p_cover_path
+    )
+    returning book_works.id into new_work_id;
+  end if;
+
+  if clean_isbn13 is not null and new_edition_id is null then
+    insert into public.book_editions (
+      work_id,
+      isbn13,
+      title,
+      author,
+      language,
+      cover_path,
+      source
+    )
+    values (
+      new_work_id,
+      clean_isbn13,
+      trim(p_book_title),
+      trim(p_author),
+      'ko',
+      p_cover_path,
+      'isbn-scan'
+    )
+    returning book_editions.id into new_edition_id;
+  end if;
 
   insert into public.rooms (
     work_id,
+    edition_id,
     slug,
     title,
     subtitle,
@@ -84,6 +126,7 @@ begin
   )
   values (
     new_work_id,
+    new_edition_id,
     candidate_slug,
     coalesce(nullif(trim(p_room_title), ''), trim(p_book_title)),
     nullif(trim(coalesce(p_room_subtitle, '')), ''),

@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { CameraView, type BarcodeScanningResult, useCameraPermissions } from 'expo-camera';
+import { router, useLocalSearchParams } from 'expo-router';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -9,10 +10,12 @@ import { useAuth } from '../../src/providers/auth-provider';
 
 export default function ScanScreen() {
   const { session } = useAuth();
+  const params = useLocalSearchParams<{ context?: string }>();
   const [permission, requestPermission] = useCameraPermissions();
   const [scanResult, setScanResult] = useState<BarcodeScanningResult | null>(null);
   const [cameraError, setCameraError] = useState<string | null>(null);
   const isGranted = permission?.granted;
+  const isRoomContext = params.context === 'create-room';
   const scannedCode = scanResult?.data ?? '';
   const normalizedCode = useMemo(() => scannedCode.replace(/[^0-9X]/gi, ''), [scannedCode]);
   const looksLikeIsbn = scanResult?.type === 'ean13' && /^(978|979)\d{10}$/.test(normalizedCode);
@@ -26,6 +29,15 @@ export default function ScanScreen() {
     setScanResult(null);
   };
 
+  const useScannedBook = () => {
+    if (!looksLikeIsbn) return;
+
+    router.replace({
+      pathname: '/create-room',
+      params: { isbn13: normalizedCode },
+    });
+  };
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.content}>
@@ -33,9 +45,13 @@ export default function ScanScreen() {
           <BackButton />
         </View>
 
-        <Text style={styles.title}>책을 스캔해 독서생활에 등록합니다.</Text>
+        <Text style={styles.title}>
+          {isRoomContext ? '책을 스캔해 북룸의 책으로 설정합니다.' : '책을 스캔해 독서생활에 등록합니다.'}
+        </Text>
         <Text style={styles.copy}>
-          책 뒷면의 ISBN 바코드를 인식해 나의 책장에 추가하고, 읽는 상태와 메모를 이어서 기록합니다.
+          {isRoomContext
+            ? '책 뒷면의 ISBN 바코드를 인식해 북룸 생성 화면으로 가져옵니다.'
+            : '책 뒷면의 ISBN 바코드를 인식해 나의 책장에 추가하고, 읽는 상태와 메모를 이어서 기록합니다.'}
         </Text>
 
         {!session ? (
@@ -100,8 +116,14 @@ export default function ScanScreen() {
                   <Pressable onPress={resetScanner} style={styles.secondaryButton}>
                     <Text style={styles.secondaryButtonText}>다시 스캔</Text>
                   </Pressable>
-                  <Pressable disabled style={styles.resultButton}>
-                    <Text style={styles.resultButtonText}>독서생활에 등록</Text>
+                  <Pressable
+                    disabled={!isRoomContext || !looksLikeIsbn}
+                    onPress={useScannedBook}
+                    style={[styles.resultButton, !isRoomContext || !looksLikeIsbn ? styles.disabledButton : null]}
+                  >
+                    <Text style={styles.resultButtonText}>
+                      {isRoomContext ? '북룸 책으로 사용' : '독서생활에 등록'}
+                    </Text>
                   </Pressable>
                 </View>
               </View>
@@ -113,7 +135,9 @@ export default function ScanScreen() {
           <View style={styles.tip}>
             <Text style={styles.tipTitle}>MVP note</Text>
             <Text style={styles.tipCopy}>
-              지금은 Expo Go에서 카메라 권한과 ISBN 인식이 되는지 확인하는 단계입니다.
+              {isRoomContext
+                ? '스캔된 ISBN은 북룸 생성 화면의 책 정보에 임시로 적용됩니다.'
+                : '지금은 Expo Go에서 카메라 권한과 ISBN 인식이 되는지 확인하는 단계입니다.'}
             </Text>
           </View>
         ) : null}
@@ -252,6 +276,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     minHeight: 46,
     paddingHorizontal: 14,
+  },
+  disabledButton: {
+    opacity: 0.48,
   },
   resultButtonText: {
     color: '#FFFFFF',
