@@ -1,6 +1,8 @@
 -- Add the Room participation RPC.
 -- Run after functions.sql or on an existing BookSome database.
 
+drop function if exists public.join_room(uuid);
+
 create or replace function public.join_room(p_room_id uuid)
 returns table(joined_room_id uuid, joined_profile_id uuid, member_role public.room_member_role)
 language plpgsql

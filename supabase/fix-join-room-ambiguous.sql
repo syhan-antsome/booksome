@@ -1,6 +1,8 @@
 -- Fix ambiguous room_id reference in join_room RPC.
 -- Run this in the Supabase SQL Editor.
 
+drop function if exists public.join_room(uuid);
+
 create or replace function public.join_room(p_room_id uuid)
 returns table(joined_room_id uuid, joined_profile_id uuid, member_role public.room_member_role)
 language plpgsql
