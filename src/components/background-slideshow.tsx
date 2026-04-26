@@ -14,7 +14,7 @@ type BackgroundSlideshowProps = {
 
 const SLIDE_HOLD_MS = 3000;
 const FADE_MS = 1400;
-const MOTION_MS = 18000;
+const MOTION_MS = 8500;
 
 export function BackgroundSlideshow({ sources }: BackgroundSlideshowProps) {
   const sourceCount = sources.length;
@@ -38,13 +38,13 @@ export function BackgroundSlideshow({ sources }: BackgroundSlideshowProps) {
         Animated.sequence([
           Animated.timing(motionValue, {
             duration: MOTION_MS,
-            easing: Easing.inOut(Easing.cubic),
+            easing: Easing.linear,
             toValue: 1,
             useNativeDriver,
           }),
           Animated.timing(motionValue, {
             duration: MOTION_MS,
-            easing: Easing.inOut(Easing.cubic),
+            easing: Easing.linear,
             toValue: 0,
             useNativeDriver,
           }),
@@ -136,7 +136,7 @@ function getSlideTransform(index: number, motion: Animated.Value) {
       {
         scale: motion.interpolate({
           inputRange: [0, 1],
-          outputRange: [1.02, 1.18],
+          outputRange: [1, 1.22],
         }),
       },
     ];
@@ -147,18 +147,18 @@ function getSlideTransform(index: number, motion: Animated.Value) {
       {
         scale: motion.interpolate({
           inputRange: [0, 1],
-          outputRange: [1.18, 1.03],
+          outputRange: [1.24, 1.02],
         }),
       },
     ];
   }
 
   return [
-    { scale: 1.12 },
+    { scale: 1.16 },
     {
       translateY: motion.interpolate({
         inputRange: [0, 1],
-        outputRange: [-22, 18],
+        outputRange: [-34, 26],
       }),
     },
   ];
