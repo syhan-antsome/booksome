@@ -61,7 +61,6 @@ export default function DiscoverScreen() {
     }),
     [insets.bottom, isFramedPreview],
   );
-  const activeTabStyle = StyleSheet.compose(styles.tabItem, styles.tabItemActive);
   return (
     <SafeAreaView style={safeAreaStyle}>
       <BackgroundSlideshow sources={homeHeroSlides} />
@@ -124,28 +123,38 @@ export default function DiscoverScreen() {
       <View style={tabBarShellStyle}>
         <View style={styles.tabBar}>
           <Link asChild href="/">
-            <Pressable accessibilityLabel="홈" style={activeTabStyle}>
-              <TabGlyph name="home" active />
+            <Pressable accessibilityLabel="홈" style={styles.tabSlot}>
+              <View style={styles.tabIconPlateActive}>
+                <TabGlyph name="home" active />
+              </View>
             </Pressable>
           </Link>
           <Link asChild href={session ? '/scan' : '/auth'}>
-            <Pressable accessibilityLabel="발견" style={styles.tabItem}>
-              <TabGlyph name="discover" />
+            <Pressable accessibilityLabel="발견" style={styles.tabSlot}>
+              <View style={styles.tabIconPlate}>
+                <TabGlyph name="discover" />
+              </View>
             </Pressable>
           </Link>
           <Link asChild href={session ? '/create-room' : '/auth'}>
-            <Pressable accessibilityLabel="리딩룸 만들기" style={styles.tabCreate}>
-              <TabGlyph name="create" active />
+            <Pressable accessibilityLabel="리딩룸 만들기" style={styles.tabSlot}>
+              <View style={styles.tabCreatePlate}>
+                <TabGlyph name="create" active />
+              </View>
             </Pressable>
           </Link>
           <Link asChild href="/meetups">
-            <Pressable accessibilityLabel="모임" style={styles.tabItem}>
-              <TabGlyph name="meetups" />
+            <Pressable accessibilityLabel="모임" style={styles.tabSlot}>
+              <View style={styles.tabIconPlate}>
+                <TabGlyph name="meetups" />
+              </View>
             </Pressable>
           </Link>
           <Link asChild href={session ? '/profile' : '/auth'}>
-            <Pressable accessibilityLabel="나의 정보" style={styles.tabItem}>
-              <TabGlyph name="profile" />
+            <Pressable accessibilityLabel="나의 정보" style={styles.tabSlot}>
+              <View style={styles.tabIconPlate}>
+                <TabGlyph name="profile" />
+              </View>
             </Pressable>
           </Link>
         </View>
@@ -347,7 +356,7 @@ const styles = StyleSheet.create({
   },
   cinematicCopy: {
     alignItems: 'center',
-    bottom: 38,
+    bottom: 126,
     left: 24,
     position: 'absolute',
     right: 24,
@@ -391,8 +400,8 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(247, 241, 229, 0.98)',
     bottom: 0,
     left: 0,
-    paddingHorizontal: 16,
-    paddingTop: 12,
+    paddingHorizontal: 0,
+    paddingTop: 8,
     position: 'absolute',
     right: 0,
     zIndex: 20,
@@ -408,27 +417,35 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
     borderRadius: 0,
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    justifyContent: 'center',
     maxWidth: 430,
-    minHeight: 72,
+    minHeight: 76,
     paddingHorizontal: 0,
     paddingVertical: 0,
     width: '100%',
   },
-  tabItem: {
+  tabSlot: {
     alignItems: 'center',
     flex: 1,
     justifyContent: 'center',
-    minHeight: 58,
+    minHeight: 76,
   },
-  tabItemActive: {
+  tabIconPlate: {
+    alignItems: 'center',
+    borderRadius: 27,
+    height: 54,
+    justifyContent: 'center',
+    width: 54,
+  },
+  tabIconPlateActive: {
+    alignItems: 'center',
     backgroundColor: '#103D2B',
-    borderRadius: 29,
-    flex: 0,
-    height: 58,
-    width: 58,
+    borderRadius: 27,
+    height: 54,
+    justifyContent: 'center',
+    width: 54,
   },
-  tabCreate: {
+  tabCreatePlate: {
     alignItems: 'center',
     backgroundColor: '#103D2B',
     borderColor: '#F7F1E5',
@@ -436,7 +453,6 @@ const styles = StyleSheet.create({
     borderWidth: 4,
     height: 64,
     justifyContent: 'center',
-    marginHorizontal: 6,
     transform: [{ translateY: -12 }],
     width: 64,
   },
