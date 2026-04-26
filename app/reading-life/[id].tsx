@@ -96,7 +96,12 @@ export default function ReadingLifeBookScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        alwaysBounceVertical
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+        style={styles.scroll}
+      >
         <View style={styles.header}>
           <BackButton />
           <Pressable onPress={() => router.push('/scan')} style={styles.scanButton}>
@@ -121,22 +126,29 @@ export default function ReadingLifeBookScreen() {
         {book ? (
           <>
             <View style={styles.hero}>
-              <View style={styles.coverShell}>
-                {book.externalCoverUrl ? (
-                  <Image resizeMode="cover" source={{ uri: book.externalCoverUrl }} style={styles.coverImage} />
-                ) : (
-                  <Text style={styles.coverFallback}>BOOK</Text>
-                )}
+              <View style={styles.heroTop}>
+                <View style={styles.coverShell}>
+                  {book.externalCoverUrl ? (
+                    <Image resizeMode="contain" source={{ uri: book.externalCoverUrl }} style={styles.coverImage} />
+                  ) : (
+                    <Text style={styles.coverFallback}>BOOK</Text>
+                  )}
+                </View>
+                <View style={styles.heroCopy}>
+                  <Text style={styles.kicker}>{statusLabel}</Text>
+                  <Text style={styles.title} numberOfLines={3}>
+                    {book.title}
+                  </Text>
+                  <Text style={styles.author} numberOfLines={2}>
+                    {book.author}
+                    {book.publisher ? ` · ${book.publisher}` : ''}
+                  </Text>
+                </View>
               </View>
-              <View style={styles.heroCopy}>
-                <Text style={styles.kicker}>{statusLabel}</Text>
-                <Text style={styles.title} numberOfLines={4}>
-                  {book.title}
-                </Text>
-                <Text style={styles.author} numberOfLines={2}>
-                  {book.author}
-                  {book.publisher ? ` · ${book.publisher}` : ''}
-                </Text>
+
+              <View style={styles.heroBottom}>
+                <Text style={styles.heroBottomLabel}>My reading</Text>
+                <Text style={styles.heroBottomValue}>{book.progressPercent}%</Text>
               </View>
             </View>
 
@@ -212,6 +224,26 @@ export default function ReadingLifeBookScreen() {
                 오늘은 진행률과 읽는 상태를 먼저 저장할 수 있습니다. 다음 단계에서 문장 메모와 사진 메모를 이 공간에 바로 붙이겠습니다.
               </Text>
             </View>
+
+            <View style={styles.nextPanel}>
+              <Text style={styles.sectionTitle}>곧 열릴 기록</Text>
+              <View style={styles.nextList}>
+                <View style={styles.nextItem}>
+                  <Text style={styles.nextMark}>“</Text>
+                  <View style={styles.nextCopy}>
+                    <Text style={styles.nextTitle}>문장 저장</Text>
+                    <Text style={styles.nextText}>오래 남기고 싶은 문장을 책과 함께 묶습니다.</Text>
+                  </View>
+                </View>
+                <View style={styles.nextItem}>
+                  <Text style={styles.nextMark}>▧</Text>
+                  <View style={styles.nextCopy}>
+                    <Text style={styles.nextTitle}>사진 메모</Text>
+                    <Text style={styles.nextText}>페이지, 장소, 순간을 독서 기록에 붙입니다.</Text>
+                  </View>
+                </View>
+              </View>
+            </View>
           </>
         ) : null}
 
@@ -242,15 +274,20 @@ const styles = StyleSheet.create({
     backgroundColor: '#EEF1DF',
     flex: 1,
   },
+  scroll: {
+    flex: 1,
+  },
   content: {
-    padding: 20,
-    paddingBottom: 126,
+    flexGrow: 1,
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    paddingBottom: 190,
   },
   header: {
     alignItems: 'center',
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 20,
+    marginBottom: 14,
   },
   scanButton: {
     alignItems: 'center',
@@ -279,24 +316,27 @@ const styles = StyleSheet.create({
   },
   hero: {
     backgroundColor: '#103D2B',
-    borderRadius: 34,
-    flexDirection: 'row',
-    gap: 18,
-    minHeight: 244,
+    borderRadius: 30,
     overflow: 'hidden',
-    padding: 18,
+    padding: 16,
+  },
+  heroTop: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 16,
   },
   coverShell: {
     alignItems: 'center',
-    backgroundColor: '#D8BE88',
-    borderRadius: 24,
+    backgroundColor: '#F5E8B2',
+    borderRadius: 20,
+    height: 178,
     justifyContent: 'center',
     overflow: 'hidden',
-    width: 132,
+    width: 116,
   },
   coverImage: {
-    height: '100%',
-    width: '100%',
+    height: 166,
+    width: 104,
   },
   coverFallback: {
     color: '#103D2B',
@@ -305,7 +345,7 @@ const styles = StyleSheet.create({
   },
   heroCopy: {
     flex: 1,
-    justifyContent: 'center',
+    minWidth: 0,
   },
   kicker: {
     color: '#D8BE88',
@@ -316,10 +356,10 @@ const styles = StyleSheet.create({
   },
   title: {
     color: '#FFFFFF',
-    fontSize: 27,
+    fontSize: 24,
     fontWeight: '900',
     letterSpacing: 0,
-    lineHeight: 33,
+    lineHeight: 30,
   },
   author: {
     color: 'rgba(255,255,255,0.72)',
@@ -328,9 +368,28 @@ const styles = StyleSheet.create({
     lineHeight: 19,
     marginTop: 10,
   },
+  heroBottom: {
+    alignItems: 'center',
+    borderTopColor: 'rgba(247,241,229,0.14)',
+    borderTopWidth: 1,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 16,
+    paddingTop: 14,
+  },
+  heroBottomLabel: {
+    color: 'rgba(247,241,229,0.72)',
+    fontSize: 13,
+    fontWeight: '900',
+  },
+  heroBottomValue: {
+    color: '#D8BE88',
+    fontSize: 26,
+    fontWeight: '900',
+  },
   progressPanel: {
     backgroundColor: '#F8F3E9',
-    borderRadius: 28,
+    borderRadius: 26,
     marginTop: 16,
     padding: 18,
   },
@@ -394,7 +453,7 @@ const styles = StyleSheet.create({
   statusItem: {
     alignItems: 'center',
     backgroundColor: '#F8F3E9',
-    borderRadius: 24,
+    borderRadius: 22,
     flexDirection: 'row',
     justifyContent: 'space-between',
     padding: 16,
@@ -429,7 +488,7 @@ const styles = StyleSheet.create({
   },
   memoPanel: {
     backgroundColor: '#F8F3E9',
-    borderRadius: 28,
+    borderRadius: 26,
     marginTop: 18,
     padding: 18,
   },
@@ -446,5 +505,41 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     lineHeight: 19,
     marginTop: 14,
+  },
+  nextPanel: {
+    marginTop: 20,
+  },
+  nextList: {
+    gap: 10,
+    marginTop: 12,
+  },
+  nextItem: {
+    alignItems: 'center',
+    backgroundColor: '#F8F3E9',
+    borderRadius: 22,
+    flexDirection: 'row',
+    gap: 14,
+    padding: 16,
+  },
+  nextMark: {
+    color: '#116653',
+    fontSize: 26,
+    fontWeight: '900',
+    width: 32,
+  },
+  nextCopy: {
+    flex: 1,
+  },
+  nextTitle: {
+    color: '#14251B',
+    fontSize: 16,
+    fontWeight: '900',
+  },
+  nextText: {
+    color: '#6E786F',
+    fontSize: 12,
+    fontWeight: '800',
+    lineHeight: 18,
+    marginTop: 4,
   },
 });
