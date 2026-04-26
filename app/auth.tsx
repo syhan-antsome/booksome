@@ -18,6 +18,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import authHeroImage from '../assets/home-hero-writer-desk.jpg';
 import sseomdiReadingImage from '../assets/sseomdi-reading.png';
+import { BackButton } from '../src/components/back-button';
 import { BottomNavigation } from '../src/components/bottom-navigation';
 import { useAuth } from '../src/providers/auth-provider';
 import { signInWithEmail, signUpWithEmail } from '../src/services/auth';
@@ -101,9 +102,7 @@ export default function AuthScreen() {
             <View style={styles.heroShade} />
 
             <View style={styles.topBar}>
-              <Pressable onPress={() => router.back()} style={styles.backButton}>
-                <Text style={styles.backText}>‹</Text>
-              </Pressable>
+              <BackButton />
               <Text style={styles.brand}>BookSome</Text>
             </View>
 
@@ -239,21 +238,6 @@ const styles = StyleSheet.create({
     paddingTop: 8,
     position: 'relative',
     zIndex: 2,
-  },
-  backButton: {
-    alignItems: 'center',
-    backgroundColor: 'rgba(247, 241, 229, 0.9)',
-    borderRadius: 22,
-    height: 44,
-    justifyContent: 'center',
-    width: 44,
-  },
-  backText: {
-    color: '#103D2B',
-    fontSize: 34,
-    fontWeight: '800',
-    lineHeight: 38,
-    marginTop: -3,
   },
   brand: {
     color: '#FFFFFF',

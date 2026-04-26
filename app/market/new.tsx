@@ -1,16 +1,16 @@
-import { router } from 'expo-router';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { BackButton } from '../../src/components/back-button';
 import { BottomNavigation } from '../../src/components/bottom-navigation';
 
 export default function NewMarketItemScreen() {
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.content}>
-        <Pressable onPress={() => router.back()} style={styles.backButton}>
-          <Text style={styles.backText}>Back</Text>
-        </Pressable>
+        <View style={styles.header}>
+          <BackButton />
+        </View>
 
         <Text style={styles.kicker}>BOOK MARKET</Text>
         <Text style={styles.title}>책마켓 등록</Text>
@@ -41,15 +41,9 @@ const styles = StyleSheet.create({
     padding: 20,
     paddingBottom: 124,
   },
-  backButton: {
+  header: {
     alignSelf: 'flex-start',
     marginBottom: 24,
-    paddingVertical: 8,
-  },
-  backText: {
-    color: '#103D2B',
-    fontSize: 15,
-    fontWeight: '900',
   },
   kicker: {
     color: '#8F6A42',

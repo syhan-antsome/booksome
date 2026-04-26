@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { BackButton } from '../../src/components/back-button';
 import { featuredRooms } from '../../src/data/rooms';
 import { useAuth } from '../../src/providers/auth-provider';
 import { getMediaUrl } from '../../src/services/media';
@@ -261,9 +262,7 @@ export default function RoomScreen() {
     <SafeAreaView style={styles.safeArea}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.topBar}>
-          <Pressable onPress={() => (router.canGoBack() ? router.back() : router.replace('/'))} style={styles.backButton}>
-            <Text style={styles.backText}>‹</Text>
-          </Pressable>
+          <BackButton />
           <Text style={styles.topStatus}>{isLoading ? '불러오는 중' : isMember ? '참여중' : '열린 북룸'}</Text>
         </View>
 
@@ -534,23 +533,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     marginBottom: 12,
-  },
-  backButton: {
-    alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.74)',
-    borderColor: 'rgba(35, 30, 24, 0.08)',
-    borderRadius: 19,
-    borderWidth: 1,
-    height: 40,
-    justifyContent: 'center',
-    paddingVertical: 8,
-    width: 40,
-  },
-  backText: {
-    color: '#2E493F',
-    fontSize: 30,
-    fontWeight: '900',
-    lineHeight: 32,
   },
   topStatus: {
     color: '#776E63',

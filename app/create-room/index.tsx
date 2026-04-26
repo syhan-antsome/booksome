@@ -14,6 +14,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AuthRequired } from '../../src/components/auth-required';
+import { BackButton } from '../../src/components/back-button';
 import { useAuth } from '../../src/providers/auth-provider';
 import { uploadImageAsset } from '../../src/services/media';
 import type { UploadedMediaAsset } from '../../src/services/media';
@@ -125,9 +126,9 @@ export default function CreateRoomScreen() {
   return (
     <SafeAreaView style={styles.safeArea}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <Pressable onPress={() => router.back()} style={styles.backButton}>
-          <Text style={styles.backText}>Back</Text>
-        </Pressable>
+        <View style={styles.header}>
+          <BackButton />
+        </View>
 
         <Text style={styles.title}>당신이 사랑하는 책의 첫 번째 방장이 되어보세요.</Text>
         <Text style={styles.copy}>
@@ -277,15 +278,9 @@ const styles = StyleSheet.create({
     padding: 20,
     paddingBottom: 42,
   },
-  backButton: {
+  header: {
     alignSelf: 'flex-start',
     marginBottom: 18,
-    paddingVertical: 8,
-  },
-  backText: {
-    color: '#116653',
-    fontSize: 15,
-    fontWeight: '900',
   },
   title: {
     color: '#142326',

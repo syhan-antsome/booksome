@@ -1,7 +1,8 @@
-import { Link, router } from 'expo-router';
+import { Link } from 'expo-router';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { BackButton } from '../../src/components/back-button';
 import { BottomNavigation } from '../../src/components/bottom-navigation';
 import { useAuth } from '../../src/providers/auth-provider';
 
@@ -30,9 +31,7 @@ export default function MarketScreen() {
     <SafeAreaView style={styles.safeArea}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
-          <Pressable onPress={() => router.back()} style={styles.backButton}>
-            <Text style={styles.backText}>Back</Text>
-          </Pressable>
+          <BackButton />
           <Link asChild href={session ? '/market/new' : '/auth'}>
             <Pressable style={styles.sellButton}>
               <Text style={styles.sellButtonText}>＋</Text>
@@ -98,14 +97,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     marginBottom: 20,
-  },
-  backButton: {
-    paddingVertical: 8,
-  },
-  backText: {
-    color: '#103D2B',
-    fontSize: 15,
-    fontWeight: '900',
   },
   sellButton: {
     alignItems: 'center',

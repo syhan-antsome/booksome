@@ -1,9 +1,9 @@
 import { CameraView, useCameraPermissions } from 'expo-camera';
-import { router } from 'expo-router';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AuthRequired } from '../../src/components/auth-required';
+import { BackButton } from '../../src/components/back-button';
 import { useAuth } from '../../src/providers/auth-provider';
 
 export default function ScanScreen() {
@@ -14,9 +14,9 @@ export default function ScanScreen() {
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.content}>
-        <Pressable onPress={() => router.back()} style={styles.backButton}>
-          <Text style={styles.backText}>Back</Text>
-        </Pressable>
+        <View style={styles.header}>
+          <BackButton />
+        </View>
 
         <Text style={styles.title}>책을 스캔하면 북룸으로 이어집니다.</Text>
         <Text style={styles.copy}>
@@ -72,15 +72,9 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: 20,
   },
-  backButton: {
+  header: {
     alignSelf: 'flex-start',
     marginBottom: 18,
-    paddingVertical: 8,
-  },
-  backText: {
-    color: '#116653',
-    fontSize: 15,
-    fontWeight: '900',
   },
   title: {
     color: '#142326',

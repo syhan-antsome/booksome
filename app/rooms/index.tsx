@@ -1,4 +1,4 @@
-import { Link, router, useFocusEffect } from 'expo-router';
+import { Link, useFocusEffect } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
 import {
   Image,
@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { BackButton } from '../../src/components/back-button';
 import { BottomNavigation } from '../../src/components/bottom-navigation';
 import { featuredRooms, type FeaturedRoom } from '../../src/data/rooms';
 import { useAuth } from '../../src/providers/auth-provider';
@@ -72,9 +73,7 @@ export default function RoomsScreen() {
     <SafeAreaView style={styles.safeArea}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
-          <Pressable onPress={() => router.back()} style={styles.backButton}>
-            <Text style={styles.backText}>Back</Text>
-          </Pressable>
+          <BackButton />
           <Link asChild href={session ? '/create-room' : '/auth'}>
             <Pressable accessibilityLabel="북룸 만들기" style={styles.createButton}>
               <Text style={styles.createButtonText}>＋</Text>
@@ -352,14 +351,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     marginBottom: 22,
-  },
-  backButton: {
-    paddingVertical: 8,
-  },
-  backText: {
-    color: '#103D2B',
-    fontSize: 15,
-    fontWeight: '900',
   },
   createButton: {
     alignItems: 'center',

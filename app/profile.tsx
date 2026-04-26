@@ -1,4 +1,4 @@
-import { Link, router } from 'expo-router';
+import { Link } from 'expo-router';
 import {
   Image,
   type ImageSourcePropType,
@@ -14,6 +14,7 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import homeHeroBookStacksImage from '../assets/home-hero-book-stacks.jpg';
 import sseomdiReadingImage from '../assets/sseomdi-reading.png';
 import { AuthRequired } from '../src/components/auth-required';
+import { BackButton } from '../src/components/back-button';
 import { BottomNavigation } from '../src/components/bottom-navigation';
 import { useAuth } from '../src/providers/auth-provider';
 
@@ -83,9 +84,7 @@ export default function ProfileScreen() {
           <Image resizeMode="cover" source={profileHeroSource} style={styles.heroImage} />
           <View style={styles.heroShade} />
           <View style={styles.heroTop}>
-            <Pressable onPress={() => router.back()} style={styles.iconButton}>
-              <Text style={styles.iconButtonText}>‹</Text>
-            </Pressable>
+            <BackButton />
             <Text style={styles.heroBrand}>My BookSome</Text>
           </View>
           <View style={styles.heroCopy}>
@@ -237,21 +236,6 @@ const styles = StyleSheet.create({
     paddingTop: 8,
     position: 'relative',
     zIndex: 2,
-  },
-  iconButton: {
-    alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.9)',
-    borderRadius: 22,
-    height: 44,
-    justifyContent: 'center',
-    width: 44,
-  },
-  iconButtonText: {
-    color: '#111910',
-    fontSize: 34,
-    fontWeight: '800',
-    lineHeight: 38,
-    marginTop: -3,
   },
   heroBrand: {
     color: '#FFFFFF',

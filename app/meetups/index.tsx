@@ -1,10 +1,10 @@
 import * as Location from 'expo-location';
-import { router } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AuthRequired } from '../../src/components/auth-required';
+import { BackButton } from '../../src/components/back-button';
 import { useAuth } from '../../src/providers/auth-provider';
 
 export default function MeetupsScreen() {
@@ -30,9 +30,9 @@ export default function MeetupsScreen() {
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.content}>
-        <Pressable onPress={() => router.back()} style={styles.backButton}>
-          <Text style={styles.backText}>Back</Text>
-        </Pressable>
+        <View style={styles.header}>
+          <BackButton />
+        </View>
 
         <Text style={styles.title}>내 주변에서 함께 읽는 사람들을 찾습니다.</Text>
         <Text style={styles.copy}>
@@ -78,15 +78,9 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: 20,
   },
-  backButton: {
+  header: {
     alignSelf: 'flex-start',
     marginBottom: 18,
-    paddingVertical: 8,
-  },
-  backText: {
-    color: '#116653',
-    fontSize: 15,
-    fontWeight: '900',
   },
   title: {
     color: '#142326',

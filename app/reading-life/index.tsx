@@ -1,4 +1,4 @@
-import { Link, router } from 'expo-router';
+import { Link } from 'expo-router';
 import {
   Image,
   type ImageSourcePropType,
@@ -12,6 +12,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import sseomdiReadingImage from '../../assets/sseomdi-reading.png';
 import { AuthRequired } from '../../src/components/auth-required';
+import { BackButton } from '../../src/components/back-button';
 import { BottomNavigation } from '../../src/components/bottom-navigation';
 import { useAuth } from '../../src/providers/auth-provider';
 
@@ -40,9 +41,7 @@ export default function ReadingLifeScreen() {
     <SafeAreaView style={styles.safeArea}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
-          <Pressable onPress={() => router.back()} style={styles.backButton}>
-            <Text style={styles.backText}>Back</Text>
-          </Pressable>
+          <BackButton />
           <Link asChild href={session ? '/scan' : '/auth'}>
             <Pressable style={styles.addButton}>
               <Text style={styles.addButtonText}>＋</Text>
@@ -123,14 +122,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     marginBottom: 20,
-  },
-  backButton: {
-    paddingVertical: 8,
-  },
-  backText: {
-    color: '#103D2B',
-    fontSize: 15,
-    fontWeight: '900',
   },
   addButton: {
     alignItems: 'center',
