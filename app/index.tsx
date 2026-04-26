@@ -105,9 +105,6 @@ export default function DiscoverScreen() {
 
         <Link asChild href={session ? '/scan' : '/auth'}>
           <Pressable style={heroPressableStyle}>
-            <View style={styles.sseomdiSticker}>
-              <Image resizeMode="contain" source={sseomdiReadingSource} style={styles.sseomdiImage} />
-            </View>
             <View style={styles.cinematicCopy}>
               <Text adjustsFontSizeToFit numberOfLines={2} style={styles.heroRoomTitle}>
                 책으로 이어지는 하루
@@ -115,7 +112,12 @@ export default function DiscoverScreen() {
               <Text style={styles.heroRoomQuestion} numberOfLines={2}>
                 책을 고르면 대화와 모임이 함께 열립니다.
               </Text>
-              <Text style={styles.heroStart}>Start BookSome</Text>
+              <View style={styles.heroActionRow}>
+                <View style={styles.sseomdiGuide}>
+                  <Image resizeMode="contain" source={sseomdiReadingSource} style={styles.sseomdiImage} />
+                </View>
+                <Text style={styles.heroStart}>Start BookSome</Text>
+              </View>
             </View>
           </Pressable>
         </Link>
@@ -276,28 +278,24 @@ const styles = StyleSheet.create({
     position: 'relative',
     zIndex: 3,
   },
-  sseomdiSticker: {
+  sseomdiGuide: {
     alignItems: 'center',
-    backgroundColor: 'rgba(248,241,232,0.94)',
+    backgroundColor: 'rgba(248,241,232,0.96)',
     borderColor: 'rgba(255,255,255,0.26)',
-    borderRadius: 26,
+    borderRadius: 23,
     borderWidth: 1,
-    bottom: 146,
-    height: 78,
+    height: 56,
     justifyContent: 'center',
     overflow: 'hidden',
-    position: 'absolute',
-    right: 18,
-    width: 98,
-    zIndex: 3,
+    width: 66,
   },
   sseomdiImage: {
-    height: 74,
-    width: 98,
+    height: 54,
+    width: 70,
   },
   cinematicCopy: {
     alignItems: 'center',
-    bottom: 32,
+    bottom: 38,
     left: 24,
     position: 'absolute',
     right: 24,
@@ -319,13 +317,19 @@ const styles = StyleSheet.create({
     maxWidth: 260,
     textAlign: 'center',
   },
+  heroActionRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 10,
+    justifyContent: 'center',
+    marginTop: 15,
+  },
   heroStart: {
     backgroundColor: 'rgba(14,39,27,0.94)',
     borderRadius: 20,
     color: '#FFFFFF',
     fontSize: 12,
     fontWeight: '900',
-    marginTop: 13,
     overflow: 'hidden',
     paddingHorizontal: 20,
     paddingVertical: 10,
