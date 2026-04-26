@@ -136,10 +136,10 @@ export default function DiscoverScreen() {
               </View>
             </Pressable>
           </Link>
-          <Link asChild href={session ? '/create-room' : '/auth'}>
-            <Pressable accessibilityLabel="리딩룸 만들기" style={styles.tabSlot}>
-              <View style={styles.tabCreatePlate}>
-                <TabGlyph name="create" active />
+          <Link asChild href="/rooms">
+            <Pressable accessibilityLabel="리딩룸" style={styles.tabSlot}>
+              <View style={styles.tabIconPlate}>
+                <TabGlyph name="rooms" />
               </View>
             </Pressable>
           </Link>
@@ -163,7 +163,7 @@ export default function DiscoverScreen() {
   );
 }
 
-type TabGlyphName = 'home' | 'discover' | 'create' | 'meetups' | 'profile';
+type TabGlyphName = 'home' | 'discover' | 'rooms' | 'meetups' | 'profile';
 
 function TabGlyph({ active = false, name }: { active?: boolean; name: TabGlyphName }) {
   const inkStyle = active ? styles.glyphInkActive : styles.glyphInk;
@@ -192,11 +192,13 @@ function TabGlyph({ active = false, name }: { active?: boolean; name: TabGlyphNa
     );
   }
 
-  if (name === 'create') {
+  if (name === 'rooms') {
     return (
-      <View style={styles.glyphFrameLarge}>
-        <View style={StyleSheet.compose(styles.glyphPlusVertical, inkStyle)} />
-        <View style={StyleSheet.compose(styles.glyphPlusHorizontal, inkStyle)} />
+      <View style={styles.glyphFrame}>
+        <View style={StyleSheet.compose(styles.glyphBookSpread, lineStyle)}>
+          <View style={StyleSheet.compose(styles.glyphBookFold, lineStyle)} />
+          <View style={StyleSheet.compose(styles.glyphBookMark, inkStyle)} />
+        </View>
       </View>
     );
   }
@@ -445,30 +447,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     width: 54,
   },
-  tabCreatePlate: {
-    alignItems: 'center',
-    backgroundColor: '#103D2B',
-    borderColor: '#F7F1E5',
-    borderRadius: 32,
-    borderWidth: 4,
-    height: 64,
-    justifyContent: 'center',
-    transform: [{ translateY: -12 }],
-    width: 64,
-  },
   glyphFrame: {
     alignItems: 'center',
     height: 34,
     justifyContent: 'center',
     position: 'relative',
     width: 34,
-  },
-  glyphFrameLarge: {
-    alignItems: 'center',
-    height: 36,
-    justifyContent: 'center',
-    position: 'relative',
-    width: 36,
   },
   glyphInk: {
     backgroundColor: '#163B2A',
@@ -516,6 +500,32 @@ const styles = StyleSheet.create({
     position: 'absolute',
     width: 7,
   },
+  glyphBookSpread: {
+    borderBottomLeftRadius: 7,
+    borderBottomRightRadius: 7,
+    borderTopLeftRadius: 10,
+    borderTopRightRadius: 10,
+    borderWidth: 2.6,
+    height: 24,
+    position: 'relative',
+    width: 29,
+  },
+  glyphBookFold: {
+    borderLeftWidth: 2.2,
+    bottom: 3,
+    left: 13,
+    position: 'absolute',
+    top: 3,
+  },
+  glyphBookMark: {
+    borderBottomLeftRadius: 2,
+    borderBottomRightRadius: 2,
+    height: 9,
+    position: 'absolute',
+    right: 5,
+    top: -1,
+    width: 5,
+  },
   glyphCompass: {
     alignItems: 'center',
     borderRadius: 14,
@@ -535,18 +545,6 @@ const styles = StyleSheet.create({
     height: 6,
     position: 'absolute',
     width: 6,
-  },
-  glyphPlusVertical: {
-    borderRadius: 3,
-    height: 26,
-    position: 'absolute',
-    width: 6,
-  },
-  glyphPlusHorizontal: {
-    borderRadius: 3,
-    height: 6,
-    position: 'absolute',
-    width: 26,
   },
   glyphPersonMain: {
     borderRadius: 9,
