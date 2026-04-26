@@ -20,51 +20,60 @@ export function BackgroundSlideshow({ sources }: BackgroundSlideshowProps) {
   const opacity = useRef(new Animated.Value(1)).current;
   const indexRef = useRef(0);
   const useNativeDriver = Platform.OS !== 'web';
+  const sourceCount = sources.length;
   const source = sources[currentIndex];
 
   useEffect(() => {
-    if (sources.length <= 1) return;
+    if (sourceCount <= 1) return;
 
     let mounted = true;
-    let fadeOut: Animated.CompositeAnimation | null = null;
-    let fadeIn: Animated.CompositeAnimation | null = null;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    let animation: Animated.CompositeAnimation | null = null;
 
-    const timer = setTimeout(() => {
-      if (!mounted) return;
+    const scheduleNext = () => {
+      timer = setTimeout(() => {
+        if (!mounted) return;
 
-      fadeOut = Animated.timing(opacity, {
-        duration: FADE_OUT_MS,
-        toValue: 0,
-        useNativeDriver,
-      });
-
-      fadeOut.start(({ finished }) => {
-        if (!finished || !mounted) return;
-
-        const nextIndex = (indexRef.current + 1) % sources.length;
-        indexRef.current = nextIndex;
-        setCurrentIndex(nextIndex);
-
-        requestAnimationFrame(() => {
-          if (!mounted) return;
-
-          fadeIn = Animated.timing(opacity, {
-            duration: FADE_IN_MS,
-            toValue: 1,
-            useNativeDriver,
-          });
-          fadeIn.start();
+        animation = Animated.timing(opacity, {
+          duration: FADE_OUT_MS,
+          toValue: 0,
+          useNativeDriver,
         });
-      });
-    }, SLIDE_HOLD_MS);
+
+        animation.start(({ finished }) => {
+          if (!finished || !mounted) return;
+
+          const nextIndex = (indexRef.current + 1) % sourceCount;
+          indexRef.current = nextIndex;
+          setCurrentIndex(nextIndex);
+
+          requestAnimationFrame(() => {
+            if (!mounted) return;
+
+            animation = Animated.timing(opacity, {
+              duration: FADE_IN_MS,
+              toValue: 1,
+              useNativeDriver,
+            });
+
+            animation.start(({ finished: fadeInFinished }) => {
+              if (fadeInFinished && mounted) {
+                scheduleNext();
+              }
+            });
+          });
+        });
+      }, SLIDE_HOLD_MS);
+    };
+
+    scheduleNext();
 
     return () => {
       mounted = false;
-      clearTimeout(timer);
-      fadeOut?.stop();
-      fadeIn?.stop();
+      if (timer) clearTimeout(timer);
+      animation?.stop();
     };
-  }, [currentIndex, opacity, sources.length, useNativeDriver]);
+  }, [opacity, sourceCount, useNativeDriver]);
 
   if (!source) return null;
 
