@@ -14,141 +14,116 @@ type BackgroundSlideshowProps = {
 const SLIDE_HOLD_MS = 7000;
 const FADE_MS = 1800;
 const ZOOM_MS = SLIDE_HOLD_MS + FADE_MS + 1200;
-const LAYER_SETTLE_MS = 220;
 
 export function BackgroundSlideshow({ sources }: BackgroundSlideshowProps) {
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const [incomingIndex, setIncomingIndex] = useState<number | null>(null);
-  const currentScale = useRef(new Animated.Value(0)).current;
-  const incomingOpacity = useRef(new Animated.Value(0)).current;
-  const incomingScale = useRef(new Animated.Value(0)).current;
   const slideCount = sources.length;
+  const [activeIndex, setActiveIndex] = useState(0);
+  const activeIndexRef = useRef(0);
+  const opacities = useRef(sources.map((_, index) => new Animated.Value(index === 0 ? 1 : 0))).current;
+  const scales = useRef(sources.map(() => new Animated.Value(0))).current;
   const useNativeDriver = Platform.OS !== 'web';
 
   useEffect(() => {
-    if (slideCount <= 1) return;
+    if (slideCount <= 1) {
+      scales[0]?.setValue(0);
+      const singleZoom = scales[0]
+        ? Animated.timing(scales[0], {
+            duration: ZOOM_MS,
+            toValue: 1,
+            useNativeDriver,
+          })
+        : null;
+
+      singleZoom?.start();
+
+      return () => {
+        singleZoom?.stop();
+      };
+    }
 
     let mounted = true;
-    let fadeAnimation: Animated.CompositeAnimation | null = null;
-    let incomingScaleAnimation: Animated.CompositeAnimation | null = null;
-    let cleanupTimer: ReturnType<typeof setTimeout> | null = null;
+    const currentIndex = activeIndexRef.current;
     const nextIndex = (currentIndex + 1) % slideCount;
 
-    currentScale.setValue(0);
-    incomingOpacity.setValue(0);
-    incomingScale.setValue(0);
+    opacities.forEach((opacity, index) => {
+      opacity.setValue(index === currentIndex ? 1 : 0);
+    });
+    scales[currentIndex]?.setValue(0);
+    scales[nextIndex]?.setValue(0);
 
-    const currentScaleAnimation = Animated.timing(currentScale, {
+    const currentZoom = Animated.timing(scales[currentIndex], {
       duration: ZOOM_MS,
       toValue: 1,
       useNativeDriver,
     });
 
-    currentScaleAnimation.start();
+    currentZoom.start();
 
-    const showIncomingTimer = setTimeout(() => {
+    const fadeTimer = setTimeout(() => {
       if (!mounted) return;
 
-      setIncomingIndex(nextIndex);
-      incomingOpacity.setValue(0);
-      incomingScale.setValue(0);
-
-      requestAnimationFrame(() => {
-        if (!mounted) return;
-
-        fadeAnimation = Animated.timing(incomingOpacity, {
-          duration: FADE_MS,
-          toValue: 1,
-          useNativeDriver,
-        });
-        incomingScaleAnimation = Animated.timing(incomingScale, {
-          duration: FADE_MS + 900,
-          toValue: 1,
-          useNativeDriver,
-        });
-
-        fadeAnimation.start();
-        incomingScaleAnimation.start();
+      const nextZoom = Animated.timing(scales[nextIndex], {
+        duration: FADE_MS + 900,
+        toValue: 1,
+        useNativeDriver,
       });
+      const fadeIn = Animated.timing(opacities[nextIndex], {
+        duration: FADE_MS,
+        toValue: 1,
+        useNativeDriver,
+      });
+
+      nextZoom.start();
+      fadeIn.start();
     }, SLIDE_HOLD_MS);
 
     const commitTimer = setTimeout(() => {
       if (!mounted) return;
 
-      setCurrentIndex(nextIndex);
-      currentScale.setValue(0);
-
-      cleanupTimer = setTimeout(() => {
-        if (!mounted) return;
-
-        setIncomingIndex(null);
-        incomingOpacity.setValue(0);
-        incomingScale.setValue(0);
-      }, LAYER_SETTLE_MS);
-    }, SLIDE_HOLD_MS + FADE_MS + LAYER_SETTLE_MS);
+      opacities.forEach((opacity, index) => {
+        opacity.setValue(index === nextIndex ? 1 : 0);
+      });
+      activeIndexRef.current = nextIndex;
+      setActiveIndex(nextIndex);
+    }, SLIDE_HOLD_MS + FADE_MS + 120);
 
     return () => {
       mounted = false;
-      clearTimeout(showIncomingTimer);
+      clearTimeout(fadeTimer);
       clearTimeout(commitTimer);
-      if (cleanupTimer) clearTimeout(cleanupTimer);
-      currentScaleAnimation.stop();
-      fadeAnimation?.stop();
-      incomingScaleAnimation?.stop();
+      currentZoom.stop();
     };
-  }, [currentIndex, currentScale, incomingOpacity, incomingScale, slideCount, useNativeDriver]);
+  }, [activeIndex, opacities, scales, slideCount, useNativeDriver]);
 
-  const currentSource = sources[currentIndex];
-  const incomingSource = useMemo(
-    () => (incomingIndex === null ? null : sources[incomingIndex]),
-    [incomingIndex, sources],
-  );
-  const currentImageStyle = useMemo(
-    () => ({
-      ...styles.image,
-      transform: [
-        {
-          scale: currentScale.interpolate({
-            inputRange: [0, 1],
-            outputRange: [1.02, 1.18],
-          }),
-        },
-      ],
-    }),
-    [currentScale],
-  );
-  const incomingImageStyle = useMemo(
-    () => ({
-      ...styles.image,
-      opacity: incomingOpacity,
-      transform: [
-        {
-          scale: incomingScale.interpolate({
-            inputRange: [0, 1],
-            outputRange: [1.02, 1.12],
-          }),
-        },
-      ],
-    }),
-    [incomingOpacity, incomingScale],
+  const imageStyles = useMemo(
+    () =>
+      sources.map((_, index) => ({
+        ...styles.image,
+        opacity: opacities[index],
+        transform: [
+          {
+            scale: scales[index].interpolate({
+              inputRange: [0, 1],
+              outputRange: [1.02, 1.18],
+            }),
+          },
+        ],
+      })),
+    [opacities, scales, sources],
   );
 
-  if (!currentSource) return null;
+  if (slideCount === 0) return null;
 
   return (
     <View pointerEvents="none" style={StyleSheet.absoluteFill}>
-      <Animated.Image
-        resizeMode="cover"
-        source={currentSource}
-        style={currentImageStyle}
-      />
-      {incomingSource ? (
+      {sources.map((source, index) => (
         <Animated.Image
+          key={index}
           resizeMode="cover"
-          source={incomingSource}
-          style={incomingImageStyle}
+          source={source}
+          style={imageStyles[index]}
         />
-      ) : null}
+      ))}
     </View>
   );
 }
