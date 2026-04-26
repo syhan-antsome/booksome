@@ -43,6 +43,7 @@ export default function RoomScreen() {
   const [actionMessage, setActionMessage] = useState<string | null>(null);
   const [postBody, setPostBody] = useState('');
   const [postKind, setPostKind] = useState<'impression' | 'question'>('impression');
+  const [isAnsweringPrompt, setIsAnsweringPrompt] = useState(false);
   const [commentDrafts, setCommentDrafts] = useState<Record<string, string>>({});
   const [posts, setPosts] = useState<RoomPost[]>([]);
   const fallbackRoom = featuredRooms.find((item) => item.slug === slug) ?? featuredRooms[0];
@@ -215,6 +216,7 @@ export default function RoomScreen() {
         body: postBody,
       });
       setPostBody('');
+      setIsAnsweringPrompt(false);
       await refreshRoom();
       setActionMessage(postKind === 'question' ? '질문을 남겼습니다.' : '감상을 남겼습니다.');
     } catch (error) {
@@ -222,6 +224,14 @@ export default function RoomScreen() {
     } finally {
       setIsPosting(false);
     }
+  };
+
+  const handleAnswerPrompt = () => {
+    if (!ensureCanInteract()) return;
+
+    setPostKind('impression');
+    setIsAnsweringPrompt(true);
+    setActionMessage('방장의 첫 질문에 이어서 생각을 남겨보세요.');
   };
 
   const room = useMemo(() => {
@@ -332,12 +342,25 @@ export default function RoomScreen() {
         {activeTab === 'talk' ? (
           <View style={styles.tabPanel}>
             <View style={styles.pinnedQuestion}>
-              <View style={styles.questionMarker}>
-                <Text style={styles.questionNumber}>01</Text>
-                <View style={styles.questionMarkerLine} />
-                <Text style={styles.questionMarkerText}>오늘의 질문</Text>
+              <View style={styles.questionPrelude}>
+                <View style={styles.questionNumberBlock}>
+                  <Text style={styles.questionNumber}>첫</Text>
+                  <Text style={styles.questionNumberSub}>문장</Text>
+                </View>
+                <View style={styles.questionMarker}>
+                  <View style={styles.questionMarkerLine} />
+                  <Text style={styles.questionMarkerText}>방장이 던진 첫 질문</Text>
+                </View>
               </View>
+              <Text style={styles.questionQuote}>“</Text>
               <Text style={styles.question}>{room.question}</Text>
+              <View style={styles.questionFooter}>
+                <Text style={styles.questionIntent}>이 질문에서 북룸의 첫 대화가 시작됩니다.</Text>
+                <Pressable onPress={handleAnswerPrompt} style={styles.questionReplyButton}>
+                  <Text style={styles.questionReplyText}>답해보기</Text>
+                  <Text style={styles.questionReplyArrow}>↑</Text>
+                </Pressable>
+              </View>
             </View>
 
             <View style={styles.composer}>
@@ -369,7 +392,13 @@ export default function RoomScreen() {
               <TextInput
                 multiline
                 onChangeText={setPostBody}
-                placeholder={isMember ? '이 책이 지금 남긴 생각을 적어보세요.' : '참여 후 감상과 질문을 남길 수 있습니다.'}
+                placeholder={
+                  isMember
+                    ? isAnsweringPrompt
+                      ? '방장의 첫 질문에 대한 생각을 적어보세요.'
+                      : '이 책이 지금 남긴 생각을 적어보세요.'
+                    : '참여 후 감상과 질문을 남길 수 있습니다.'
+                }
                 placeholderTextColor="#8F877B"
                 style={styles.postInput}
                 value={postBody}
@@ -740,29 +769,61 @@ const styles = StyleSheet.create({
     marginTop: 30,
   },
   pinnedQuestion: {
-    paddingHorizontal: 2,
-    paddingVertical: 8,
+    backgroundColor: '#201B16',
+    borderRadius: 34,
+    marginHorizontal: -2,
+    overflow: 'hidden',
+    padding: 24,
+    position: 'relative',
   },
-  questionMarker: {
+  questionPrelude: {
     alignItems: 'center',
     flexDirection: 'row',
-    gap: 10,
-    marginBottom: 18,
+    gap: 14,
+    marginBottom: 26,
+  },
+  questionNumberBlock: {
+    alignItems: 'center',
+    borderColor: 'rgba(244,211,138,0.55)',
+    borderRadius: 24,
+    borderWidth: 1,
+    height: 58,
+    justifyContent: 'center',
+    width: 58,
   },
   questionNumber: {
-    color: '#9A9084',
+    color: '#F4D38A',
+    fontSize: 18,
+    fontWeight: '900',
+  },
+  questionNumberSub: {
+    color: 'rgba(255,255,255,0.72)',
+    fontSize: 10,
+    fontWeight: '900',
+    marginTop: 1,
+  },
+  questionMarker: {
+    flex: 1,
+    gap: 9,
+  },
+  questionMarkerLine: {
+    backgroundColor: 'rgba(244,211,138,0.52)',
+    height: 1,
+    width: '100%',
+  },
+  questionMarkerText: {
+    color: '#F7F3EC',
     fontSize: 13,
     fontWeight: '900',
   },
-  questionMarkerLine: {
-    backgroundColor: 'rgba(36,32,27,0.22)',
-    height: 1,
-    width: 42,
-  },
-  questionMarkerText: {
-    color: '#746B60',
-    fontSize: 12,
-    fontWeight: '800',
+  questionQuote: {
+    color: 'rgba(244,211,138,0.24)',
+    fontSize: 98,
+    fontWeight: '900',
+    left: 20,
+    lineHeight: 104,
+    position: 'absolute',
+    top: 74,
   },
   sectionLabel: {
     color: '#8E7F70',
@@ -771,10 +832,48 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   question: {
-    color: '#24201B',
-    fontSize: 32,
+    color: '#FFFFFF',
+    fontSize: 31,
     fontWeight: '900',
-    lineHeight: 43,
+    lineHeight: 42,
+    paddingTop: 10,
+  },
+  questionFooter: {
+    alignItems: 'center',
+    borderTopColor: 'rgba(255,255,255,0.14)',
+    borderTopWidth: 1,
+    flexDirection: 'row',
+    gap: 14,
+    justifyContent: 'space-between',
+    marginTop: 28,
+    paddingTop: 18,
+  },
+  questionIntent: {
+    color: 'rgba(255,255,255,0.68)',
+    flex: 1,
+    fontSize: 13,
+    fontWeight: '700',
+    lineHeight: 19,
+  },
+  questionReplyButton: {
+    alignItems: 'center',
+    backgroundColor: '#F4D38A',
+    borderRadius: 22,
+    flexDirection: 'row',
+    gap: 7,
+    minHeight: 44,
+    paddingHorizontal: 16,
+  },
+  questionReplyText: {
+    color: '#201B16',
+    fontSize: 14,
+    fontWeight: '900',
+  },
+  questionReplyArrow: {
+    color: '#201B16',
+    fontSize: 17,
+    fontWeight: '900',
+    lineHeight: 19,
   },
   composer: {
     borderTopColor: 'rgba(36,32,27,0.1)',

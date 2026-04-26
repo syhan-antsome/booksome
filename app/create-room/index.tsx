@@ -225,7 +225,7 @@ export default function CreateRoomScreen() {
               <TextInput
                 multiline
                 onChangeText={setFirstQuestion}
-                placeholder="첫 질문"
+                placeholder="방장이 던질 첫 질문"
                 placeholderTextColor="#A49B8D"
                 style={[styles.input, styles.textArea]}
                 value={firstQuestion}
