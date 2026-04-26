@@ -3,11 +3,8 @@ import { Image, type ImageSourcePropType, StyleSheet, View } from 'react-native'
 import Animated, {
   cancelAnimation,
   Easing,
-  runOnJS,
   useAnimatedStyle,
   useSharedValue,
-  withDelay,
-  withSequence,
   withTiming,
 } from 'react-native-reanimated';
 
@@ -15,9 +12,9 @@ type BackgroundSlideshowProps = {
   sources: ImageSourcePropType[];
 };
 
-const SLIDE_HOLD_MS = 6800;
+const SLIDE_HOLD_MS = 7000;
 const FADE_MS = 1800;
-const ZOOM_MS = SLIDE_HOLD_MS + FADE_MS + 800;
+const ZOOM_MS = SLIDE_HOLD_MS + FADE_MS + 1000;
 
 export function BackgroundSlideshow({ sources }: BackgroundSlideshowProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -32,57 +29,54 @@ export function BackgroundSlideshow({ sources }: BackgroundSlideshowProps) {
     if (slideCount <= 1) return;
 
     let mounted = true;
+    const nextIndex = (currentIndex + 1) % slideCount;
 
-    const advance = (nextIndex: number) => {
+    currentOpacity.value = 1;
+    incomingOpacity.value = 0;
+    currentScale.value = 1.02;
+    incomingScale.value = 1.02;
+    currentScale.value = withTiming(1.18, {
+      duration: ZOOM_MS,
+      easing: Easing.out(Easing.cubic),
+    });
+
+    const showIncomingTimer = setTimeout(() => {
       if (!mounted) return;
-
-      setCurrentIndex(nextIndex);
-      setIncomingIndex(null);
-      currentOpacity.value = 1;
-      incomingOpacity.value = 0;
-      currentScale.value = 1.02;
-      incomingScale.value = 1.02;
-    };
-
-    const startCycle = () => {
-      const nextIndex = (currentIndex + 1) % slideCount;
 
       setIncomingIndex(nextIndex);
       incomingOpacity.value = 0;
       incomingScale.value = 1.02;
-      currentScale.value = 1.02;
-
-      currentScale.value = withTiming(1.18, {
-        duration: ZOOM_MS,
+      incomingOpacity.value = withTiming(1, {
+        duration: FADE_MS,
+        easing: Easing.inOut(Easing.cubic),
+      });
+      incomingScale.value = withTiming(1.12, {
+        duration: FADE_MS + 700,
         easing: Easing.out(Easing.cubic),
       });
-      incomingScale.value = withDelay(
-        SLIDE_HOLD_MS,
-        withTiming(1.12, {
-          duration: FADE_MS + 700,
-          easing: Easing.out(Easing.cubic),
-        }),
-      );
-      incomingOpacity.value = withDelay(
-        SLIDE_HOLD_MS,
-        withSequence(
-          withTiming(1, {
-            duration: FADE_MS,
-            easing: Easing.inOut(Easing.cubic),
-          }),
-          withTiming(1, { duration: 80 }, (finished) => {
-            if (finished) {
-              runOnJS(advance)(nextIndex);
-            }
-          }),
-        ),
-      );
-    };
+    }, SLIDE_HOLD_MS);
 
-    startCycle();
+    const commitTimer = setTimeout(() => {
+      if (!mounted) return;
+
+      setCurrentIndex(nextIndex);
+      currentScale.value = 1.02;
+
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          if (!mounted) return;
+
+          setIncomingIndex(null);
+          incomingOpacity.value = 0;
+          incomingScale.value = 1.02;
+        });
+      });
+    }, SLIDE_HOLD_MS + FADE_MS + 80);
 
     return () => {
       mounted = false;
+      clearTimeout(showIncomingTimer);
+      clearTimeout(commitTimer);
       cancelAnimation(currentOpacity);
       cancelAnimation(incomingOpacity);
       cancelAnimation(currentScale);
@@ -129,7 +123,6 @@ const styles = StyleSheet.create({
     bottom: -32,
     height: '112%',
     left: 0,
-    objectFit: 'cover',
     position: 'absolute',
     right: 0,
     top: -32,
