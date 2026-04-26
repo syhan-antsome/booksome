@@ -1,12 +1,13 @@
 import { useMemo, useState } from 'react';
 import { CameraView, type BarcodeScanningResult, useCameraPermissions } from 'expo-camera';
 import { router, useLocalSearchParams } from 'expo-router';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AuthRequired } from '../../src/components/auth-required';
 import { BackButton } from '../../src/components/back-button';
 import { useAuth } from '../../src/providers/auth-provider';
+import { lookupBookByIsbn, type BookSearchItem } from '../../src/services/books';
 
 export default function ScanScreen() {
   const { session } = useAuth();
@@ -14,28 +15,58 @@ export default function ScanScreen() {
   const [permission, requestPermission] = useCameraPermissions();
   const [scanResult, setScanResult] = useState<BarcodeScanningResult | null>(null);
   const [cameraError, setCameraError] = useState<string | null>(null);
+  const [bookLookupError, setBookLookupError] = useState<string | null>(null);
+  const [bookResults, setBookResults] = useState<BookSearchItem[]>([]);
+  const [isLookingUpBook, setIsLookingUpBook] = useState(false);
   const isGranted = permission?.granted;
   const isRoomContext = params.context === 'create-room';
   const scannedCode = scanResult?.data ?? '';
   const normalizedCode = useMemo(() => scannedCode.replace(/[^0-9X]/gi, ''), [scannedCode]);
   const looksLikeIsbn = scanResult?.type === 'ean13' && /^(978|979)\d{10}$/.test(normalizedCode);
+  const selectedBook = bookResults[0] ?? null;
 
   const handleBarcodeScanned = (result: BarcodeScanningResult) => {
     setScanResult(result);
+    setBookResults([]);
+    setBookLookupError(null);
+
+    const isbn = normalizeIsbn(result.data);
+    if (result.type === 'ean13' && /^(978|979)\d{10}$/.test(isbn)) {
+      void lookupScannedBook(isbn);
+    }
   };
 
   const resetScanner = () => {
     setCameraError(null);
+    setBookLookupError(null);
+    setBookResults([]);
     setScanResult(null);
   };
 
   const useScannedBook = () => {
-    if (!looksLikeIsbn) return;
+    if (!looksLikeIsbn || !selectedBook) return;
 
     router.replace({
       pathname: '/create-room',
-      params: { isbn13: normalizedCode },
+      params: { isbn13: selectedBook.isbn },
     });
+  };
+
+  const lookupScannedBook = async (isbn: string) => {
+    setIsLookingUpBook(true);
+    setBookLookupError(null);
+
+    try {
+      const result = await lookupBookByIsbn(isbn);
+      setBookResults(result.items);
+      if (result.items.length === 0) {
+        setBookLookupError('검색 결과가 없습니다. 다른 바코드를 다시 스캔해보세요.');
+      }
+    } catch (error) {
+      setBookLookupError(getErrorMessage(error, '도서 정보를 불러오지 못했습니다.'));
+    } finally {
+      setIsLookingUpBook(false);
+    }
   };
 
   return (
@@ -108,18 +139,47 @@ export default function ScanScreen() {
                 <Text style={styles.resultEyebrow}>{looksLikeIsbn ? 'ISBN FOUND' : 'BARCODE FOUND'}</Text>
                 <Text style={styles.resultTitle}>{normalizedCode || scannedCode}</Text>
                 <Text style={styles.resultCopy}>
-                  {looksLikeIsbn
-                    ? '책 ISBN으로 인식했습니다. 다음 단계에서 책 정보 검색과 독서생활 등록으로 연결합니다.'
-                    : `인식 형식: ${scanResult.type}. 책 ISBN이 맞는지 확인해주세요.`}
+                  {looksLikeIsbn ? '책 ISBN으로 인식했습니다. 도서 정보를 조회하고 있습니다.' : `인식 형식: ${scanResult.type}. 책 ISBN이 맞는지 확인해주세요.`}
                 </Text>
+                {isLookingUpBook ? (
+                  <View style={styles.lookupLoading}>
+                    <ActivityIndicator color="#116653" />
+                    <Text style={styles.lookupLoadingText}>도서 정보를 찾고 있습니다</Text>
+                  </View>
+                ) : null}
+                {selectedBook ? (
+                  <View style={styles.bookResultCard}>
+                    {selectedBook.imageUrl ? (
+                      <Image resizeMode="cover" source={{ uri: selectedBook.imageUrl }} style={styles.bookResultImage} />
+                    ) : (
+                      <View style={styles.bookResultImageFallback}>
+                        <Text style={styles.bookResultImageText}>BOOK</Text>
+                      </View>
+                    )}
+                    <View style={styles.bookResultCopy}>
+                      <Text style={styles.bookResultTitle} numberOfLines={2}>
+                        {selectedBook.title}
+                      </Text>
+                      <Text style={styles.bookResultMeta} numberOfLines={1}>
+                        {selectedBook.author}
+                        {selectedBook.publisher ? ` · ${selectedBook.publisher}` : ''}
+                      </Text>
+                      <Text style={styles.bookResultIsbn}>{selectedBook.isbn}</Text>
+                    </View>
+                  </View>
+                ) : null}
+                {bookLookupError ? <Text style={styles.lookupError}>{bookLookupError}</Text> : null}
                 <View style={styles.resultActions}>
                   <Pressable onPress={resetScanner} style={styles.secondaryButton}>
                     <Text style={styles.secondaryButtonText}>다시 스캔</Text>
                   </Pressable>
                   <Pressable
-                    disabled={!isRoomContext || !looksLikeIsbn}
+                    disabled={!isRoomContext || !looksLikeIsbn || isLookingUpBook || !selectedBook}
                     onPress={useScannedBook}
-                    style={[styles.resultButton, !isRoomContext || !looksLikeIsbn ? styles.disabledButton : null]}
+                    style={[
+                      styles.resultButton,
+                      !isRoomContext || !looksLikeIsbn || isLookingUpBook || !selectedBook ? styles.disabledButton : null,
+                    ]}
                   >
                     <Text style={styles.resultButtonText}>
                       {isRoomContext ? '북룸 책으로 사용' : '독서생활에 등록'}
@@ -146,10 +206,95 @@ export default function ScanScreen() {
   );
 }
 
+function normalizeIsbn(value: string) {
+  return value.replace(/[^0-9X]/gi, '').toUpperCase();
+}
+
+function getErrorMessage(error: unknown, fallback: string) {
+  if (error instanceof Error && error.message) {
+    return error.message;
+  }
+
+  if (typeof error === 'object' && error && 'message' in error) {
+    const message = (error as { message?: unknown }).message;
+    if (typeof message === 'string' && message) {
+      return message;
+    }
+  }
+
+  return fallback;
+}
+
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: '#F7F2EA',
+  },
+  lookupLoading: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 14,
+  },
+  lookupLoadingText: {
+    color: '#556260',
+    fontSize: 13,
+    fontWeight: '800',
+  },
+  bookResultCard: {
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 18,
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 14,
+    padding: 10,
+  },
+  bookResultImage: {
+    borderRadius: 12,
+    height: 88,
+    width: 62,
+  },
+  bookResultImageFallback: {
+    alignItems: 'center',
+    backgroundColor: '#E7DED0',
+    borderRadius: 12,
+    height: 88,
+    justifyContent: 'center',
+    width: 62,
+  },
+  bookResultImageText: {
+    color: '#7A6E62',
+    fontSize: 11,
+    fontWeight: '900',
+  },
+  bookResultCopy: {
+    flex: 1,
+  },
+  bookResultTitle: {
+    color: '#142326',
+    fontSize: 15,
+    fontWeight: '900',
+    lineHeight: 20,
+  },
+  bookResultMeta: {
+    color: '#66716E',
+    fontSize: 12,
+    fontWeight: '800',
+    marginTop: 5,
+  },
+  bookResultIsbn: {
+    color: '#116653',
+    fontSize: 11,
+    fontWeight: '900',
+    marginTop: 6,
+  },
+  lookupError: {
+    color: '#A43D20',
+    fontSize: 13,
+    fontWeight: '800',
+    lineHeight: 19,
+    marginTop: 12,
   },
   content: {
     flex: 1,

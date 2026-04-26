@@ -1,5 +1,17 @@
 type UploadKind = 'avatar' | 'room-cover' | 'meetup-photo' | 'post-media';
 
+type NaverBookItem = {
+  title?: string;
+  link?: string;
+  image?: string;
+  author?: string;
+  discount?: string;
+  publisher?: string;
+  pubdate?: string;
+  isbn?: string;
+  description?: string;
+};
+
 const allowedKinds: Record<UploadKind, { prefix: string; maxBytes: number }> = {
   avatar: { prefix: 'avatars', maxBytes: 2 * 1024 * 1024 },
   'room-cover': { prefix: 'room-covers', maxBytes: 5 * 1024 * 1024 },
@@ -36,6 +48,10 @@ export default {
         return handleGetMedia(request, env);
       }
 
+      if (request.method === 'GET' && url.pathname.startsWith('/v1/books/isbn/')) {
+        return handleGetBookByIsbn(request, env);
+      }
+
       if (request.method === 'POST' && url.pathname === '/v1/uploads/request') {
         return handleUploadRequest(request, env);
       }
@@ -57,6 +73,50 @@ export default {
     }
   },
 } satisfies ExportedHandler<Env>;
+
+async function handleGetBookByIsbn(request: Request, env: Env) {
+  const url = new URL(request.url);
+  const isbn = normalizeIsbn(url.pathname.slice('/v1/books/isbn/'.length));
+
+  if (!isbn || !isLikelyIsbn(isbn)) {
+    return json({ error: 'Invalid ISBN' }, env, 400);
+  }
+
+  if (!env.NAVER_CLIENT_ID || !env.NAVER_CLIENT_SECRET) {
+    return json({ error: 'Book search is not configured' }, env, 500);
+  }
+
+  const naverUrl = new URL('https://openapi.naver.com/v1/search/book_adv.json');
+  naverUrl.searchParams.set('d_isbn', isbn);
+  naverUrl.searchParams.set('start', '1');
+  naverUrl.searchParams.set('display', '10');
+
+  const response = await fetch(naverUrl.toString(), {
+    headers: {
+      'X-Naver-Client-Id': env.NAVER_CLIENT_ID,
+      'X-Naver-Client-Secret': env.NAVER_CLIENT_SECRET,
+    },
+  });
+
+  if (!response.ok) {
+    return json({ error: 'Book search failed', status: response.status }, env, 502);
+  }
+
+  const payload = (await response.json()) as {
+    total?: number;
+    items?: NaverBookItem[];
+  };
+  const items = (payload.items ?? []).map(toBookSearchResult).filter((item) => item !== null);
+
+  return json(
+    {
+      isbn,
+      total: payload.total ?? items.length,
+      items,
+    },
+    env,
+  );
+}
 
 async function handleUploadRequest(request: Request, env: Env) {
   const body = (await request.json()) as {
@@ -222,4 +282,48 @@ function isUploadKind(value: string): value is UploadKind {
 
 function encodeObjectKey(objectKey: string) {
   return objectKey.split('/').map(encodeURIComponent).join('/');
+}
+
+function normalizeIsbn(value: string) {
+  return decodeURIComponent(value).replace(/[^0-9Xx]/g, '').toUpperCase();
+}
+
+function isLikelyIsbn(value: string) {
+  return /^[0-9X]{10}$/.test(value) || /^(978|979)[0-9]{10}$/.test(value);
+}
+
+function toBookSearchResult(item: NaverBookItem) {
+  const isbn = extractPrimaryIsbn(item.isbn ?? '');
+
+  if (!item.title || !item.author || !isbn) {
+    return null;
+  }
+
+  return {
+    title: cleanNaverText(item.title),
+    author: cleanNaverText(item.author),
+    publisher: cleanNaverText(item.publisher ?? ''),
+    publishedDate: cleanNaverText(item.pubdate ?? ''),
+    isbn,
+    imageUrl: item.image ?? null,
+    link: item.link ?? null,
+    description: cleanNaverText(item.description ?? ''),
+    source: 'naver',
+    sourcePayload: item,
+  };
+}
+
+function extractPrimaryIsbn(value: string) {
+  const candidates = value.split(/\s+/).map(normalizeIsbn).filter(Boolean);
+  return candidates.find((isbn) => /^(978|979)[0-9]{10}$/.test(isbn)) ?? candidates.find((isbn) => /^[0-9X]{10}$/.test(isbn)) ?? '';
+}
+
+function cleanNaverText(value: string) {
+  return value
+    .replace(/<\/?b>/g, '')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .trim();
 }

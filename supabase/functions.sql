@@ -2,11 +2,16 @@
 -- Run after schema.sql and rls.sql.
 
 drop function if exists public.create_reading_room(text, text, text, text, text, text, text);
+drop function if exists public.create_reading_room(text, text, text, text, text, text, text, text);
 
 create or replace function public.create_reading_room(
   p_book_title text,
   p_author text,
   p_isbn13 text default null,
+  p_external_cover_url text default null,
+  p_publisher text default null,
+  p_published_date text default null,
+  p_source_payload jsonb default null,
   p_room_title text default null,
   p_room_subtitle text default null,
   p_room_description text default null,
@@ -24,6 +29,9 @@ declare
   new_edition_id uuid;
   new_room_id uuid;
   clean_isbn13 text := nullif(regexp_replace(coalesce(p_isbn13, ''), '[^0-9Xx]', '', 'g'), '');
+  clean_external_cover_url text := nullif(trim(coalesce(p_external_cover_url, '')), '');
+  clean_publisher text := nullif(trim(coalesce(p_publisher, '')), '');
+  clean_published_date date;
   slug_base text;
   candidate_slug text;
 begin
@@ -45,6 +53,11 @@ begin
 
   if clean_isbn13 is not null and clean_isbn13 !~ '^(978|979)[0-9]{10}$' then
     raise exception '올바른 ISBN-13 형식이 아닙니다.';
+  end if;
+
+  if nullif(trim(coalesce(p_published_date, '')), '') is not null
+    and trim(p_published_date) ~ '^[0-9]{8}$' then
+    clean_published_date := to_date(trim(p_published_date), 'YYYYMMDD');
   end if;
 
   if nullif(trim(coalesce(p_first_question, '')), '') is null then
@@ -79,14 +92,16 @@ begin
       author,
       description,
       primary_language,
-      cover_path
+      cover_path,
+      external_cover_url
     )
     values (
       trim(p_book_title),
       trim(p_author),
       nullif(trim(coalesce(p_room_description, '')), ''),
       'ko',
-      p_cover_path
+      p_cover_path,
+      clean_external_cover_url
     )
     returning book_works.id into new_work_id;
   end if;
@@ -97,20 +112,39 @@ begin
       isbn13,
       title,
       author,
+      publisher,
+      published_date,
       language,
       cover_path,
-      source
+      external_cover_url,
+      source,
+      source_payload
     )
     values (
       new_work_id,
       clean_isbn13,
       trim(p_book_title),
       trim(p_author),
+      clean_publisher,
+      clean_published_date,
       'ko',
       p_cover_path,
-      'isbn-scan'
+      clean_external_cover_url,
+      'naver',
+      p_source_payload
     )
     returning book_editions.id into new_edition_id;
+  end if;
+
+  if clean_isbn13 is not null and new_edition_id is not null then
+    update public.book_editions
+    set
+      publisher = coalesce(public.book_editions.publisher, clean_publisher),
+      published_date = coalesce(public.book_editions.published_date, clean_published_date),
+      external_cover_url = coalesce(public.book_editions.external_cover_url, clean_external_cover_url),
+      source = coalesce(public.book_editions.source, 'naver'),
+      source_payload = coalesce(public.book_editions.source_payload, p_source_payload)
+    where public.book_editions.id = new_edition_id;
   end if;
 
   insert into public.rooms (
@@ -121,6 +155,7 @@ begin
     subtitle,
     description,
     cover_path,
+    external_cover_url,
     founder_id,
     visibility
   )
@@ -132,6 +167,7 @@ begin
     nullif(trim(coalesce(p_room_subtitle, '')), ''),
     nullif(trim(coalesce(p_room_description, '')), ''),
     p_cover_path,
+    clean_external_cover_url,
     current_profile_id,
     'public'
   )
@@ -179,6 +215,10 @@ grant execute on function public.create_reading_room(
   text,
   text,
   text,
+  text,
+  text,
+  text,
+  jsonb,
   text,
   text,
   text,

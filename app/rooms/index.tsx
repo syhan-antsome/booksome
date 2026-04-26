@@ -317,7 +317,7 @@ function toFeaturedRoom(room: RoomSummary): FeaturedRoom {
     next: room.next_event ?? '새로운 함께 읽기 일정을 준비 중입니다',
     question: room.pinned_question ?? '이 책은 당신에게 어떤 질문을 남겼나요?',
     coverPath: room.cover_path ?? null,
-    coverUrl: null,
+    coverUrl: room.external_cover_url ?? null,
   };
 }
 

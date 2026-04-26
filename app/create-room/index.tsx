@@ -16,6 +16,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { AuthRequired } from '../../src/components/auth-required';
 import { BackButton } from '../../src/components/back-button';
 import { useAuth } from '../../src/providers/auth-provider';
+import { lookupBookByIsbn, type BookSearchItem } from '../../src/services/books';
 import { uploadImageAsset } from '../../src/services/media';
 import type { UploadedMediaAsset } from '../../src/services/media';
 import { createRoom } from '../../src/services/rooms';
@@ -26,6 +27,7 @@ export default function CreateRoomScreen() {
   const [bookTitle, setBookTitle] = useState('');
   const [author, setAuthor] = useState('');
   const [isbn13, setIsbn13] = useState('');
+  const [selectedBook, setSelectedBook] = useState<BookSearchItem | null>(null);
   const [roomTitle, setRoomTitle] = useState('');
   const [roomSubtitle, setRoomSubtitle] = useState('');
   const [roomDescription, setRoomDescription] = useState('');
@@ -35,6 +37,8 @@ export default function CreateRoomScreen() {
   const [uploadedCover, setUploadedCover] = useState<UploadedMediaAsset | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [isLookingUpBook, setIsLookingUpBook] = useState(false);
+  const [bookLookupError, setBookLookupError] = useState<string | null>(null);
   const [isCreating, setIsCreating] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
 
@@ -42,8 +46,35 @@ export default function CreateRoomScreen() {
     const scannedIsbn = Array.isArray(params.isbn13) ? params.isbn13[0] : params.isbn13;
     if (scannedIsbn) {
       setIsbn13(scannedIsbn);
+      void applyBookLookup(scannedIsbn);
     }
   }, [params.isbn13]);
+
+  const applyBookLookup = async (isbn: string) => {
+    setIsLookingUpBook(true);
+    setBookLookupError(null);
+
+    try {
+      const result = await lookupBookByIsbn(isbn);
+      const book = result.items[0] ?? null;
+
+      if (!book) {
+        setBookLookupError('ISBN으로 찾은 도서 정보가 없습니다.');
+        setSelectedBook(null);
+        return;
+      }
+
+      setSelectedBook(book);
+      setBookTitle((value) => value || book.title);
+      setAuthor((value) => value || book.author);
+      setRoomTitle((value) => value || book.title);
+      setRoomDescription((value) => value || book.description);
+    } catch (error) {
+      setBookLookupError(getErrorMessage(error, '도서 정보를 불러오지 못했습니다.'));
+    } finally {
+      setIsLookingUpBook(false);
+    }
+  };
 
   const pickCover = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -117,6 +148,22 @@ export default function CreateRoomScreen() {
         bookTitle,
         author,
         isbn13,
+        externalCoverUrl: selectedBook?.imageUrl ?? null,
+        publisher: selectedBook?.publisher ?? null,
+        publishedDate: selectedBook?.publishedDate ?? null,
+        sourcePayload: selectedBook
+          ? {
+              source: selectedBook.source,
+              title: selectedBook.title,
+              author: selectedBook.author,
+              publisher: selectedBook.publisher,
+              publishedDate: selectedBook.publishedDate,
+              isbn: selectedBook.isbn,
+              imageUrl: selectedBook.imageUrl,
+              link: selectedBook.link,
+              description: selectedBook.description,
+            }
+          : null,
         roomTitle: roomTitle || bookTitle,
         roomSubtitle,
         roomDescription,
@@ -184,6 +231,34 @@ export default function CreateRoomScreen() {
                   </Pressable>
                 </View>
               ) : null}
+              {isLookingUpBook ? (
+                <View style={styles.lookupPanel}>
+                  <ActivityIndicator color="#116653" />
+                  <Text style={styles.lookupText}>도서 정보를 불러오는 중입니다</Text>
+                </View>
+              ) : null}
+              {selectedBook ? (
+                <View style={styles.selectedBookPanel}>
+                  {selectedBook.imageUrl ? (
+                    <Image resizeMode="cover" source={{ uri: selectedBook.imageUrl }} style={styles.selectedBookImage} />
+                  ) : (
+                    <View style={styles.selectedBookImageFallback}>
+                      <Text style={styles.selectedBookImageText}>BOOK</Text>
+                    </View>
+                  )}
+                  <View style={styles.selectedBookCopy}>
+                    <Text style={styles.selectedBookTitle} numberOfLines={2}>
+                      {selectedBook.title}
+                    </Text>
+                    <Text style={styles.selectedBookMeta} numberOfLines={1}>
+                      {selectedBook.author}
+                      {selectedBook.publisher ? ` · ${selectedBook.publisher}` : ''}
+                    </Text>
+                    <Text style={styles.selectedBookNote}>이 책 정보가 북룸에 저장됩니다.</Text>
+                  </View>
+                </View>
+              ) : null}
+              {bookLookupError ? <Text style={styles.lookupError}>{bookLookupError}</Text> : null}
               <TextInput
                 onChangeText={setBookTitle}
                 placeholder="책 제목"
@@ -418,6 +493,72 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '900',
     lineHeight: 20,
+  },
+  lookupPanel: {
+    alignItems: 'center',
+    backgroundColor: '#F2ECE1',
+    borderRadius: 18,
+    flexDirection: 'row',
+    gap: 10,
+    padding: 14,
+  },
+  lookupText: {
+    color: '#5E6766',
+    fontSize: 13,
+    fontWeight: '800',
+  },
+  selectedBookPanel: {
+    alignItems: 'center',
+    backgroundColor: '#123D31',
+    borderRadius: 22,
+    flexDirection: 'row',
+    gap: 13,
+    padding: 12,
+  },
+  selectedBookImage: {
+    borderRadius: 14,
+    height: 108,
+    width: 74,
+  },
+  selectedBookImageFallback: {
+    alignItems: 'center',
+    backgroundColor: '#E7DED0',
+    borderRadius: 14,
+    height: 108,
+    justifyContent: 'center',
+    width: 74,
+  },
+  selectedBookImageText: {
+    color: '#7A6E62',
+    fontSize: 12,
+    fontWeight: '900',
+  },
+  selectedBookCopy: {
+    flex: 1,
+  },
+  selectedBookTitle: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '900',
+    lineHeight: 22,
+  },
+  selectedBookMeta: {
+    color: 'rgba(255,255,255,0.72)',
+    fontSize: 13,
+    fontWeight: '800',
+    marginTop: 6,
+  },
+  selectedBookNote: {
+    color: '#F4D38A',
+    fontSize: 12,
+    fontWeight: '900',
+    marginTop: 10,
+  },
+  lookupError: {
+    color: '#A43D20',
+    fontSize: 13,
+    fontWeight: '800',
+    lineHeight: 19,
   },
   spacedLabel: {
     marginTop: 10,

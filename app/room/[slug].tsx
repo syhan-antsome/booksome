@@ -242,6 +242,7 @@ export default function RoomScreen() {
         accent: fallbackRoom.accent,
         author: fallbackRoom.author,
         coverPath: null,
+        externalCoverUrl: fallbackRoom.coverUrl ?? null,
         description: null,
         host: fallbackRoom.host,
         members: fallbackRoom.members,
@@ -256,6 +257,7 @@ export default function RoomScreen() {
       accent: remoteRoom.accentColor,
       author: remoteRoom.author,
       coverPath: remoteRoom.coverPath,
+      externalCoverUrl: remoteRoom.externalCoverUrl,
       description: remoteRoom.description,
       host: remoteRoom.viewerRole === 'founder' ? 'Founder' : 'Host',
       members: remoteRoom.memberCount.toLocaleString(),
@@ -266,7 +268,7 @@ export default function RoomScreen() {
     };
   }, [fallbackRoom, remoteRoom]);
 
-  const coverUrl = room.coverPath ? getMediaUrl(room.coverPath) : null;
+  const coverUrl = room.coverPath ? getMediaUrl(room.coverPath) : room.externalCoverUrl;
   const heroSource: ImageSourcePropType = coverUrl ? { uri: coverUrl } : (roomFallbackImage as ImageSourcePropType);
   const isMember = Boolean(room.viewerRole);
   const isCompact = width < 430;

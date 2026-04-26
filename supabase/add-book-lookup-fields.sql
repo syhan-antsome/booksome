@@ -1,5 +1,14 @@
--- Refresh the discovery view so newly created rooms can be ordered by creation time.
--- Safe to run after schema.sql.
+-- Add Naver/OpenAPI book lookup fields.
+-- Run this in the Supabase SQL Editor before the updated functions.sql.
+
+alter table public.book_works
+  add column if not exists external_cover_url text;
+
+alter table public.book_editions
+  add column if not exists external_cover_url text;
+
+alter table public.rooms
+  add column if not exists external_cover_url text;
 
 create or replace view public.room_discovery_cards
 with (security_invoker = true) as

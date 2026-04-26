@@ -48,6 +48,7 @@ create table if not exists public.book_works (
   description text,
   primary_language text,
   cover_path text,
+  external_cover_url text,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
@@ -63,6 +64,7 @@ create table if not exists public.book_editions (
   published_date date,
   language text,
   cover_path text,
+  external_cover_url text,
   source text,
   source_payload jsonb,
   created_at timestamptz not null default now()
@@ -78,6 +80,7 @@ create table if not exists public.rooms (
   description text,
   accent_color text not null default '#116653',
   cover_path text,
+  external_cover_url text,
   visibility public.room_visibility not null default 'public',
   default_spoiler_chapter integer,
   founder_id uuid references public.profiles(id) on delete set null,
@@ -213,6 +216,7 @@ select
   pinned.body as pinned_question,
   next_session.title as next_event,
   50::integer as progress_percent,
+  r.external_cover_url,
   r.created_at
 from public.rooms r
 join public.book_works bw on bw.id = r.work_id

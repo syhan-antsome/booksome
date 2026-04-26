@@ -13,6 +13,7 @@ export type RoomSummary = {
   next_event: string | null;
   progress_percent: number;
   cover_path?: string | null;
+  external_cover_url?: string | null;
 };
 
 export type RoomDetail = {
@@ -24,6 +25,7 @@ export type RoomDetail = {
   author: string;
   accentColor: string;
   coverPath: string | null;
+  externalCoverUrl: string | null;
   pinnedQuestion: string | null;
   nextEvent: string | null;
   memberCount: number;
@@ -53,6 +55,10 @@ export type CreateRoomInput = {
   bookTitle: string;
   author: string;
   isbn13?: string;
+  externalCoverUrl?: string | null;
+  publisher?: string | null;
+  publishedDate?: string | null;
+  sourcePayload?: Record<string, unknown> | null;
   roomTitle: string;
   roomSubtitle: string;
   roomDescription: string;
@@ -109,24 +115,26 @@ async function withRoomCovers(rooms: RoomSummary[]) {
     return rooms;
   }
 
-  const { data, error } = await supabase.from('rooms').select('id, cover_path').in('id', roomIds);
+  const { data, error } = await supabase.from('rooms').select('id, cover_path, external_cover_url').in('id', roomIds);
 
   if (error) {
     return rooms;
   }
 
   const coverByRoomId = new Map(data.map((room) => [room.id, room.cover_path as string | null]));
+  const externalCoverByRoomId = new Map(data.map((room) => [room.id, room.external_cover_url as string | null]));
 
   return rooms.map((room) => ({
     ...room,
     cover_path: coverByRoomId.get(room.id) ?? null,
+    external_cover_url: externalCoverByRoomId.get(room.id) ?? room.external_cover_url ?? null,
   }));
 }
 
 export async function getRoomDetail(slug: string, viewerId?: string): Promise<RoomDetail | null> {
   const { data: room, error: roomError } = await supabase
     .from('rooms')
-    .select('id, work_id, slug, title, subtitle, description, accent_color, cover_path')
+    .select('id, work_id, slug, title, subtitle, description, accent_color, cover_path, external_cover_url')
     .eq('slug', slug)
     .maybeSingle();
 
@@ -177,6 +185,7 @@ export async function getRoomDetail(slug: string, viewerId?: string): Promise<Ro
     author: work?.author ?? 'BookSome',
     accentColor: room.accent_color,
     coverPath: room.cover_path,
+    externalCoverUrl: room.external_cover_url,
     pinnedQuestion: question?.body ?? null,
     nextEvent: session?.title ?? null,
     memberCount: count ?? 0,
@@ -350,6 +359,10 @@ export async function createRoom(input: CreateRoomInput) {
     p_book_title: input.bookTitle.trim(),
     p_author: input.author.trim(),
     p_isbn13: input.isbn13?.trim() || null,
+    p_external_cover_url: input.externalCoverUrl || null,
+    p_publisher: input.publisher || null,
+    p_published_date: input.publishedDate || null,
+    p_source_payload: input.sourcePayload ?? null,
     p_room_title: (input.roomTitle || input.bookTitle).trim(),
     p_room_subtitle: input.roomSubtitle.trim() || null,
     p_room_description: input.roomDescription.trim() || null,
@@ -368,6 +381,7 @@ export async function createRoom(input: CreateRoomInput) {
       const fallbackPayload = {
         p_book_title: payload.p_book_title,
         p_author: payload.p_author,
+        p_isbn13: payload.p_isbn13,
         p_room_title: payload.p_room_title,
         p_room_subtitle: payload.p_room_subtitle,
         p_room_description: payload.p_room_description,
@@ -377,6 +391,25 @@ export async function createRoom(input: CreateRoomInput) {
       const fallback = await supabase.rpc('create_reading_room', fallbackPayload).single();
 
       if (fallback.error) {
+        if (isRpcSignatureError(fallback.error.message)) {
+          const legacyPayload = {
+            p_book_title: payload.p_book_title,
+            p_author: payload.p_author,
+            p_room_title: payload.p_room_title,
+            p_room_subtitle: payload.p_room_subtitle,
+            p_room_description: payload.p_room_description,
+            p_first_question: payload.p_first_question,
+            p_cover_path: payload.p_cover_path,
+          };
+          const legacyFallback = await supabase.rpc('create_reading_room', legacyPayload).single();
+
+          if (legacyFallback.error) {
+            throw legacyFallback.error;
+          }
+
+          return legacyFallback.data as { id: string; slug: string };
+        }
+
         throw fallback.error;
       }
 
