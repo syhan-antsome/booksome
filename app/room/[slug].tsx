@@ -101,12 +101,12 @@ export default function RoomScreen() {
     }
 
     if (!remoteRoom) {
-      setActionMessage('리딩룸 정보를 불러온 뒤 다시 시도해주세요.');
+      setActionMessage('북룸 정보를 불러온 뒤 다시 시도해주세요.');
       return;
     }
 
     if (remoteRoom.viewerRole) {
-      setActionMessage('이미 이 리딩룸에 참여 중입니다.');
+      setActionMessage('이미 이 북룸에 참여 중입니다.');
       return;
     }
 
@@ -116,9 +116,9 @@ export default function RoomScreen() {
     try {
       await joinRoom(remoteRoom.id);
       await refreshRoom();
-      setActionMessage('리딩룸에 참여했습니다.');
+      setActionMessage('북룸에 참여했습니다.');
     } catch (error) {
-      setActionMessage(getErrorMessage(error, '리딩룸 참여에 실패했습니다.'));
+      setActionMessage(getErrorMessage(error, '북룸 참여에 실패했습니다.'));
     } finally {
       setIsJoining(false);
     }
@@ -131,7 +131,7 @@ export default function RoomScreen() {
     }
 
     if (!remoteRoom?.viewerRole) {
-      setActionMessage('먼저 리딩룸에 참여해야 반응할 수 있습니다.');
+      setActionMessage('먼저 북룸에 참여해야 반응할 수 있습니다.');
       return false;
     }
 
@@ -189,12 +189,12 @@ export default function RoomScreen() {
     }
 
     if (!remoteRoom) {
-      setActionMessage('리딩룸 정보를 불러온 뒤 다시 시도해주세요.');
+      setActionMessage('북룸 정보를 불러온 뒤 다시 시도해주세요.');
       return;
     }
 
     if (!remoteRoom.viewerRole) {
-      setActionMessage('먼저 리딩룸에 참여해야 글을 남길 수 있습니다.');
+      setActionMessage('먼저 북룸에 참여해야 글을 남길 수 있습니다.');
       return;
     }
 
@@ -264,7 +264,7 @@ export default function RoomScreen() {
           <Pressable onPress={() => (router.canGoBack() ? router.back() : router.replace('/'))} style={styles.backButton}>
             <Text style={styles.backText}>‹</Text>
           </Pressable>
-          <Text style={styles.topStatus}>{isLoading ? '불러오는 중' : isMember ? '참여중' : '열린 리딩룸'}</Text>
+          <Text style={styles.topStatus}>{isLoading ? '불러오는 중' : isMember ? '참여중' : '열린 북룸'}</Text>
         </View>
 
         <View style={styles.heroStage}>
@@ -278,7 +278,7 @@ export default function RoomScreen() {
           <View style={[styles.heroCopy, isCompact ? styles.heroCopyCompact : null]}>
             <View style={styles.roomMarker}>
               <View style={styles.roomMarkerLine} />
-              <Text style={styles.roomMarkerText}>BookSome Room</Text>
+              <Text style={styles.roomMarkerText}>BookSome 북룸</Text>
             </View>
             <Text style={[styles.heroTitle, isCompact ? styles.heroTitleCompact : null]}>{room.title}</Text>
             <Text style={styles.heroAuthor}>{room.author}</Text>
@@ -475,9 +475,9 @@ export default function RoomScreen() {
         {activeTab === 'info' ? (
           <View style={styles.tabPanel}>
             <View style={styles.infoBlock}>
-              <Text style={styles.sectionLabel}>Room Note</Text>
+              <Text style={styles.sectionLabel}>북룸 노트</Text>
               <Text style={styles.infoTitle}>{room.title}</Text>
-              <Text style={styles.infoCopy}>{room.description ?? '아직 Room 소개가 준비되지 않았습니다.'}</Text>
+              <Text style={styles.infoCopy}>{room.description ?? '아직 북룸 소개가 준비되지 않았습니다.'}</Text>
             </View>
             <View style={styles.infoGrid}>
               <View style={styles.infoCell}>
@@ -494,7 +494,7 @@ export default function RoomScreen() {
               </View>
             </View>
             <View style={styles.ruleBlock}>
-              <Text style={styles.sectionLabel}>Room Rule</Text>
+              <Text style={styles.sectionLabel}>북룸 규칙</Text>
               <Text style={styles.ruleText}>서로의 읽는 속도를 존중하고, 스포일러가 될 수 있는 내용은 맥락을 먼저 알려주세요.</Text>
             </View>
           </View>

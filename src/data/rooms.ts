@@ -54,11 +54,11 @@ export const featuredRooms: FeaturedRoom[] = [
 export const nativeReadiness = [
   {
     title: 'Push',
-    label: '리딩룸 활동과 모임 알림',
+    label: '북룸 활동과 모임 알림',
   },
   {
     title: 'Deep Link',
-    label: '공유 링크에서 Room 바로 열기',
+    label: '공유 링크에서 북룸 바로 열기',
   },
   {
     title: 'Share',
@@ -70,10 +70,10 @@ export const nativeReadiness = [
   },
   {
     title: 'ISBN Scan',
-    label: '책을 스캔해 Room 진입',
+    label: '책을 스캔해 북룸 진입',
   },
   {
     title: 'Camera',
-    label: '프로필과 Room 이미지 업로드',
+    label: '프로필과 북룸 이미지 업로드',
   },
 ];

@@ -76,14 +76,14 @@ export default function RoomsScreen() {
             <Text style={styles.backText}>Back</Text>
           </Pressable>
           <Link asChild href={session ? '/create-room' : '/auth'}>
-            <Pressable accessibilityLabel="리딩방 만들기" style={styles.createButton}>
+            <Pressable accessibilityLabel="북룸 만들기" style={styles.createButton}>
               <Text style={styles.createButtonText}>＋</Text>
             </Pressable>
           </Link>
         </View>
 
-        <Text style={styles.kicker}>BOOKSOME ROOMS</Text>
-        <Text style={styles.title}>함께 읽는 방</Text>
+        <Text style={styles.kicker}>BOOKSOME BOOKROOM</Text>
+        <Text style={styles.title}>북룸</Text>
         <Text style={styles.copy}>
           책마다 다른 분위기의 대화가 열립니다. 지금 참여할 방을 고르거나, 충분히 준비되었을 때 새 방을 만들어 보세요.
         </Text>
@@ -106,7 +106,7 @@ export default function RoomsScreen() {
               <RoomSpotlightMedia room={heroRoom} />
               <View style={styles.spotlightScrim} />
               <View style={styles.spotlightCopy}>
-                <Text style={styles.spotlightKicker}>오늘의 리딩방</Text>
+                <Text style={styles.spotlightKicker}>오늘의 북룸</Text>
                 <Text style={styles.spotlightTitle} numberOfLines={2}>
                   {heroRoom.title}
                 </Text>
@@ -121,7 +121,7 @@ export default function RoomsScreen() {
         <View style={styles.portalGrid}>
           <View style={styles.portalTileDark}>
             <Text style={styles.portalValue}>{rooms.length}</Text>
-            <Text style={styles.portalLabel}>열린 리딩방</Text>
+            <Text style={styles.portalLabel}>열린 북룸</Text>
           </View>
           <View style={styles.portalTile}>
             <Text style={styles.portalValueDark}>{joinedRooms.length}</Text>
@@ -136,7 +136,7 @@ export default function RoomsScreen() {
         {joinedRooms.length > 0 ? (
           <>
             <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>내 리딩방</Text>
+              <Text style={styles.sectionTitle}>내 북룸</Text>
               <Text style={styles.sectionMeta}>이어 읽기</Text>
             </View>
             <ScrollView
@@ -162,7 +162,7 @@ export default function RoomsScreen() {
         ) : null}
 
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>추천 리딩방</Text>
+          <Text style={styles.sectionTitle}>추천 북룸</Text>
           <Text style={styles.sectionMeta}>이미지 카드</Text>
         </View>
 
@@ -209,8 +209,8 @@ export default function RoomsScreen() {
         </View>
 
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>전체 리딩방</Text>
-          <Text style={styles.sectionMeta}>{isLoadingRooms ? '불러오는 중' : `${filteredRooms.length} rooms`}</Text>
+          <Text style={styles.sectionTitle}>전체 북룸</Text>
+          <Text style={styles.sectionMeta}>{isLoadingRooms ? '불러오는 중' : `${filteredRooms.length}개`}</Text>
         </View>
 
         <View style={styles.roomList}>

@@ -87,7 +87,7 @@ export default function DiscoverScreen() {
         </View>
 
         <View style={styles.appModeRail}>
-          <Text style={activeModeStyle}>리딩방</Text>
+          <Text style={activeModeStyle}>북룸</Text>
           <Text style={styles.appModeItem}>독서생활</Text>
           <Text style={styles.appModeItem}>책마켓</Text>
         </View>
@@ -99,7 +99,7 @@ export default function DiscoverScreen() {
                 책으로 이어지는 하루
               </Text>
               <Text style={styles.heroRoomQuestion} numberOfLines={2}>
-                책을 고르면 리딩방과 나의 기록이 함께 열립니다.
+                책을 고르면 북룸과 나의 기록이 함께 열립니다.
               </Text>
               <View style={styles.heroActionRow}>
                 <View style={styles.sseomdiGuide}>

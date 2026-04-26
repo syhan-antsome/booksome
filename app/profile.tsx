@@ -33,12 +33,12 @@ const readingMarkers = [
 const menuGroups = [
   [
     { icon: '◐', label: '나의 독서 생활', meta: '책, 문장, 사진 기록' },
-    { icon: '□', label: '내 리딩방', meta: '참여 중인 방과 내가 만든 방' },
+    { icon: '□', label: '내 북룸', meta: '참여 중인 북룸과 내가 만든 북룸' },
     { icon: '♡', label: '저장한 글', meta: '공감한 감상과 질문' },
   ],
   [
     { icon: '◎', label: '친구와 팔로우', meta: '독서 취향으로 연결' },
-    { icon: '◌', label: '알림', meta: '대화, 모임, 리딩룸 소식' },
+    { icon: '◌', label: '알림', meta: '대화, 모임, 북룸 소식' },
     { icon: '◇', label: '공개 범위', meta: '기록별 공개 설정' },
   ],
   [
@@ -62,7 +62,7 @@ export default function ProfileScreen() {
         <View style={styles.requiredWrap}>
           <AuthRequired
             title="내 책장을 열려면 로그인이 필요합니다"
-            copy="나의 독서 생활, 저장한 문장, 참여 중인 리딩방은 계정에 연결됩니다."
+            copy="나의 독서 생활, 저장한 문장, 참여 중인 북룸은 계정에 연결됩니다."
           />
         </View>
       </SafeAreaView>

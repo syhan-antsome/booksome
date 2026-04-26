@@ -116,7 +116,7 @@ export default function CreateRoomScreen() {
 
       router.replace(`/room/${room.slug}`);
     } catch (error) {
-      setCreateError(getErrorMessage(error, '리딩룸 생성에 실패했습니다.'));
+      setCreateError(getErrorMessage(error, '북룸 생성에 실패했습니다.'));
     } finally {
       setIsCreating(false);
     }
@@ -131,13 +131,13 @@ export default function CreateRoomScreen() {
 
         <Text style={styles.title}>당신이 사랑하는 책의 첫 번째 방장이 되어보세요.</Text>
         <Text style={styles.copy}>
-          첫 버전은 직접 입력으로 Room을 만들고, 이후 책 검색과 ISBN 스캔 흐름으로 확장합니다.
+          첫 버전은 직접 입력으로 북룸을 만들고, 이후 책 검색과 ISBN 스캔 흐름으로 확장합니다.
         </Text>
 
         {!session ? (
           <AuthRequired
-            title="리딩룸 생성은 로그인 후 열립니다."
-            copy="Host 역할과 운영 권한을 계정에 연결해야 Room 개설과 관리 기능이 이어질 수 있습니다."
+            title="북룸 생성은 로그인 후 열립니다."
+            copy="Host 역할과 운영 권한을 계정에 연결해야 북룸 개설과 관리 기능이 이어질 수 있습니다."
           />
         ) : null}
 
@@ -160,10 +160,10 @@ export default function CreateRoomScreen() {
                 value={author}
               />
 
-              <Text style={[styles.label, styles.spacedLabel]}>Room</Text>
+              <Text style={[styles.label, styles.spacedLabel]}>북룸</Text>
               <TextInput
                 onChangeText={setRoomTitle}
-                placeholder="Room 제목"
+                placeholder="북룸 제목"
                 placeholderTextColor="#A49B8D"
                 style={styles.input}
                 value={roomTitle}
@@ -178,7 +178,7 @@ export default function CreateRoomScreen() {
               <TextInput
                 multiline
                 onChangeText={setRoomDescription}
-                placeholder="Room 소개"
+                placeholder="북룸 소개"
                 placeholderTextColor="#A49B8D"
                 style={[styles.input, styles.textArea]}
                 value={roomDescription}
@@ -198,7 +198,7 @@ export default function CreateRoomScreen() {
                 <Image source={{ uri: coverUri }} style={styles.coverImage} />
               ) : (
                 <>
-                  <Text style={styles.coverTitle}>Room 커버 선택</Text>
+                  <Text style={styles.coverTitle}>북룸 커버 선택</Text>
                   <Text style={styles.coverCopy}>사진 보관함에서 커버 이미지를 불러옵니다.</Text>
                 </>
               )}
@@ -237,7 +237,7 @@ export default function CreateRoomScreen() {
               style={[styles.createButton, isCreating ? styles.uploadButtonDisabled : null]}
             >
               {isCreating ? <ActivityIndicator color="#FFFFFF" /> : null}
-              <Text style={styles.createButtonText}>리딩룸 생성</Text>
+              <Text style={styles.createButtonText}>북룸 생성</Text>
             </Pressable>
 
             {createError ? (

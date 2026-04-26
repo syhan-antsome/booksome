@@ -36,13 +36,13 @@ export default function MeetupsScreen() {
 
         <Text style={styles.title}>내 주변에서 함께 읽는 사람들을 찾습니다.</Text>
         <Text style={styles.copy}>
-          초기에는 정밀 위치보다 도시와 동네 단위로 독서 모임, 서점, 북카페 기반 Room을 추천합니다.
+          초기에는 정밀 위치보다 도시와 동네 단위로 독서 모임, 서점, 북카페 기반 북룸을 추천합니다.
         </Text>
 
         {!session ? (
           <AuthRequired
             title="주변 독서 모임은 로그인 후 추천됩니다."
-            copy="내 위치와 관심 장르, 참여한 리딩룸을 연결해 더 정확한 지역 모임을 보여주기 위해 계정이 필요합니다."
+            copy="내 위치와 관심 장르, 참여한 북룸을 연결해 더 정확한 지역 모임을 보여주기 위해 계정이 필요합니다."
           />
         ) : null}
 

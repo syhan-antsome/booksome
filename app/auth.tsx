@@ -48,7 +48,7 @@ export default function AuthScreen() {
   const copy = useMemo(
     () =>
       mode === 'sign-in'
-        ? '함께 읽던 리딩룸과 대화를 계속 이어가세요.'
+        ? '함께 읽던 북룸과 대화를 계속 이어가세요.'
         : '좋아하는 책을 고르고, 질문을 남기고, 독서 친구를 만나보세요.',
     [mode],
   );
@@ -183,7 +183,7 @@ export default function AuthScreen() {
                 <Text style={styles.feedback}>이미 로그인되어 있습니다. 뒤로 가면 홈으로 돌아갑니다.</Text>
               ) : null}
 
-              <Text style={styles.note}>내 책장, 리딩룸, 질문과 모임 알림이 계정에 저장됩니다.</Text>
+              <Text style={styles.note}>내 책장, 북룸, 질문과 모임 알림이 계정에 저장됩니다.</Text>
             </View>
           </View>
         </ScrollView>
