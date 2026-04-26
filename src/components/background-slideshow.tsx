@@ -1,12 +1,11 @@
-import { useEffect, useMemo, useState } from 'react';
-import { Image, type ImageSourcePropType, StyleSheet, View } from 'react-native';
-import Animated, {
-  cancelAnimation,
-  Easing,
-  useAnimatedStyle,
-  useSharedValue,
-  withTiming,
-} from 'react-native-reanimated';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import {
+  Animated,
+  type ImageSourcePropType,
+  Platform,
+  StyleSheet,
+  View,
+} from 'react-native';
 
 type BackgroundSlideshowProps = {
   sources: ImageSourcePropType[];
@@ -14,45 +13,62 @@ type BackgroundSlideshowProps = {
 
 const SLIDE_HOLD_MS = 7000;
 const FADE_MS = 1800;
-const ZOOM_MS = SLIDE_HOLD_MS + FADE_MS + 1000;
+const ZOOM_MS = SLIDE_HOLD_MS + FADE_MS + 1200;
+const LAYER_SETTLE_MS = 220;
 
 export function BackgroundSlideshow({ sources }: BackgroundSlideshowProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [incomingIndex, setIncomingIndex] = useState<number | null>(null);
-  const currentOpacity = useSharedValue(1);
-  const incomingOpacity = useSharedValue(0);
-  const currentScale = useSharedValue(1.02);
-  const incomingScale = useSharedValue(1.02);
+  const currentScale = useRef(new Animated.Value(0)).current;
+  const incomingOpacity = useRef(new Animated.Value(0)).current;
+  const incomingScale = useRef(new Animated.Value(0)).current;
   const slideCount = sources.length;
+  const useNativeDriver = Platform.OS !== 'web';
 
   useEffect(() => {
     if (slideCount <= 1) return;
 
     let mounted = true;
+    let fadeAnimation: Animated.CompositeAnimation | null = null;
+    let incomingScaleAnimation: Animated.CompositeAnimation | null = null;
+    let cleanupTimer: ReturnType<typeof setTimeout> | null = null;
     const nextIndex = (currentIndex + 1) % slideCount;
 
-    currentOpacity.value = 1;
-    incomingOpacity.value = 0;
-    currentScale.value = 1.02;
-    incomingScale.value = 1.02;
-    currentScale.value = withTiming(1.18, {
+    currentScale.setValue(0);
+    incomingOpacity.setValue(0);
+    incomingScale.setValue(0);
+
+    const currentScaleAnimation = Animated.timing(currentScale, {
       duration: ZOOM_MS,
-      easing: Easing.out(Easing.cubic),
+      toValue: 1,
+      useNativeDriver,
     });
+
+    currentScaleAnimation.start();
 
     const showIncomingTimer = setTimeout(() => {
       if (!mounted) return;
 
       setIncomingIndex(nextIndex);
-      incomingOpacity.value = 0;
-      incomingScale.value = 1.02;
-      incomingOpacity.value = withTiming(1, {
-        duration: FADE_MS,
-        easing: Easing.inOut(Easing.cubic),
-      });
-      incomingScale.value = withTiming(1.12, {
-        duration: FADE_MS + 700,
-        easing: Easing.out(Easing.cubic),
+      incomingOpacity.setValue(0);
+      incomingScale.setValue(0);
+
+      requestAnimationFrame(() => {
+        if (!mounted) return;
+
+        fadeAnimation = Animated.timing(incomingOpacity, {
+          duration: FADE_MS,
+          toValue: 1,
+          useNativeDriver,
+        });
+        incomingScaleAnimation = Animated.timing(incomingScale, {
+          duration: FADE_MS + 900,
+          toValue: 1,
+          useNativeDriver,
+        });
+
+        fadeAnimation.start();
+        incomingScaleAnimation.start();
       });
     }, SLIDE_HOLD_MS);
 
@@ -60,42 +76,61 @@ export function BackgroundSlideshow({ sources }: BackgroundSlideshowProps) {
       if (!mounted) return;
 
       setCurrentIndex(nextIndex);
-      currentScale.value = 1.02;
+      currentScale.setValue(0);
 
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          if (!mounted) return;
+      cleanupTimer = setTimeout(() => {
+        if (!mounted) return;
 
-          setIncomingIndex(null);
-          incomingOpacity.value = 0;
-          incomingScale.value = 1.02;
-        });
-      });
-    }, SLIDE_HOLD_MS + FADE_MS + 80);
+        setIncomingIndex(null);
+        incomingOpacity.setValue(0);
+        incomingScale.setValue(0);
+      }, LAYER_SETTLE_MS);
+    }, SLIDE_HOLD_MS + FADE_MS + LAYER_SETTLE_MS);
 
     return () => {
       mounted = false;
       clearTimeout(showIncomingTimer);
       clearTimeout(commitTimer);
-      cancelAnimation(currentOpacity);
-      cancelAnimation(incomingOpacity);
-      cancelAnimation(currentScale);
-      cancelAnimation(incomingScale);
+      if (cleanupTimer) clearTimeout(cleanupTimer);
+      currentScaleAnimation.stop();
+      fadeAnimation?.stop();
+      incomingScaleAnimation?.stop();
     };
-  }, [currentIndex, currentOpacity, currentScale, incomingOpacity, incomingScale, slideCount]);
+  }, [currentIndex, currentScale, incomingOpacity, incomingScale, slideCount, useNativeDriver]);
 
-  const currentStyle = useAnimatedStyle(() => ({
-    opacity: currentOpacity.value,
-    transform: [{ scale: currentScale.value }],
-  }));
-  const incomingStyle = useAnimatedStyle(() => ({
-    opacity: incomingOpacity.value,
-    transform: [{ scale: incomingScale.value }],
-  }));
   const currentSource = sources[currentIndex];
   const incomingSource = useMemo(
     () => (incomingIndex === null ? null : sources[incomingIndex]),
     [incomingIndex, sources],
+  );
+  const currentImageStyle = useMemo(
+    () => ({
+      ...styles.image,
+      transform: [
+        {
+          scale: currentScale.interpolate({
+            inputRange: [0, 1],
+            outputRange: [1.02, 1.18],
+          }),
+        },
+      ],
+    }),
+    [currentScale],
+  );
+  const incomingImageStyle = useMemo(
+    () => ({
+      ...styles.image,
+      opacity: incomingOpacity,
+      transform: [
+        {
+          scale: incomingScale.interpolate({
+            inputRange: [0, 1],
+            outputRange: [1.02, 1.12],
+          }),
+        },
+      ],
+    }),
+    [incomingOpacity, incomingScale],
   );
 
   if (!currentSource) return null;
@@ -105,13 +140,13 @@ export function BackgroundSlideshow({ sources }: BackgroundSlideshowProps) {
       <Animated.Image
         resizeMode="cover"
         source={currentSource}
-        style={[styles.image, currentStyle]}
+        style={currentImageStyle}
       />
       {incomingSource ? (
         <Animated.Image
           resizeMode="cover"
           source={incomingSource}
-          style={[styles.image, incomingStyle]}
+          style={incomingImageStyle}
         />
       ) : null}
     </View>
