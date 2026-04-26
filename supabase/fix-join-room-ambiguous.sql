@@ -1,5 +1,5 @@
--- Add the Room participation RPC.
--- Run after functions.sql or on an existing BookSome database.
+-- Fix ambiguous room_id reference in join_room RPC.
+-- Run this in the Supabase SQL Editor.
 
 create or replace function public.join_room(p_room_id uuid)
 returns table(joined_room_id uuid, joined_profile_id uuid, member_role public.room_member_role)
@@ -27,7 +27,7 @@ begin
         or public.is_room_member(rooms.id)
       )
   ) then
-    raise exception '참여할 수 없는 리딩룸입니다.';
+    raise exception '참여할 수 없는 북룸입니다.';
   end if;
 
   insert into public.room_members (

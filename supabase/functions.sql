@@ -182,6 +182,7 @@ grant execute on function public.create_reading_room(
   text,
   text,
   text,
+  text,
   text
 ) to authenticated;
 
@@ -224,7 +225,7 @@ begin
     current_profile_id,
     'member'
   )
-  on conflict (room_id, profile_id) do update
+  on conflict on constraint room_members_pkey do update
   set joined_at = public.room_members.joined_at
   returning room_members.room_id, room_members.profile_id, room_members.role
   into joined_room_id, joined_profile_id, member_role;
