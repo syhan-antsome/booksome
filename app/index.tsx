@@ -162,7 +162,7 @@ export default function DiscoverScreen() {
     () => ({
       ...styles.tabBarShell,
       ...(isFramedPreview ? styles.tabBarShellFramed : styles.tabBarShellFull),
-      paddingBottom: Math.max(insets.bottom, 10),
+      paddingBottom: Math.max(insets.bottom, 8),
     }),
     [insets.bottom, isFramedPreview],
   );
@@ -379,7 +379,7 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   contentWithTabBar: {
-    paddingBottom: 126,
+    paddingBottom: 116,
   },
   contentFull: {
     alignSelf: 'stretch',
@@ -543,7 +543,7 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 34,
     borderTopRightRadius: 34,
     marginTop: 0,
-    paddingBottom: 96,
+    paddingBottom: 122,
     paddingTop: 2,
     position: 'relative',
     zIndex: 4,
@@ -644,10 +644,11 @@ const styles = StyleSheet.create({
   },
   tabBarShell: {
     alignItems: 'center',
+    backgroundColor: '#0E271B',
     bottom: 0,
     left: 0,
     paddingHorizontal: 18,
-    paddingTop: 10,
+    paddingTop: 8,
     position: 'absolute',
     right: 0,
     zIndex: 20,
@@ -656,18 +657,18 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
   },
   tabBarShellFull: {
-    backgroundColor: 'transparent',
+    backgroundColor: '#0E271B',
   },
   tabBar: {
     alignItems: 'center',
-    backgroundColor: '#0E271B',
-    borderRadius: 30,
+    backgroundColor: 'transparent',
+    borderRadius: 0,
     flexDirection: 'row',
     justifyContent: 'space-between',
-    maxWidth: 320,
-    minHeight: 58,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
+    maxWidth: 430,
+    minHeight: 62,
+    paddingHorizontal: 0,
+    paddingVertical: 0,
     width: '100%',
   },
   tabItem: {
@@ -678,10 +679,10 @@ const styles = StyleSheet.create({
   },
   tabItemActive: {
     backgroundColor: '#DDE9C8',
-    borderRadius: 20,
+    borderRadius: 24,
     flex: 0,
-    height: 40,
-    width: 40,
+    height: 46,
+    width: 46,
   },
   tabIcon: {
     color: 'rgba(255,255,255,0.72)',
@@ -697,10 +698,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: '#FFFFFF',
     borderRadius: 26,
-    height: 52,
+    height: 54,
     justifyContent: 'center',
-    marginHorizontal: 8,
-    width: 52,
+    marginHorizontal: 6,
+    width: 54,
   },
   tabCreateIcon: {
     color: '#0E271B',
