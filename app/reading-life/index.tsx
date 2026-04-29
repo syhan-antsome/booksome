@@ -242,7 +242,8 @@ const styles = StyleSheet.create({
     position: 'relative',
   },
   signHeroImage: {
-    ...StyleSheet.absoluteFillObject,
+    height: '100%',
+    width: '100%',
   },
   signHeroFadeSoft: {
     backgroundColor: 'rgba(238, 241, 223, 0.34)',
