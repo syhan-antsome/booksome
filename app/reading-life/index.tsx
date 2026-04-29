@@ -77,8 +77,10 @@ export default function ReadingLifeScreen() {
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={[styles.signHero, { height: signHeroHeight }]}>
           <Image resizeMode="contain" source={readingLifeSignboardSource} style={styles.signHeroImage} />
-          <View style={styles.signHeroFadeSoft} />
-          <View style={styles.signHeroFade} />
+          <View style={styles.signHeroFadeA} />
+          <View style={styles.signHeroFadeB} />
+          <View style={styles.signHeroFadeC} />
+          <View style={styles.signHeroFadeD} />
 
           <View style={styles.signHeroTop}>
             <BackButton />
@@ -245,20 +247,36 @@ const styles = StyleSheet.create({
     height: '100%',
     width: '100%',
   },
-  signHeroFadeSoft: {
-    backgroundColor: 'rgba(238, 241, 223, 0.34)',
-    bottom: 42,
-    height: 58,
+  signHeroFadeA: {
+    backgroundColor: 'rgba(238, 241, 223, 0.10)',
+    bottom: 84,
+    height: 46,
     left: 0,
     position: 'absolute',
     right: 0,
   },
-  signHeroFade: {
+  signHeroFadeB: {
+    backgroundColor: 'rgba(238, 241, 223, 0.28)',
+    bottom: 52,
+    height: 48,
+    left: 0,
+    position: 'absolute',
+    right: 0,
+  },
+  signHeroFadeC: {
+    backgroundColor: 'rgba(238, 241, 223, 0.56)',
+    bottom: 22,
+    height: 42,
+    left: 0,
+    position: 'absolute',
+    right: 0,
+  },
+  signHeroFadeD: {
     backgroundColor: '#EEF1DF',
     bottom: -1,
-    height: 54,
+    height: 32,
     left: 0,
-    opacity: 0.92,
+    opacity: 0.94,
     position: 'absolute',
     right: 0,
   },
@@ -266,9 +284,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     flexDirection: 'row',
     justifyContent: 'space-between',
+    left: 0,
     paddingHorizontal: 20,
     paddingTop: 12,
-    position: 'relative',
+    position: 'absolute',
+    right: 0,
+    top: 0,
     zIndex: 3,
   },
   signHeroAction: {
@@ -286,7 +307,7 @@ const styles = StyleSheet.create({
     lineHeight: 28,
   },
   signIntro: {
-    marginTop: 14,
+    marginTop: 8,
   },
   signHeroEyebrow: {
     color: '#8F6A42',
