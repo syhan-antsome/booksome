@@ -4,7 +4,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AuthRequired } from '../../src/components/auth-required';
-import { BackButton } from '../../src/components/back-button';
+import { ScreenHeader } from '../../src/components/screen-header';
 import { useAuth } from '../../src/providers/auth-provider';
 
 export default function MeetupsScreen() {
@@ -30,14 +30,12 @@ export default function MeetupsScreen() {
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.content}>
-        <View style={styles.header}>
-          <BackButton />
-        </View>
-
-        <Text style={styles.title}>내 주변에서 함께 읽는 사람들을 찾습니다.</Text>
-        <Text style={styles.copy}>
-          초기에는 정밀 위치보다 도시와 동네 단위로 독서 모임, 서점, 북카페 기반 북룸을 추천합니다.
-        </Text>
+        <ScreenHeader
+          eyebrow="Local Reading"
+          subtitle="도시와 동네 단위로 독서 모임을 찾아봅니다."
+          title="모임"
+          tone="ink"
+        />
 
         {!session ? (
           <AuthRequired

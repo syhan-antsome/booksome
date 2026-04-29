@@ -1,23 +1,19 @@
 import { StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { BackButton } from '../../src/components/back-button';
 import { BottomNavigation } from '../../src/components/bottom-navigation';
+import { ScreenHeader } from '../../src/components/screen-header';
 
 export default function NewMarketItemScreen() {
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.content}>
-        <View style={styles.header}>
-          <BackButton />
-        </View>
-
-        <Text style={styles.kicker}>BOOK MARKET</Text>
-        <Text style={styles.title}>책마켓 등록</Text>
-        <Text style={styles.copy}>
-          중고책, 교환, 나눔, 굿즈를 등록하는 화면입니다. 다음 단계에서 사진 업로드, 위치, 가격,
-          거래 상태를 연결합니다.
-        </Text>
+        <ScreenHeader
+          eyebrow="Book Market"
+          subtitle="사진, 위치, 가격을 연결해 책 물건을 올립니다."
+          title="마켓 등록"
+          tone="clay"
+        />
 
         <View style={styles.previewBox}>
           <Text style={styles.previewTitle}>준비할 항목</Text>

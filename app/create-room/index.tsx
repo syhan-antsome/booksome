@@ -14,7 +14,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AuthRequired } from '../../src/components/auth-required';
-import { BackButton } from '../../src/components/back-button';
+import { ScreenHeader } from '../../src/components/screen-header';
 import { useAuth } from '../../src/providers/auth-provider';
 import { lookupBookByIsbn, type BookSearchItem } from '../../src/services/books';
 import { uploadImageAsset } from '../../src/services/media';
@@ -183,14 +183,12 @@ export default function CreateRoomScreen() {
   return (
     <SafeAreaView style={styles.safeArea}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <View style={styles.header}>
-          <BackButton />
-        </View>
-
-        <Text style={styles.title}>당신이 사랑하는 책의 첫 번째 방장이 되어보세요.</Text>
-        <Text style={styles.copy}>
-          직접 입력하거나 책 뒷면의 ISBN을 스캔해 북룸의 책을 설정할 수 있습니다.
-        </Text>
+        <ScreenHeader
+          eyebrow="Create Bookroom"
+          subtitle="좋아하는 책에 어울리는 대화 공간을 엽니다."
+          title="북룸 만들기"
+          tone="forest"
+        />
 
         {!session ? (
           <AuthRequired

@@ -3,7 +3,6 @@ import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Image,
-  type ImageSourcePropType,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -12,18 +11,11 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import sseomdiReadingImage from '../../assets/sseomdi-reading.png';
 import { AuthRequired } from '../../src/components/auth-required';
-import { BackButton } from '../../src/components/back-button';
 import { BottomNavigation } from '../../src/components/bottom-navigation';
+import { HeaderIconButton, ScreenHeader } from '../../src/components/screen-header';
 import { useAuth } from '../../src/providers/auth-provider';
 import { listReadingLifeBooks, type ReadingLifeBook } from '../../src/services/reading-life';
-
-function toImageSource(image: string | number): ImageSourcePropType {
-  return typeof image === 'string' ? { uri: image } : image;
-}
-
-const sseomdiReadingSource = toImageSource(sseomdiReadingImage);
 
 const recordTypes = [
   { title: '읽는 책', copy: '현재 읽는 책과 진행률을 기록합니다.', section: 'progress' },
@@ -74,25 +66,17 @@ export default function ReadingLifeScreen() {
   return (
     <SafeAreaView style={styles.safeArea}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <View style={styles.header}>
-          <BackButton />
-          <Link asChild href={session ? '/scan' : '/auth'}>
-            <Pressable style={styles.addButton}>
-              <Text style={styles.addButtonText}>＋</Text>
-            </Pressable>
-          </Link>
-        </View>
-
-        <View style={styles.hero}>
-          <View style={styles.heroCopy}>
-            <Text style={styles.kicker}>MY READING LIFE</Text>
-            <Text style={styles.title}>나의 독서생활</Text>
-            <Text style={styles.copy}>
-              읽는 책, 남긴 문장, 조용한 사진 메모까지 나만의 책 생활을 쌓아갑니다.
-            </Text>
-          </View>
-          <Image resizeMode="contain" source={sseomdiReadingSource} style={styles.mascot} />
-        </View>
+        <ScreenHeader
+          action={
+            <Link asChild href={session ? '/scan' : '/auth'}>
+              <HeaderIconButton label="책 스캔" symbol="＋" />
+            </Link>
+          }
+          eyebrow="My Reading Life"
+          subtitle="읽는 책, 남긴 문장, 사진 메모를 한곳에."
+          title="독서생활"
+          tone="sage"
+        />
 
         {!session ? (
           <AuthRequired

@@ -2,8 +2,8 @@ import { Link } from 'expo-router';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { BackButton } from '../../src/components/back-button';
 import { BottomNavigation } from '../../src/components/bottom-navigation';
+import { HeaderIconButton, ScreenHeader } from '../../src/components/screen-header';
 import { useAuth } from '../../src/providers/auth-provider';
 
 const marketItems = [
@@ -30,22 +30,17 @@ export default function MarketScreen() {
   return (
     <SafeAreaView style={styles.safeArea}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <View style={styles.header}>
-          <BackButton />
-          <Link asChild href={session ? '/market/new' : '/auth'}>
-            <Pressable style={styles.sellButton}>
-              <Text style={styles.sellButtonText}>＋</Text>
-            </Pressable>
-          </Link>
-        </View>
-
-        <View style={styles.hero}>
-          <Text style={styles.kicker}>BOOK MARKET</Text>
-          <Text style={styles.title}>책을 주제로 나누고 거래합니다</Text>
-          <Text style={styles.copy}>
-            중고책, 교환, 나눔, 독서 굿즈까지 책 생활에 어울리는 물건만 모읍니다.
-          </Text>
-        </View>
+        <ScreenHeader
+          action={
+            <Link asChild href={session ? '/market/new' : '/auth'}>
+              <HeaderIconButton label="책마켓 등록" symbol="＋" />
+            </Link>
+          }
+          eyebrow="Book Market"
+          subtitle="중고책, 교환, 나눔까지 책 생활에 어울리는 물건만."
+          title="책마켓"
+          tone="clay"
+        />
 
         <View style={styles.marketSwitch}>
           <Text style={styles.marketSwitchActive}>중고책</Text>

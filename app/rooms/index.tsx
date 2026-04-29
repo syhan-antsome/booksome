@@ -11,8 +11,8 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { BackButton } from '../../src/components/back-button';
 import { BottomNavigation } from '../../src/components/bottom-navigation';
+import { HeaderIconButton, ScreenHeader } from '../../src/components/screen-header';
 import { featuredRooms, type FeaturedRoom } from '../../src/data/rooms';
 import { useAuth } from '../../src/providers/auth-provider';
 import { getMediaUrl } from '../../src/services/media';
@@ -72,20 +72,17 @@ export default function RoomsScreen() {
   return (
     <SafeAreaView style={styles.safeArea}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <View style={styles.header}>
-          <BackButton />
-          <Link asChild href={session ? '/create-room' : '/auth'}>
-            <Pressable accessibilityLabel="북룸 만들기" style={styles.createButton}>
-              <Text style={styles.createButtonText}>＋</Text>
-            </Pressable>
-          </Link>
-        </View>
-
-        <Text style={styles.kicker}>BOOKSOME BOOKROOM</Text>
-        <Text style={styles.title}>북룸</Text>
-        <Text style={styles.copy}>
-          책마다 다른 분위기의 대화가 열립니다. 지금 참여할 방을 고르거나, 충분히 준비되었을 때 새 방을 만들어 보세요.
-        </Text>
+        <ScreenHeader
+          action={
+            <Link asChild href={session ? '/create-room' : '/auth'}>
+              <HeaderIconButton label="북룸 만들기" symbol="＋" />
+            </Link>
+          }
+          eyebrow="BookSome Bookroom"
+          subtitle="책마다 다른 분위기의 대화를 찾아보세요."
+          title="북룸"
+          tone="forest"
+        />
 
         <View style={styles.searchBox}>
           <Text style={styles.searchIcon}>⌕</Text>

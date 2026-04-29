@@ -14,8 +14,8 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AuthRequired } from '../../src/components/auth-required';
-import { BackButton } from '../../src/components/back-button';
 import { BottomNavigation } from '../../src/components/bottom-navigation';
+import { ScreenHeader } from '../../src/components/screen-header';
 import { useAuth } from '../../src/providers/auth-provider';
 import {
   createReadingLifeNote,
@@ -220,12 +220,17 @@ export default function ReadingLifeBookScreen() {
         showsVerticalScrollIndicator={false}
         style={styles.scroll}
       >
-        <View style={styles.header}>
-          <BackButton />
-          <Pressable onPress={() => router.push('/scan')} style={styles.scanButton}>
-            <Text style={styles.scanButtonText}>＋</Text>
-          </Pressable>
-        </View>
+        <ScreenHeader
+          action={
+            <Pressable onPress={() => router.push('/scan')} style={styles.scanButton}>
+              <Text style={styles.scanButtonText}>＋</Text>
+            </Pressable>
+          }
+          eyebrow="Reading Note"
+          subtitle="진행률, 문장, 사진을 이 책에 쌓습니다."
+          title="책 기록"
+          tone="paper"
+        />
 
         {!session ? (
           <AuthRequired

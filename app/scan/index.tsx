@@ -5,7 +5,7 @@ import { ActivityIndicator, Image, Pressable, StyleSheet, Text, View } from 'rea
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AuthRequired } from '../../src/components/auth-required';
-import { BackButton } from '../../src/components/back-button';
+import { ScreenHeader } from '../../src/components/screen-header';
 import { useAuth } from '../../src/providers/auth-provider';
 import { lookupBookByIsbn, type BookSearchItem } from '../../src/services/books';
 import { addBookToReadingLife } from '../../src/services/reading-life';
@@ -92,18 +92,12 @@ export default function ScanScreen() {
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.content}>
-        <View style={styles.header}>
-          <BackButton />
-        </View>
-
-        <Text style={styles.title}>
-          {isRoomContext ? '책을 스캔해 북룸의 책으로 설정합니다.' : '책을 스캔해 독서생활에 등록합니다.'}
-        </Text>
-        <Text style={styles.copy}>
-          {isRoomContext
-            ? '책 뒷면의 ISBN 바코드를 인식해 북룸 생성 화면으로 가져옵니다.'
-            : '책 뒷면의 ISBN 바코드를 인식해 나의 책장에 추가하고, 읽는 상태와 메모를 이어서 기록합니다.'}
-        </Text>
+        <ScreenHeader
+          eyebrow="ISBN Scanner"
+          subtitle={isRoomContext ? '바코드로 북룸의 책을 설정합니다.' : '스캔한 책을 나의 독서생활에 담습니다.'}
+          title="책 스캔"
+          tone="ink"
+        />
 
         {!session ? (
           <AuthRequired
