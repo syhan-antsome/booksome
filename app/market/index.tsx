@@ -14,6 +14,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import bookstoreSignboardImage from '../../assets/bookstore-signboard.jpg';
 import { BottomNavigation } from '../../src/components/bottom-navigation';
+import { BrakeSlideScreen } from '../../src/components/brake-slide-screen';
 import { useAuth } from '../../src/providers/auth-provider';
 
 const marketItems = [
@@ -44,8 +45,9 @@ export default function MarketScreen() {
   const bookstoreHeroHeight = Math.round(width * bookstoreSignboardRatio);
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+    <BrakeSlideScreen>
+      <SafeAreaView style={styles.safeArea}>
+        <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={[styles.bookstoreHero, { height: bookstoreHeroHeight }]}>
           <Image resizeMode="contain" source={bookstoreSignboardSource} style={styles.bookstoreHeroImage} />
           <LinearGradient
@@ -101,9 +103,10 @@ export default function MarketScreen() {
             </Pressable>
           ))}
         </View>
-      </ScrollView>
-      <BottomNavigation active="market" />
-    </SafeAreaView>
+        </ScrollView>
+        <BottomNavigation active="market" />
+      </SafeAreaView>
+    </BrakeSlideScreen>
   );
 }
 

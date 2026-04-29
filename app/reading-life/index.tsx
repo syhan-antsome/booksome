@@ -17,6 +17,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import readingLifeSignboardImage from '../../assets/reading-life-signboard.jpg';
 import { AuthRequired } from '../../src/components/auth-required';
 import { BottomNavigation } from '../../src/components/bottom-navigation';
+import { BrakeSlideScreen } from '../../src/components/brake-slide-screen';
 import { useAuth } from '../../src/providers/auth-provider';
 import { listReadingLifeBooks, type ReadingLifeBook } from '../../src/services/reading-life';
 
@@ -73,8 +74,9 @@ export default function ReadingLifeScreen() {
   const signHeroHeight = Math.round(width * readingLifeSignboardRatio);
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+    <BrakeSlideScreen>
+      <SafeAreaView style={styles.safeArea}>
+        <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={[styles.signHero, { height: signHeroHeight }]}>
           <Image resizeMode="contain" source={readingLifeSignboardSource} style={styles.signHeroImage} />
           <LinearGradient
@@ -210,9 +212,10 @@ export default function ReadingLifeScreen() {
             </Pressable>
           ))}
         </View>
-      </ScrollView>
-      <BottomNavigation active="reading-life" />
-    </SafeAreaView>
+        </ScrollView>
+        <BottomNavigation active="reading-life" />
+      </SafeAreaView>
+    </BrakeSlideScreen>
   );
 }
 

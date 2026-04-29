@@ -14,6 +14,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { BackgroundSlideshow } from '../src/components/background-slideshow';
 import { BottomNavigation } from '../src/components/bottom-navigation';
+import { BrakeSlideScreen } from '../src/components/brake-slide-screen';
 import { useAuth } from '../src/providers/auth-provider';
 import homeHeroBookStacksImage from '../assets/home-hero-book-stacks.jpg';
 import homeHeroWriterDeskImage from '../assets/home-hero-writer-desk.jpg';
@@ -54,65 +55,67 @@ export default function DiscoverScreen() {
     [heroStageHeight],
   );
   return (
-    <SafeAreaView style={safeAreaStyle}>
-      <BackgroundSlideshow sources={homeHeroSlides} />
-      <View style={styles.fullBleedShade} />
-      <ScrollView
-        contentContainerStyle={contentStyle}
-        showsVerticalScrollIndicator={false}
-      >
-        <View style={styles.appHeader}>
-          <View>
-            <Text style={styles.greeting}>
-              {isLoading
-                ? '책장을 여는 중'
-                : session
-                  ? `Hi, ${profile?.display_name ?? 'Reader'}`
-                  : 'Hi, Reader'}
-            </Text>
-            <Text style={styles.appLogo}>BookSome</Text>
-          </View>
-          <View style={styles.headerActions}>
-            <Link asChild href="/rooms">
-              <Pressable style={styles.headerIconButton}>
-                <Text style={styles.headerIconText}>⌕</Text>
-              </Pressable>
-            </Link>
-            <Link asChild href={session ? '/profile' : '/auth'}>
-              <Pressable style={styles.profileButton}>
-                <Text style={styles.profileButtonText}>{profile?.display_name?.slice(0, 1) ?? 'B'}</Text>
-              </Pressable>
-            </Link>
-          </View>
-        </View>
-
-        <View style={styles.appModeRail}>
-          <Text style={activeModeStyle}>북룸</Text>
-          <Text style={styles.appModeItem}>독서생활</Text>
-          <Text style={styles.appModeItem}>책가게</Text>
-        </View>
-
-        <Link asChild href="/rooms">
-          <Pressable style={heroPressableStyle}>
-            <View style={styles.cinematicCopy}>
-              <Text adjustsFontSizeToFit numberOfLines={2} style={styles.heroRoomTitle}>
-                책으로 이어지는 하루
+    <BrakeSlideScreen>
+      <SafeAreaView style={safeAreaStyle}>
+        <BackgroundSlideshow sources={homeHeroSlides} />
+        <View style={styles.fullBleedShade} />
+        <ScrollView
+          contentContainerStyle={contentStyle}
+          showsVerticalScrollIndicator={false}
+        >
+          <View style={styles.appHeader}>
+            <View>
+              <Text style={styles.greeting}>
+                {isLoading
+                  ? '책장을 여는 중'
+                  : session
+                    ? `Hi, ${profile?.display_name ?? 'Reader'}`
+                    : 'Hi, Reader'}
               </Text>
-              <Text style={styles.heroRoomQuestion} numberOfLines={2}>
-                책을 고르면 북룸과 나의 기록이 함께 열립니다.
-              </Text>
-              <View style={styles.heroActionRow}>
-                <View style={styles.sseomdiGuide}>
-                  <Image resizeMode="contain" source={sseomdiReadingSource} style={styles.sseomdiImage} />
-                </View>
-                <Text style={styles.heroStart}>Start BookSome</Text>
-              </View>
+              <Text style={styles.appLogo}>BookSome</Text>
             </View>
-          </Pressable>
-        </Link>
-      </ScrollView>
-      <BottomNavigation active="home" />
-    </SafeAreaView>
+            <View style={styles.headerActions}>
+              <Link asChild href="/rooms">
+                <Pressable style={styles.headerIconButton}>
+                  <Text style={styles.headerIconText}>⌕</Text>
+                </Pressable>
+              </Link>
+              <Link asChild href={session ? '/profile' : '/auth'}>
+                <Pressable style={styles.profileButton}>
+                  <Text style={styles.profileButtonText}>{profile?.display_name?.slice(0, 1) ?? 'B'}</Text>
+                </Pressable>
+              </Link>
+            </View>
+          </View>
+
+          <View style={styles.appModeRail}>
+            <Text style={activeModeStyle}>북룸</Text>
+            <Text style={styles.appModeItem}>독서생활</Text>
+            <Text style={styles.appModeItem}>책가게</Text>
+          </View>
+
+          <Link asChild href="/rooms">
+            <Pressable style={heroPressableStyle}>
+              <View style={styles.cinematicCopy}>
+                <Text adjustsFontSizeToFit numberOfLines={2} style={styles.heroRoomTitle}>
+                  책으로 이어지는 하루
+                </Text>
+                <Text style={styles.heroRoomQuestion} numberOfLines={2}>
+                  책을 고르면 북룸과 나의 기록이 함께 열립니다.
+                </Text>
+                <View style={styles.heroActionRow}>
+                  <View style={styles.sseomdiGuide}>
+                    <Image resizeMode="contain" source={sseomdiReadingSource} style={styles.sseomdiImage} />
+                  </View>
+                  <Text style={styles.heroStart}>Start BookSome</Text>
+                </View>
+              </View>
+            </Pressable>
+          </Link>
+        </ScrollView>
+        <BottomNavigation active="home" />
+      </SafeAreaView>
+    </BrakeSlideScreen>
   );
 }
 
