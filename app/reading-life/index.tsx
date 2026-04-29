@@ -16,7 +16,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import readingLifeSignboardImage from '../../assets/reading-life-signboard.jpg';
 import { AuthRequired } from '../../src/components/auth-required';
-import { BackButton } from '../../src/components/back-button';
 import { BottomNavigation } from '../../src/components/bottom-navigation';
 import { useAuth } from '../../src/providers/auth-provider';
 import { listReadingLifeBooks, type ReadingLifeBook } from '../../src/services/reading-life';
@@ -86,7 +85,6 @@ export default function ReadingLifeScreen() {
           />
 
           <View style={styles.signHeroTop}>
-            <BackButton />
             <Link asChild href={session ? '/scan' : '/auth'}>
               <Pressable accessibilityLabel="책 스캔" style={styles.signHeroAction}>
                 <Text style={styles.signHeroActionText}>＋</Text>
@@ -262,7 +260,7 @@ const styles = StyleSheet.create({
   signHeroTop: {
     alignItems: 'center',
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    justifyContent: 'flex-end',
     left: 0,
     paddingHorizontal: 20,
     paddingTop: 12,

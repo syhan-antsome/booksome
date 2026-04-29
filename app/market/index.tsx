@@ -13,7 +13,6 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import bookstoreSignboardImage from '../../assets/bookstore-signboard.jpg';
-import { BackButton } from '../../src/components/back-button';
 import { BottomNavigation } from '../../src/components/bottom-navigation';
 import { useAuth } from '../../src/providers/auth-provider';
 
@@ -57,7 +56,6 @@ export default function MarketScreen() {
           />
 
           <View style={styles.bookstoreHeroTop}>
-            <BackButton />
             <Link asChild href={session ? '/market/new' : '/auth'}>
               <Pressable accessibilityLabel="책가게 등록" style={styles.bookstoreHeroAction}>
                 <Text style={styles.bookstoreHeroActionText}>＋</Text>
@@ -138,7 +136,7 @@ const styles = StyleSheet.create({
   bookstoreHeroTop: {
     alignItems: 'center',
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    justifyContent: 'flex-end',
     left: 0,
     paddingHorizontal: 20,
     paddingTop: 12,

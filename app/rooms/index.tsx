@@ -15,7 +15,6 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import bookroomSignboardImage from '../../assets/bookroom-signboard.jpg';
-import { BackButton } from '../../src/components/back-button';
 import { BottomNavigation } from '../../src/components/bottom-navigation';
 import { featuredRooms, type FeaturedRoom } from '../../src/data/rooms';
 import { useAuth } from '../../src/providers/auth-provider';
@@ -92,7 +91,6 @@ export default function RoomsScreen() {
           />
 
           <View style={styles.bookroomHeroTop}>
-            <BackButton />
             <Link asChild href={session ? '/create-room' : '/auth'}>
               <Pressable accessibilityLabel="북룸 만들기" style={styles.bookroomHeroAction}>
                 <Text style={styles.bookroomHeroActionText}>＋</Text>
@@ -387,7 +385,7 @@ const styles = StyleSheet.create({
   bookroomHeroTop: {
     alignItems: 'center',
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    justifyContent: 'flex-end',
     left: 0,
     paddingHorizontal: 20,
     paddingTop: 12,
