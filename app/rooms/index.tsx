@@ -24,8 +24,7 @@ import { listFeaturedRooms, type RoomSummary } from '../../src/services/rooms';
 
 const bookroomSignboardSource: ImageSourcePropType =
   typeof bookroomSignboardImage === 'string' ? { uri: bookroomSignboardImage } : bookroomSignboardImage;
-const bookroomHeroRatio = 803 / 1400;
-const bookroomImageRatio = 700 / 1400;
+const bookroomSignboardRatio = 803 / 1400;
 
 export default function RoomsScreen() {
   const { session } = useAuth();
@@ -78,26 +77,16 @@ export default function RoomsScreen() {
     { key: 'new', label: '새 방' },
     { key: 'popular', label: '인기' },
   ];
-  const bookroomHeroHeight = Math.round(width * bookroomHeroRatio);
-  const bookroomImageHeight = Math.round(width * bookroomImageRatio);
+  const bookroomHeroHeight = Math.round(width * bookroomSignboardRatio);
 
   return (
     <SafeAreaView style={styles.safeArea}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={[styles.bookroomHero, { height: bookroomHeroHeight }]}>
-          <Image
-            resizeMode="cover"
-            source={bookroomSignboardSource}
-            style={[styles.bookroomHeroImage, { height: bookroomImageHeight }]}
-          />
+          <Image resizeMode="contain" source={bookroomSignboardSource} style={styles.bookroomHeroImage} />
           <LinearGradient
-            colors={[
-              'rgba(247, 241, 229, 0)',
-              'rgba(247, 241, 229, 0.26)',
-              'rgba(247, 241, 229, 0.78)',
-              '#F7F1E5',
-            ]}
-            locations={[0, 0.28, 0.68, 1]}
+            colors={['rgba(247, 241, 229, 0)', 'rgba(247, 241, 229, 0.38)', '#F7F1E5']}
+            locations={[0, 0.48, 1]}
             pointerEvents="none"
             style={styles.bookroomHeroGradient}
           />
@@ -383,11 +372,12 @@ const styles = StyleSheet.create({
     position: 'relative',
   },
   bookroomHeroImage: {
+    height: '100%',
     width: '100%',
   },
   bookroomHeroGradient: {
     bottom: -1,
-    height: 156,
+    height: 118,
     left: 0,
     position: 'absolute',
     right: 0,
