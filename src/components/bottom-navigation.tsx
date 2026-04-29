@@ -16,7 +16,7 @@ const items: {
   { key: 'home', label: '홈', href: '/', icon: '🏠' },
   { key: 'rooms', label: '북룸', href: '/rooms', icon: '📖' },
   { key: 'reading-life', label: '독서생활', href: '/reading-life', icon: '📝', signedOutHref: '/auth' },
-  { key: 'market', label: '책마켓', href: '/market', icon: '🛍️' },
+  { key: 'market', label: '책가게', href: '/market', icon: '🛍️' },
   { key: 'profile', label: '나', href: '/profile', icon: '👤', signedOutHref: '/auth' },
 ];
 

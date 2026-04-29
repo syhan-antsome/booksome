@@ -89,7 +89,7 @@ export default function DiscoverScreen() {
         <View style={styles.appModeRail}>
           <Text style={activeModeStyle}>북룸</Text>
           <Text style={styles.appModeItem}>독서생활</Text>
-          <Text style={styles.appModeItem}>책마켓</Text>
+          <Text style={styles.appModeItem}>책가게</Text>
         </View>
 
         <Link asChild href="/rooms">

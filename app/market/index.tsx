@@ -1,10 +1,20 @@
+import { LinearGradient } from 'expo-linear-gradient';
 import { Link } from 'expo-router';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import {
+  Image,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+  useWindowDimensions,
+  type ImageSourcePropType,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import titleBookmarketImage from '../../assets/title-bookmarket.png';
+import bookstoreSignboardImage from '../../assets/bookstore-signboard.jpg';
+import { BackButton } from '../../src/components/back-button';
 import { BottomNavigation } from '../../src/components/bottom-navigation';
-import { HeaderIconButton, ScreenHeader } from '../../src/components/screen-header';
 import { useAuth } from '../../src/providers/auth-provider';
 
 const marketItems = [
@@ -25,25 +35,41 @@ const marketItems = [
   },
 ];
 
+const bookstoreSignboardSource: ImageSourcePropType =
+  typeof bookstoreSignboardImage === 'string' ? { uri: bookstoreSignboardImage } : bookstoreSignboardImage;
+const bookstoreSignboardRatio = 700 / 1400;
+
 export default function MarketScreen() {
   const { session } = useAuth();
+  const { width } = useWindowDimensions();
+  const bookstoreHeroHeight = Math.round(width * bookstoreSignboardRatio);
 
   return (
     <SafeAreaView style={styles.safeArea}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <ScreenHeader
-          action={
+        <View style={[styles.bookstoreHero, { height: bookstoreHeroHeight }]}>
+          <Image resizeMode="contain" source={bookstoreSignboardSource} style={styles.bookstoreHeroImage} />
+          <LinearGradient
+            colors={['rgba(246, 238, 225, 0)', 'rgba(246, 238, 225, 0.34)', '#F6EEE1']}
+            locations={[0, 0.5, 1]}
+            pointerEvents="none"
+            style={styles.bookstoreHeroGradient}
+          />
+
+          <View style={styles.bookstoreHeroTop}>
+            <BackButton />
             <Link asChild href={session ? '/market/new' : '/auth'}>
-              <HeaderIconButton label="책마켓 등록" symbol="＋" />
+              <Pressable accessibilityLabel="책가게 등록" style={styles.bookstoreHeroAction}>
+                <Text style={styles.bookstoreHeroActionText}>＋</Text>
+              </Pressable>
             </Link>
-          }
-          eyebrow="Book Market"
-          subtitle="중고책, 교환, 나눔까지 책 생활에 어울리는 물건만."
-          title="책마켓"
-          titleImage={titleBookmarketImage}
-          titleImageWidth={156}
-          tone="clay"
-        />
+          </View>
+        </View>
+
+        <View style={styles.bookstoreIntro}>
+          <Text style={styles.bookstoreEyebrow}>BOOKSOME BOOKSTORE</Text>
+          <Text style={styles.bookstoreIntroText}>읽은 책을 나누고, 다음 독자를 만납니다.</Text>
+        </View>
 
         <View style={styles.marketSwitch}>
           <Text style={styles.marketSwitchActive}>중고책</Text>
@@ -53,7 +79,7 @@ export default function MarketScreen() {
         </View>
 
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>근처 책마켓</Text>
+          <Text style={styles.sectionTitle}>근처 책가게</Text>
           <Text style={styles.sectionMeta}>preview</Text>
         </View>
 
@@ -89,6 +115,66 @@ const styles = StyleSheet.create({
   content: {
     padding: 20,
     paddingBottom: 124,
+  },
+  bookstoreHero: {
+    marginHorizontal: -20,
+    marginTop: -20,
+    overflow: 'hidden',
+    position: 'relative',
+  },
+  bookstoreHeroImage: {
+    height: '100%',
+    width: '100%',
+  },
+  bookstoreHeroGradient: {
+    bottom: -1,
+    height: 104,
+    left: 0,
+    position: 'absolute',
+    right: 0,
+  },
+  bookstoreHeroTop: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    left: 0,
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    position: 'absolute',
+    right: 0,
+    top: 0,
+    zIndex: 3,
+  },
+  bookstoreHeroAction: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(247, 241, 229, 0.92)',
+    borderRadius: 22,
+    height: 44,
+    justifyContent: 'center',
+    width: 44,
+  },
+  bookstoreHeroActionText: {
+    color: '#103D2B',
+    fontSize: 25,
+    fontWeight: '900',
+    lineHeight: 28,
+  },
+  bookstoreIntro: {
+    marginTop: 8,
+  },
+  bookstoreEyebrow: {
+    color: '#8F6A42',
+    fontSize: 11,
+    fontWeight: '900',
+    letterSpacing: 0,
+  },
+  bookstoreIntroText: {
+    color: '#14251B',
+    fontSize: 18,
+    fontWeight: '900',
+    lineHeight: 24,
+    marginTop: 6,
+    maxWidth: 270,
   },
   header: {
     alignItems: 'center',

@@ -9,9 +9,9 @@ export default function NewMarketItemScreen() {
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.content}>
         <ScreenHeader
-          eyebrow="Book Market"
+          eyebrow="BookSome Bookstore"
           subtitle="사진, 위치, 가격을 연결해 책 물건을 올립니다."
-          title="마켓 등록"
+          title="책가게 등록"
           tone="clay"
         />
 

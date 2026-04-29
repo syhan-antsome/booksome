@@ -34,8 +34,8 @@ TITLE_ASSETS = [
         "seed": 22,
     },
     {
-        "text": "책마켓",
-        "file": "title-bookmarket.png",
+        "text": "책가게",
+        "file": "title-bookstore.png",
         "ink": (27, 38, 31, 255),
         "cream": (248, 204, 151, 255),
         "accent": (151, 104, 55, 255),
