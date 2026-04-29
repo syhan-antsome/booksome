@@ -85,8 +85,8 @@ export default function RoomsScreen() {
         <View style={[styles.bookroomHero, { height: bookroomHeroHeight }]}>
           <Image resizeMode="contain" source={bookroomSignboardSource} style={styles.bookroomHeroImage} />
           <LinearGradient
-            colors={['rgba(247, 241, 229, 0)', 'rgba(247, 241, 229, 0.34)', '#F7F1E5']}
-            locations={[0, 0.5, 1]}
+            colors={['rgba(247, 241, 229, 0)', 'rgba(247, 241, 229, 0.38)', '#F7F1E5']}
+            locations={[0, 0.44, 1]}
             pointerEvents="none"
             style={styles.bookroomHeroGradient}
           />
@@ -377,7 +377,7 @@ const styles = StyleSheet.create({
   },
   bookroomHeroGradient: {
     bottom: -1,
-    height: 104,
+    height: 118,
     left: 0,
     position: 'absolute',
     right: 0,
