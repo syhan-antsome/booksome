@@ -15,34 +15,34 @@ type ScreenHeaderProps = {
 
 const toneStyles = {
   forest: {
-    shell: { backgroundColor: '#103D2B' },
-    eyebrow: { color: '#D8BE88' },
-    title: { color: '#FFFFFF' },
-    subtitle: { color: 'rgba(255,255,255,0.74)' },
+    accent: { backgroundColor: '#103D2B' },
+    eyebrow: { color: '#116653' },
+    title: { color: '#14251B' },
+    subtitle: { color: '#526154' },
   },
   paper: {
-    shell: { backgroundColor: '#F8F3E9' },
+    accent: { backgroundColor: '#D8BE88' },
     eyebrow: { color: '#8F6A42' },
     title: { color: '#14251B' },
     subtitle: { color: '#667167' },
   },
   clay: {
-    shell: { backgroundColor: '#8F6A42' },
-    eyebrow: { color: '#F2DDA7' },
-    title: { color: '#FFFFFF' },
-    subtitle: { color: 'rgba(255,255,255,0.76)' },
+    accent: { backgroundColor: '#8F6A42' },
+    eyebrow: { color: '#8F6A42' },
+    title: { color: '#14251B' },
+    subtitle: { color: '#66594A' },
   },
   sage: {
-    shell: { backgroundColor: '#DDE6D4' },
+    accent: { backgroundColor: '#91A889' },
     eyebrow: { color: '#116653' },
     title: { color: '#10281C' },
     subtitle: { color: '#526154' },
   },
   ink: {
-    shell: { backgroundColor: '#142326' },
-    eyebrow: { color: '#F4D38A' },
-    title: { color: '#FFFFFF' },
-    subtitle: { color: 'rgba(255,255,255,0.72)' },
+    accent: { backgroundColor: '#142326' },
+    eyebrow: { color: '#35504D' },
+    title: { color: '#142326' },
+    subtitle: { color: '#5E6766' },
   },
 } satisfies Record<ScreenHeaderTone, Record<string, object>>;
 
@@ -56,7 +56,7 @@ export function ScreenHeader({
   const colors = toneStyles[tone];
 
   return (
-    <View style={[styles.shell, colors.shell]}>
+    <View style={styles.shell}>
       <View style={styles.topRow}>
         <BackButton />
         <View style={styles.titleSlot}>
@@ -67,12 +67,17 @@ export function ScreenHeader({
         <View style={styles.actionSlot}>{action ?? <View style={styles.actionSpacer} />}</View>
       </View>
 
-      {eyebrow ? <Text style={[styles.eyebrow, colors.eyebrow]}>{eyebrow}</Text> : null}
-      {subtitle ? (
-        <Text style={[styles.subtitle, colors.subtitle]} numberOfLines={2}>
-          {subtitle}
-        </Text>
-      ) : null}
+      <View style={styles.copyBlock}>
+        <View style={[styles.accent, colors.accent]} />
+        <View style={styles.copyText}>
+          {eyebrow ? <Text style={[styles.eyebrow, colors.eyebrow]}>{eyebrow}</Text> : null}
+          {subtitle ? (
+            <Text style={[styles.subtitle, colors.subtitle]} numberOfLines={2}>
+              {subtitle}
+            </Text>
+          ) : null}
+        </View>
+      </View>
     </View>
   );
 }
@@ -87,10 +92,7 @@ export function HeaderIconButton({ label, symbol }: { label: string; symbol: str
 
 const styles = StyleSheet.create({
   shell: {
-    borderRadius: 30,
     marginBottom: 20,
-    overflow: 'hidden',
-    padding: 14,
   },
   topRow: {
     alignItems: 'center',
@@ -115,11 +117,26 @@ const styles = StyleSheet.create({
     height: 44,
     width: 44,
   },
+  copyBlock: {
+    alignItems: 'flex-start',
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 18,
+    paddingLeft: 2,
+  },
+  accent: {
+    height: 54,
+    marginTop: 3,
+    width: 3,
+  },
+  copyText: {
+    flex: 1,
+    minWidth: 0,
+  },
   eyebrow: {
     fontSize: 12,
     fontWeight: '900',
     letterSpacing: 0,
-    marginTop: 20,
     textTransform: 'uppercase',
   },
   subtitle: {
@@ -132,7 +149,9 @@ const styles = StyleSheet.create({
   },
   iconButton: {
     alignItems: 'center',
-    backgroundColor: 'rgba(247,241,229,0.92)',
+    backgroundColor: 'transparent',
+    borderColor: 'rgba(16,61,43,0.16)',
+    borderWidth: 1,
     borderRadius: 22,
     height: 44,
     justifyContent: 'center',

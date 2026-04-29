@@ -63,10 +63,10 @@ const styles = StyleSheet.create({
     marginTop: 12,
   },
   previewBox: {
-    backgroundColor: '#FFF9EF',
-    borderRadius: 28,
+    borderTopColor: 'rgba(143,106,66,0.16)',
+    borderTopWidth: 1,
     marginTop: 28,
-    padding: 22,
+    paddingTop: 22,
   },
   previewTitle: {
     color: '#103D2B',

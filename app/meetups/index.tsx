@@ -107,10 +107,12 @@ const styles = StyleSheet.create({
     fontWeight: '900',
   },
   statusBox: {
-    backgroundColor: '#ECE5D8',
-    borderRadius: 22,
+    borderBottomColor: 'rgba(20,35,38,0.12)',
+    borderBottomWidth: 1,
+    borderTopColor: 'rgba(20,35,38,0.12)',
+    borderTopWidth: 1,
     marginTop: 18,
-    padding: 18,
+    paddingVertical: 18,
   },
   statusLabel: {
     color: '#116653',
@@ -125,12 +127,10 @@ const styles = StyleSheet.create({
     marginTop: 6,
   },
   meetupCard: {
-    backgroundColor: '#FFFFFF',
-    borderColor: '#E5DED1',
-    borderRadius: 24,
-    borderWidth: 1,
+    borderBottomColor: 'rgba(20,35,38,0.12)',
+    borderBottomWidth: 1,
     marginTop: 22,
-    padding: 22,
+    paddingVertical: 22,
   },
   meetupCity: {
     color: '#E46F58',

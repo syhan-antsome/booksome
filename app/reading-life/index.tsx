@@ -279,15 +279,16 @@ const styles = StyleSheet.create({
     width: 142,
   },
   statsRow: {
+    borderBottomColor: 'rgba(16,61,43,0.12)',
+    borderBottomWidth: 1,
+    borderTopColor: 'rgba(16,61,43,0.12)',
+    borderTopWidth: 1,
     flexDirection: 'row',
-    gap: 10,
-    marginTop: 18,
+    marginTop: 6,
   },
   statItem: {
-    backgroundColor: '#F8F3E9',
-    borderRadius: 22,
     flex: 1,
-    padding: 16,
+    paddingVertical: 17,
   },
   statValue: {
     color: '#103D2B',
@@ -301,12 +302,12 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   currentBook: {
-    backgroundColor: '#F8F3E9',
-    borderRadius: 30,
+    borderBottomColor: 'rgba(16,61,43,0.12)',
+    borderBottomWidth: 1,
     flexDirection: 'row',
     gap: 16,
-    marginTop: 16,
-    padding: 18,
+    marginTop: 4,
+    paddingVertical: 20,
   },
   bookCover: {
     alignItems: 'center',
@@ -387,8 +388,7 @@ const styles = StyleSheet.create({
     marginTop: 14,
   },
   myBooks: {
-    gap: 10,
-    marginTop: 18,
+    marginTop: 24,
   },
   sectionTitle: {
     color: '#14251B',
@@ -398,11 +398,11 @@ const styles = StyleSheet.create({
   },
   myBookItem: {
     alignItems: 'center',
-    backgroundColor: '#F8F3E9',
-    borderRadius: 24,
+    borderBottomColor: 'rgba(16,61,43,0.1)',
+    borderBottomWidth: 1,
     flexDirection: 'row',
     gap: 14,
-    padding: 12,
+    paddingVertical: 14,
   },
   myBookImage: {
     borderRadius: 14,
@@ -438,16 +438,15 @@ const styles = StyleSheet.create({
     marginTop: 5,
   },
   recordList: {
-    gap: 10,
-    marginTop: 16,
+    marginTop: 20,
   },
   recordItem: {
     alignItems: 'center',
-    backgroundColor: '#F8F3E9',
-    borderRadius: 24,
+    borderBottomColor: 'rgba(16,61,43,0.1)',
+    borderBottomWidth: 1,
     flexDirection: 'row',
     gap: 14,
-    padding: 16,
+    paddingVertical: 16,
   },
   recordMark: {
     backgroundColor: '#103D2B',

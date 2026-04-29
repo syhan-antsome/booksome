@@ -462,29 +462,28 @@ const styles = StyleSheet.create({
     marginTop: 9,
   },
   portalGrid: {
+    borderBottomColor: 'rgba(16,61,43,0.12)',
+    borderBottomWidth: 1,
+    borderTopColor: 'rgba(16,61,43,0.12)',
+    borderTopWidth: 1,
     flexDirection: 'row',
-    gap: 10,
     marginTop: 14,
   },
   portalTileDark: {
-    backgroundColor: '#103D2B',
-    borderRadius: 24,
     flex: 1,
-    padding: 16,
+    paddingVertical: 16,
   },
   portalTile: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 24,
     flex: 1,
-    padding: 16,
+    paddingVertical: 16,
   },
   portalValue: {
-    color: '#FFFFFF',
+    color: '#103D2B',
     fontSize: 27,
     fontWeight: '900',
   },
   portalLabel: {
-    color: 'rgba(255,255,255,0.74)',
+    color: '#74806F',
     fontSize: 11,
     fontWeight: '900',
     marginTop: 4,
@@ -522,9 +521,9 @@ const styles = StyleSheet.create({
     paddingRight: 20,
   },
   joinedCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 24,
-    padding: 18,
+    borderBottomColor: 'rgba(16,61,43,0.14)',
+    borderBottomWidth: 1,
+    paddingVertical: 16,
     width: 178,
   },
   joinedTitle: {
@@ -599,13 +598,13 @@ const styles = StyleSheet.create({
     marginTop: 26,
   },
   filterChip: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 18,
+    borderBottomColor: 'transparent',
+    borderBottomWidth: 2,
     paddingHorizontal: 15,
     paddingVertical: 9,
   },
   filterChipActive: {
-    backgroundColor: '#103D2B',
+    borderBottomColor: '#103D2B',
   },
   filterText: {
     color: '#697566',
@@ -613,7 +612,7 @@ const styles = StyleSheet.create({
     fontWeight: '900',
   },
   filterTextActive: {
-    color: '#FFFFFF',
+    color: '#103D2B',
   },
   roomList: {
     gap: 10,

@@ -623,10 +623,10 @@ const styles = StyleSheet.create({
     fontWeight: '900',
   },
   progressPanel: {
-    backgroundColor: '#F8F3E9',
-    borderRadius: 26,
+    borderBottomColor: 'rgba(16,61,43,0.12)',
+    borderBottomWidth: 1,
     marginTop: 16,
-    padding: 18,
+    paddingVertical: 20,
   },
   sectionHeader: {
     alignItems: 'center',
@@ -687,14 +687,14 @@ const styles = StyleSheet.create({
   },
   statusItem: {
     alignItems: 'center',
-    backgroundColor: '#F8F3E9',
-    borderRadius: 22,
+    borderBottomColor: 'rgba(16,61,43,0.1)',
+    borderBottomWidth: 1,
     flexDirection: 'row',
     justifyContent: 'space-between',
-    padding: 16,
+    paddingVertical: 16,
   },
   statusItemActive: {
-    backgroundColor: '#103D2B',
+    borderBottomColor: '#103D2B',
   },
   statusTitle: {
     color: '#14251B',
@@ -702,7 +702,7 @@ const styles = StyleSheet.create({
     fontWeight: '900',
   },
   statusTitleActive: {
-    color: '#FFFFFF',
+    color: '#103D2B',
   },
   statusCopy: {
     color: '#72806E',
@@ -711,7 +711,7 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   statusCopyActive: {
-    color: 'rgba(255,255,255,0.72)',
+    color: '#526154',
   },
   statusCheck: {
     color: '#9A8D78',
@@ -722,10 +722,11 @@ const styles = StyleSheet.create({
     color: '#D8BE88',
   },
   memoPanel: {
-    backgroundColor: '#F8F3E9',
-    borderRadius: 26,
+    borderBottomColor: 'rgba(16,61,43,0.12)',
+    borderBottomWidth: 1,
     marginTop: 18,
-    padding: 18,
+    paddingBottom: 20,
+    paddingTop: 20,
   },
   noteCount: {
     color: '#116653',
@@ -733,22 +734,20 @@ const styles = StyleSheet.create({
     fontWeight: '900',
   },
   composerTabs: {
-    backgroundColor: '#E8DEC9',
-    borderRadius: 20,
+    borderBottomColor: 'rgba(16,61,43,0.12)',
+    borderBottomWidth: 1,
     flexDirection: 'row',
-    gap: 6,
     marginTop: 16,
-    padding: 5,
   },
   composerTab: {
     alignItems: 'center',
-    borderRadius: 16,
     flex: 1,
     height: 42,
     justifyContent: 'center',
   },
   composerTabActive: {
-    backgroundColor: '#103D2B',
+    borderBottomColor: '#103D2B',
+    borderBottomWidth: 3,
   },
   composerTabText: {
     color: '#5B675F',
@@ -756,7 +755,7 @@ const styles = StyleSheet.create({
     fontWeight: '900',
   },
   composerTabTextActive: {
-    color: '#FFFFFF',
+    color: '#103D2B',
   },
   visibilityRow: {
     flexDirection: 'row',
@@ -787,14 +786,15 @@ const styles = StyleSheet.create({
     marginTop: 14,
   },
   input: {
-    backgroundColor: '#FFF9EE',
-    borderRadius: 18,
+    backgroundColor: 'transparent',
+    borderBottomColor: 'rgba(16,61,43,0.16)',
+    borderBottomWidth: 1,
     color: '#14251B',
     fontSize: 15,
     fontWeight: '800',
     lineHeight: 21,
     minHeight: 48,
-    paddingHorizontal: 15,
+    paddingHorizontal: 0,
     paddingVertical: 13,
   },
   quoteInput: {
@@ -861,9 +861,9 @@ const styles = StyleSheet.create({
     lineHeight: 21,
   },
   noteItem: {
-    backgroundColor: '#F8F3E9',
-    borderRadius: 22,
-    padding: 16,
+    borderBottomColor: 'rgba(16,61,43,0.1)',
+    borderBottomWidth: 1,
+    paddingVertical: 16,
   },
   noteHead: {
     alignItems: 'center',
