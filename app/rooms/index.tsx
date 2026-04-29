@@ -79,6 +79,7 @@ export default function RoomsScreen() {
             </Link>
           }
           eyebrow="BookSome Bookroom"
+          expressiveTitle
           subtitle="책마다 다른 분위기의 대화를 찾아보세요."
           title="북룸"
           tone="forest"

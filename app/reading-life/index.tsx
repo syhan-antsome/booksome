@@ -73,6 +73,7 @@ export default function ReadingLifeScreen() {
             </Link>
           }
           eyebrow="My Reading Life"
+          expressiveTitle
           subtitle="읽는 책, 남긴 문장, 사진 메모를 한곳에."
           title="독서생활"
           tone="sage"

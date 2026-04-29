@@ -37,6 +37,7 @@ export default function MarketScreen() {
             </Link>
           }
           eyebrow="Book Market"
+          expressiveTitle
           subtitle="중고책, 교환, 나눔까지 책 생활에 어울리는 물건만."
           title="책마켓"
           tone="clay"

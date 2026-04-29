@@ -11,6 +11,7 @@ type ScreenHeaderProps = {
   subtitle?: string;
   action?: ReactNode;
   tone?: ScreenHeaderTone;
+  expressiveTitle?: boolean;
 };
 
 const toneStyles = {
@@ -49,20 +50,41 @@ const toneStyles = {
 export function ScreenHeader({
   action,
   eyebrow,
+  expressiveTitle = false,
   subtitle,
   title,
   tone = 'forest',
 }: ScreenHeaderProps) {
   const colors = toneStyles[tone];
+  const letteringWidth = Math.max(72, Math.min(122, title.length * 28));
 
   return (
     <View style={styles.shell}>
       <View style={styles.topRow}>
         <BackButton />
         <View style={styles.titleSlot}>
-          <Text style={[styles.topTitle, colors.title]} numberOfLines={1}>
-            {title}
-          </Text>
+          {expressiveTitle ? (
+            <View style={styles.letteringWrap}>
+              <Text
+                style={[
+                  styles.letteringShadow,
+                  colors.eyebrow,
+                  { marginLeft: -letteringWidth / 2 },
+                ]}
+                numberOfLines={1}
+              >
+                {title}
+              </Text>
+              <Text style={[styles.letteringTitle, colors.title]} numberOfLines={1}>
+                {title}
+              </Text>
+              <View style={[styles.letteringStroke, colors.accent, { width: letteringWidth }]} />
+            </View>
+          ) : (
+            <Text style={[styles.topTitle, colors.title]} numberOfLines={1}>
+              {title}
+            </Text>
+          )}
         </View>
         <View style={styles.actionSlot}>{action ?? <View style={styles.actionSpacer} />}</View>
       </View>
@@ -108,6 +130,39 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     letterSpacing: 0,
     textAlign: 'center',
+  },
+  letteringWrap: {
+    alignItems: 'center',
+    height: 44,
+    justifyContent: 'center',
+    position: 'relative',
+  },
+  letteringTitle: {
+    fontSize: 27,
+    fontStyle: 'italic',
+    fontWeight: '900',
+    letterSpacing: 0,
+    lineHeight: 34,
+    transform: [{ rotate: '-2deg' }],
+  },
+  letteringShadow: {
+    fontSize: 27,
+    fontStyle: 'italic',
+    fontWeight: '900',
+    left: '50%',
+    letterSpacing: 0,
+    lineHeight: 34,
+    opacity: 0.22,
+    position: 'absolute',
+    top: 7,
+    transform: [{ rotate: '2deg' }],
+  },
+  letteringStroke: {
+    bottom: 5,
+    height: 4,
+    opacity: 0.72,
+    position: 'absolute',
+    transform: [{ rotate: '-2deg' }],
   },
   actionSlot: {
     alignItems: 'flex-end',
