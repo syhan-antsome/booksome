@@ -97,7 +97,9 @@ export default function ReadingLifeScreen() {
 
         <View style={styles.signIntro}>
           <Text style={styles.signHeroEyebrow}>MY READING LIFE</Text>
-          <Text style={styles.signHeroText}>읽고 있는 책과 오늘의 문장을 조용히 쌓아둡니다.</Text>
+          <Text numberOfLines={2} style={styles.signHeroText}>
+            읽고 있는 책과 오늘의 문장을 조용히 쌓아둡니다.
+          </Text>
         </View>
 
         {!session ? (
@@ -284,6 +286,7 @@ const styles = StyleSheet.create({
     lineHeight: 28,
   },
   signIntro: {
+    height: 70,
     marginTop: 8,
   },
   signHeroEyebrow: {
@@ -296,6 +299,7 @@ const styles = StyleSheet.create({
     color: '#14251B',
     fontSize: 18,
     fontWeight: '900',
+    height: 48,
     lineHeight: 24,
     marginTop: 6,
     maxWidth: 270,

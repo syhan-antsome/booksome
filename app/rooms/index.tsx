@@ -103,7 +103,9 @@ export default function RoomsScreen() {
 
         <View style={styles.bookroomIntro}>
           <Text style={styles.bookroomEyebrow}>BOOKSOME BOOKROOM</Text>
-          <Text style={styles.bookroomIntroText}>같은 책을 읽는 사람들의 대화가 열립니다.</Text>
+          <Text numberOfLines={2} style={styles.bookroomIntroText}>
+            같은 책을 읽는 사람들의 대화가 열립니다.
+          </Text>
         </View>
 
         <View style={styles.searchBox}>
@@ -409,6 +411,7 @@ const styles = StyleSheet.create({
     lineHeight: 28,
   },
   bookroomIntro: {
+    height: 70,
     marginTop: 8,
   },
   bookroomEyebrow: {
@@ -421,6 +424,7 @@ const styles = StyleSheet.create({
     color: '#14251B',
     fontSize: 18,
     fontWeight: '900',
+    height: 48,
     lineHeight: 24,
     marginTop: 6,
     maxWidth: 270,

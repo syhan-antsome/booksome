@@ -68,7 +68,9 @@ export default function MarketScreen() {
 
         <View style={styles.bookstoreIntro}>
           <Text style={styles.bookstoreEyebrow}>BOOKSOME BOOKSTORE</Text>
-          <Text style={styles.bookstoreIntroText}>읽은 책을 나누고, 다음 독자를 만납니다.</Text>
+          <Text numberOfLines={2} style={styles.bookstoreIntroText}>
+            읽은 책을 나누고, 다음 독자를 만납니다.
+          </Text>
         </View>
 
         <View style={styles.marketSwitch}>
@@ -160,6 +162,7 @@ const styles = StyleSheet.create({
     lineHeight: 28,
   },
   bookstoreIntro: {
+    height: 70,
     marginTop: 8,
   },
   bookstoreEyebrow: {
@@ -172,6 +175,7 @@ const styles = StyleSheet.create({
     color: '#14251B',
     fontSize: 18,
     fontWeight: '900',
+    height: 48,
     lineHeight: 24,
     marginTop: 6,
     maxWidth: 270,
