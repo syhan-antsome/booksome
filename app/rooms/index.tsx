@@ -1,3 +1,4 @@
+import { LinearGradient } from 'expo-linear-gradient';
 import { Link, useFocusEffect } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
 import {
@@ -8,19 +9,26 @@ import {
   Text,
   TextInput,
   View,
+  useWindowDimensions,
+  type ImageSourcePropType,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import titleBookroomImage from '../../assets/title-bookroom.png';
+import bookroomSignboardImage from '../../assets/bookroom-signboard.png';
+import { BackButton } from '../../src/components/back-button';
 import { BottomNavigation } from '../../src/components/bottom-navigation';
-import { HeaderIconButton, ScreenHeader } from '../../src/components/screen-header';
 import { featuredRooms, type FeaturedRoom } from '../../src/data/rooms';
 import { useAuth } from '../../src/providers/auth-provider';
 import { getMediaUrl } from '../../src/services/media';
 import { listFeaturedRooms, type RoomSummary } from '../../src/services/rooms';
 
+const bookroomSignboardSource: ImageSourcePropType =
+  typeof bookroomSignboardImage === 'string' ? { uri: bookroomSignboardImage } : bookroomSignboardImage;
+const bookroomSignboardRatio = 887 / 1774;
+
 export default function RoomsScreen() {
   const { session } = useAuth();
+  const { width } = useWindowDimensions();
   const [remoteRooms, setRemoteRooms] = useState<RoomSummary[]>([]);
   const [isLoadingRooms, setIsLoadingRooms] = useState(false);
   const [query, setQuery] = useState('');
@@ -69,23 +77,34 @@ export default function RoomsScreen() {
     { key: 'new', label: '새 방' },
     { key: 'popular', label: '인기' },
   ];
+  const bookroomHeroHeight = Math.round(width * bookroomSignboardRatio);
 
   return (
     <SafeAreaView style={styles.safeArea}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <ScreenHeader
-          action={
+        <View style={[styles.bookroomHero, { height: bookroomHeroHeight }]}>
+          <Image resizeMode="contain" source={bookroomSignboardSource} style={styles.bookroomHeroImage} />
+          <LinearGradient
+            colors={['rgba(247, 241, 229, 0)', 'rgba(247, 241, 229, 0.34)', '#F7F1E5']}
+            locations={[0, 0.5, 1]}
+            pointerEvents="none"
+            style={styles.bookroomHeroGradient}
+          />
+
+          <View style={styles.bookroomHeroTop}>
+            <BackButton />
             <Link asChild href={session ? '/create-room' : '/auth'}>
-              <HeaderIconButton label="북룸 만들기" symbol="＋" />
+              <Pressable accessibilityLabel="북룸 만들기" style={styles.bookroomHeroAction}>
+                <Text style={styles.bookroomHeroActionText}>＋</Text>
+              </Pressable>
             </Link>
-          }
-          eyebrow="BookSome Bookroom"
-          subtitle="책마다 다른 분위기의 대화를 찾아보세요."
-          title="북룸"
-          titleImage={titleBookroomImage}
-          titleImageWidth={114}
-          tone="forest"
-        />
+          </View>
+        </View>
+
+        <View style={styles.bookroomIntro}>
+          <Text style={styles.bookroomEyebrow}>BOOKSOME BOOKROOM</Text>
+          <Text style={styles.bookroomIntroText}>같은 책을 읽는 사람들의 대화가 열립니다.</Text>
+        </View>
 
         <View style={styles.searchBox}>
           <Text style={styles.searchIcon}>⌕</Text>
@@ -346,6 +365,66 @@ const styles = StyleSheet.create({
     padding: 20,
     paddingBottom: 124,
   },
+  bookroomHero: {
+    marginHorizontal: -20,
+    marginTop: -20,
+    overflow: 'hidden',
+    position: 'relative',
+  },
+  bookroomHeroImage: {
+    height: '100%',
+    width: '100%',
+  },
+  bookroomHeroGradient: {
+    bottom: -1,
+    height: 104,
+    left: 0,
+    position: 'absolute',
+    right: 0,
+  },
+  bookroomHeroTop: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    left: 0,
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    position: 'absolute',
+    right: 0,
+    top: 0,
+    zIndex: 3,
+  },
+  bookroomHeroAction: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(247, 241, 229, 0.92)',
+    borderRadius: 22,
+    height: 44,
+    justifyContent: 'center',
+    width: 44,
+  },
+  bookroomHeroActionText: {
+    color: '#103D2B',
+    fontSize: 25,
+    fontWeight: '900',
+    lineHeight: 28,
+  },
+  bookroomIntro: {
+    marginTop: 8,
+  },
+  bookroomEyebrow: {
+    color: '#8F6A42',
+    fontSize: 11,
+    fontWeight: '900',
+    letterSpacing: 0,
+  },
+  bookroomIntroText: {
+    color: '#14251B',
+    fontSize: 18,
+    fontWeight: '900',
+    lineHeight: 24,
+    marginTop: 6,
+    maxWidth: 270,
+  },
   header: {
     alignItems: 'center',
     flexDirection: 'row',
@@ -393,7 +472,7 @@ const styles = StyleSheet.create({
     borderRadius: 24,
     flexDirection: 'row',
     gap: 10,
-    marginTop: 22,
+    marginTop: 18,
     paddingHorizontal: 16,
     paddingVertical: 4,
   },
