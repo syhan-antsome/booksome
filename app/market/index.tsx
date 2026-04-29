@@ -2,6 +2,7 @@ import { Link } from 'expo-router';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import titleBookmarketImage from '../../assets/title-bookmarket.png';
 import { BottomNavigation } from '../../src/components/bottom-navigation';
 import { HeaderIconButton, ScreenHeader } from '../../src/components/screen-header';
 import { useAuth } from '../../src/providers/auth-provider';
@@ -37,9 +38,10 @@ export default function MarketScreen() {
             </Link>
           }
           eyebrow="Book Market"
-          expressiveTitle
           subtitle="중고책, 교환, 나눔까지 책 생활에 어울리는 물건만."
           title="책마켓"
+          titleImage={titleBookmarketImage}
+          titleImageWidth={156}
           tone="clay"
         />
 

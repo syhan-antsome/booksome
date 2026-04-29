@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import titleBookroomImage from '../../assets/title-bookroom.png';
 import { BottomNavigation } from '../../src/components/bottom-navigation';
 import { HeaderIconButton, ScreenHeader } from '../../src/components/screen-header';
 import { featuredRooms, type FeaturedRoom } from '../../src/data/rooms';
@@ -79,9 +80,10 @@ export default function RoomsScreen() {
             </Link>
           }
           eyebrow="BookSome Bookroom"
-          expressiveTitle
           subtitle="책마다 다른 분위기의 대화를 찾아보세요."
           title="북룸"
+          titleImage={titleBookroomImage}
+          titleImageWidth={114}
           tone="forest"
         />
 

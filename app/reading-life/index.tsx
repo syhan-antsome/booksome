@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import titleReadingLifeImage from '../../assets/title-reading-life.png';
 import { AuthRequired } from '../../src/components/auth-required';
 import { BottomNavigation } from '../../src/components/bottom-navigation';
 import { HeaderIconButton, ScreenHeader } from '../../src/components/screen-header';
@@ -73,9 +74,10 @@ export default function ReadingLifeScreen() {
             </Link>
           }
           eyebrow="My Reading Life"
-          expressiveTitle
           subtitle="읽는 책, 남긴 문장, 사진 메모를 한곳에."
           title="독서생활"
+          titleImage={titleReadingLifeImage}
+          titleImageWidth={178}
           tone="sage"
         />
 

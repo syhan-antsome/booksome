@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image, type ImageSourcePropType, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { BackButton } from './back-button';
 
@@ -12,6 +12,8 @@ type ScreenHeaderProps = {
   action?: ReactNode;
   tone?: ScreenHeaderTone;
   expressiveTitle?: boolean;
+  titleImage?: string | number | ImageSourcePropType;
+  titleImageWidth?: number;
 };
 
 const toneStyles = {
@@ -53,17 +55,30 @@ export function ScreenHeader({
   expressiveTitle = false,
   subtitle,
   title,
+  titleImage,
+  titleImageWidth = 160,
   tone = 'forest',
 }: ScreenHeaderProps) {
   const colors = toneStyles[tone];
   const letteringWidth = Math.max(72, Math.min(122, title.length * 28));
+  const titleImageSource =
+    typeof titleImage === 'string' || typeof titleImage === 'number'
+      ? toImageSource(titleImage)
+      : titleImage;
 
   return (
     <View style={styles.shell}>
       <View style={styles.topRow}>
         <BackButton />
         <View style={styles.titleSlot}>
-          {expressiveTitle ? (
+          {titleImageSource ? (
+            <Image
+              accessibilityLabel={title}
+              resizeMode="contain"
+              source={titleImageSource}
+              style={[styles.titleImage, { width: titleImageWidth }]}
+            />
+          ) : expressiveTitle ? (
             <View style={styles.letteringWrap}>
               <Text
                 style={[
@@ -104,6 +119,10 @@ export function ScreenHeader({
   );
 }
 
+function toImageSource(image: string | number): ImageSourcePropType {
+  return typeof image === 'string' ? { uri: image } : image;
+}
+
 export function HeaderIconButton({ label, symbol }: { label: string; symbol: string }) {
   return (
     <Pressable accessibilityLabel={label} style={styles.iconButton}>
@@ -130,6 +149,10 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     letterSpacing: 0,
     textAlign: 'center',
+  },
+  titleImage: {
+    alignSelf: 'center',
+    height: 64,
   },
   letteringWrap: {
     alignItems: 'center',
