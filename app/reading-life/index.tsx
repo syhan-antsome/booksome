@@ -8,13 +8,14 @@ import {
   StyleSheet,
   Text,
   View,
+  type ImageSourcePropType,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import titleReadingLifeImage from '../../assets/title-reading-life.png';
+import readingLifeSignboardImage from '../../assets/reading-life-signboard.png';
 import { AuthRequired } from '../../src/components/auth-required';
+import { BackButton } from '../../src/components/back-button';
 import { BottomNavigation } from '../../src/components/bottom-navigation';
-import { HeaderIconButton, ScreenHeader } from '../../src/components/screen-header';
 import { useAuth } from '../../src/providers/auth-provider';
 import { listReadingLifeBooks, type ReadingLifeBook } from '../../src/services/reading-life';
 
@@ -23,6 +24,9 @@ const recordTypes = [
   { title: '문장 메모', copy: '오래 남기고 싶은 문장을 모읍니다.', section: 'quote' },
   { title: '사진 메모', copy: '책상, 페이지, 장소까지 독서의 순간을 남깁니다.', section: 'photo' },
 ];
+
+const readingLifeSignboardSource: ImageSourcePropType =
+  typeof readingLifeSignboardImage === 'string' ? { uri: readingLifeSignboardImage } : readingLifeSignboardImage;
 
 export default function ReadingLifeScreen() {
   const { session } = useAuth();
@@ -67,19 +71,26 @@ export default function ReadingLifeScreen() {
   return (
     <SafeAreaView style={styles.safeArea}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <ScreenHeader
-          action={
+        <View style={styles.signHero}>
+          <Image resizeMode="cover" source={readingLifeSignboardSource} style={styles.signHeroImage} />
+          <View style={styles.signHeroVeil} />
+          <View style={styles.signHeroFadeSoft} />
+          <View style={styles.signHeroFade} />
+
+          <View style={styles.signHeroTop}>
+            <BackButton />
             <Link asChild href={session ? '/scan' : '/auth'}>
-              <HeaderIconButton label="책 스캔" symbol="＋" />
+              <Pressable accessibilityLabel="책 스캔" style={styles.signHeroAction}>
+                <Text style={styles.signHeroActionText}>＋</Text>
+              </Pressable>
             </Link>
-          }
-          eyebrow="My Reading Life"
-          subtitle="읽는 책, 남긴 문장, 사진 메모를 한곳에."
-          title="독서생활"
-          titleImage={titleReadingLifeImage}
-          titleImageWidth={178}
-          tone="sage"
-        />
+          </View>
+
+          <View style={styles.signHeroCopy}>
+            <Text style={styles.signHeroEyebrow}>MY READING LIFE</Text>
+            <Text style={styles.signHeroText}>읽고 있는 책과 오늘의 문장을 조용히 쌓아둡니다.</Text>
+          </View>
+        </View>
 
         {!session ? (
           <AuthRequired
@@ -221,6 +232,81 @@ const styles = StyleSheet.create({
     padding: 20,
     paddingBottom: 124,
   },
+  signHero: {
+    height: 332,
+    marginHorizontal: -20,
+    marginTop: -20,
+    overflow: 'hidden',
+    position: 'relative',
+  },
+  signHeroImage: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  signHeroVeil: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(10, 13, 9, 0.08)',
+  },
+  signHeroFadeSoft: {
+    backgroundColor: 'rgba(238, 241, 223, 0.34)',
+    bottom: 76,
+    height: 86,
+    left: 0,
+    position: 'absolute',
+    right: 0,
+  },
+  signHeroFade: {
+    backgroundColor: '#EEF1DF',
+    bottom: -1,
+    height: 94,
+    left: 0,
+    opacity: 0.96,
+    position: 'absolute',
+    right: 0,
+  },
+  signHeroTop: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    position: 'relative',
+    zIndex: 3,
+  },
+  signHeroAction: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(247, 241, 229, 0.92)',
+    borderRadius: 22,
+    height: 44,
+    justifyContent: 'center',
+    width: 44,
+  },
+  signHeroActionText: {
+    color: '#103D2B',
+    fontSize: 25,
+    fontWeight: '900',
+    lineHeight: 28,
+  },
+  signHeroCopy: {
+    bottom: 30,
+    left: 20,
+    position: 'absolute',
+    right: 20,
+    zIndex: 3,
+  },
+  signHeroEyebrow: {
+    color: '#8F6A42',
+    fontSize: 11,
+    fontWeight: '900',
+    letterSpacing: 0,
+  },
+  signHeroText: {
+    color: '#14251B',
+    fontSize: 18,
+    fontWeight: '900',
+    lineHeight: 24,
+    marginTop: 6,
+    maxWidth: 270,
+  },
   header: {
     alignItems: 'center',
     flexDirection: 'row',
@@ -287,7 +373,7 @@ const styles = StyleSheet.create({
     borderTopColor: 'rgba(16,61,43,0.12)',
     borderTopWidth: 1,
     flexDirection: 'row',
-    marginTop: 6,
+    marginTop: 2,
   },
   statItem: {
     flex: 1,
