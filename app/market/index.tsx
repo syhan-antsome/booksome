@@ -37,7 +37,7 @@ const marketItems = [
 
 const bookstoreSignboardSource: ImageSourcePropType =
   typeof bookstoreSignboardImage === 'string' ? { uri: bookstoreSignboardImage } : bookstoreSignboardImage;
-const bookstoreSignboardRatio = 700 / 1400;
+const bookstoreSignboardRatio = 803 / 1400;
 
 export default function MarketScreen() {
   const { session } = useAuth();

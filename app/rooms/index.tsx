@@ -24,7 +24,7 @@ import { listFeaturedRooms, type RoomSummary } from '../../src/services/rooms';
 
 const bookroomSignboardSource: ImageSourcePropType =
   typeof bookroomSignboardImage === 'string' ? { uri: bookroomSignboardImage } : bookroomSignboardImage;
-const bookroomSignboardRatio = 700 / 1400;
+const bookroomSignboardRatio = 803 / 1400;
 
 export default function RoomsScreen() {
   const { session } = useAuth();
