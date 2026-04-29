@@ -8,6 +8,7 @@ import {
   StyleSheet,
   Text,
   View,
+  useWindowDimensions,
   type ImageSourcePropType,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -27,9 +28,11 @@ const recordTypes = [
 
 const readingLifeSignboardSource: ImageSourcePropType =
   typeof readingLifeSignboardImage === 'string' ? { uri: readingLifeSignboardImage } : readingLifeSignboardImage;
+const readingLifeSignboardRatio = 950 / 1655;
 
 export default function ReadingLifeScreen() {
   const { session } = useAuth();
+  const { width } = useWindowDimensions();
   const [books, setBooks] = useState<ReadingLifeBook[]>([]);
   const [isLoadingBooks, setIsLoadingBooks] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -67,13 +70,13 @@ export default function ReadingLifeScreen() {
     { label: '문장 메모', value: '0' },
     { label: '사진 기록', value: '0' },
   ];
+  const signHeroHeight = Math.round(width * readingLifeSignboardRatio);
 
   return (
     <SafeAreaView style={styles.safeArea}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <View style={styles.signHero}>
-          <Image resizeMode="cover" source={readingLifeSignboardSource} style={styles.signHeroImage} />
-          <View style={styles.signHeroVeil} />
+        <View style={[styles.signHero, { height: signHeroHeight }]}>
+          <Image resizeMode="contain" source={readingLifeSignboardSource} style={styles.signHeroImage} />
           <View style={styles.signHeroFadeSoft} />
           <View style={styles.signHeroFade} />
 
@@ -85,11 +88,11 @@ export default function ReadingLifeScreen() {
               </Pressable>
             </Link>
           </View>
+        </View>
 
-          <View style={styles.signHeroCopy}>
-            <Text style={styles.signHeroEyebrow}>MY READING LIFE</Text>
-            <Text style={styles.signHeroText}>읽고 있는 책과 오늘의 문장을 조용히 쌓아둡니다.</Text>
-          </View>
+        <View style={styles.signIntro}>
+          <Text style={styles.signHeroEyebrow}>MY READING LIFE</Text>
+          <Text style={styles.signHeroText}>읽고 있는 책과 오늘의 문장을 조용히 쌓아둡니다.</Text>
         </View>
 
         {!session ? (
@@ -233,7 +236,6 @@ const styles = StyleSheet.create({
     paddingBottom: 124,
   },
   signHero: {
-    height: 332,
     marginHorizontal: -20,
     marginTop: -20,
     overflow: 'hidden',
@@ -242,14 +244,10 @@ const styles = StyleSheet.create({
   signHeroImage: {
     ...StyleSheet.absoluteFillObject,
   },
-  signHeroVeil: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(10, 13, 9, 0.08)',
-  },
   signHeroFadeSoft: {
     backgroundColor: 'rgba(238, 241, 223, 0.34)',
-    bottom: 76,
-    height: 86,
+    bottom: 42,
+    height: 58,
     left: 0,
     position: 'absolute',
     right: 0,
@@ -257,9 +255,9 @@ const styles = StyleSheet.create({
   signHeroFade: {
     backgroundColor: '#EEF1DF',
     bottom: -1,
-    height: 94,
+    height: 54,
     left: 0,
-    opacity: 0.96,
+    opacity: 0.92,
     position: 'absolute',
     right: 0,
   },
@@ -286,12 +284,8 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     lineHeight: 28,
   },
-  signHeroCopy: {
-    bottom: 30,
-    left: 20,
-    position: 'absolute',
-    right: 20,
-    zIndex: 3,
+  signIntro: {
+    marginTop: 14,
   },
   signHeroEyebrow: {
     color: '#8F6A42',
