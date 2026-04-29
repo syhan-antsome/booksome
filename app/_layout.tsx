@@ -18,13 +18,7 @@ export default function RootLayout() {
             headerShown: false,
             contentStyle: { backgroundColor: '#F7F2EA' },
           }}
-        >
-          <Stack.Screen name="index" options={{ animation: 'none' }} />
-          <Stack.Screen name="rooms/index" options={{ animation: 'none' }} />
-          <Stack.Screen name="reading-life/index" options={{ animation: 'none' }} />
-          <Stack.Screen name="market/index" options={{ animation: 'none' }} />
-          <Stack.Screen name="profile" options={{ animation: 'none' }} />
-        </Stack>
+        />
       </AuthProvider>
     </SafeAreaProvider>
   );

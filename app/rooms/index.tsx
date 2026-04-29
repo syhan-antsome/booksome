@@ -16,7 +16,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import bookroomSignboardImage from '../../assets/bookroom-signboard.jpg';
 import { BottomNavigation } from '../../src/components/bottom-navigation';
-import { BrakeSlideScreen } from '../../src/components/brake-slide-screen';
 import { featuredRooms, type FeaturedRoom } from '../../src/data/rooms';
 import { useAuth } from '../../src/providers/auth-provider';
 import { getMediaUrl } from '../../src/services/media';
@@ -80,9 +79,8 @@ export default function RoomsScreen() {
   const bookroomHeroHeight = Math.round(width * bookroomSignboardRatio);
 
   return (
-    <BrakeSlideScreen>
-      <SafeAreaView style={styles.safeArea}>
-        <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+    <SafeAreaView style={styles.safeArea}>
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={[styles.bookroomHero, { height: bookroomHeroHeight }]}>
           <Image resizeMode="contain" source={bookroomSignboardSource} style={styles.bookroomHeroImage} />
           <LinearGradient
@@ -272,10 +270,9 @@ export default function RoomsScreen() {
             <Text style={styles.emptyCopy}>다른 책 제목이나 저자 이름으로 다시 찾아보세요.</Text>
           </View>
         ) : null}
-        </ScrollView>
-        <BottomNavigation active="rooms" />
-      </SafeAreaView>
-    </BrakeSlideScreen>
+      </ScrollView>
+      <BottomNavigation active="rooms" />
+    </SafeAreaView>
   );
 }
 

@@ -16,7 +16,6 @@ import sseomdiReadingImage from '../assets/sseomdi-reading.png';
 import { AuthRequired } from '../src/components/auth-required';
 import { BackButton } from '../src/components/back-button';
 import { BottomNavigation } from '../src/components/bottom-navigation';
-import { BrakeSlideScreen } from '../src/components/brake-slide-screen';
 import { useAuth } from '../src/providers/auth-provider';
 
 function toImageSource(image: string | number): ImageSourcePropType {
@@ -60,30 +59,27 @@ export default function ProfileScreen() {
 
   if (!isLoading && !session) {
     return (
-      <BrakeSlideScreen>
-        <SafeAreaView style={styles.safeArea}>
-          <View style={styles.requiredWrap}>
-            <AuthRequired
-              title="내 책장을 열려면 로그인이 필요합니다"
-              copy="나의 독서 생활, 저장한 문장, 참여 중인 북룸은 계정에 연결됩니다."
-            />
-          </View>
-        </SafeAreaView>
-      </BrakeSlideScreen>
+      <SafeAreaView style={styles.safeArea}>
+        <View style={styles.requiredWrap}>
+          <AuthRequired
+            title="내 책장을 열려면 로그인이 필요합니다"
+            copy="나의 독서 생활, 저장한 문장, 참여 중인 북룸은 계정에 연결됩니다."
+          />
+        </View>
+      </SafeAreaView>
     );
   }
 
   return (
-    <BrakeSlideScreen>
-      <SafeAreaView style={[styles.safeArea, !isFramedPreview ? styles.safeAreaFull : null]}>
-        <ScrollView
-          contentContainerStyle={[
-            styles.content,
-            !isFramedPreview ? styles.contentFull : null,
-            { paddingBottom: Math.max(insets.bottom + 126, 148) },
-          ]}
-          showsVerticalScrollIndicator={false}
-        >
+    <SafeAreaView style={[styles.safeArea, !isFramedPreview ? styles.safeAreaFull : null]}>
+      <ScrollView
+        contentContainerStyle={[
+          styles.content,
+          !isFramedPreview ? styles.contentFull : null,
+          { paddingBottom: Math.max(insets.bottom + 126, 148) },
+        ]}
+        showsVerticalScrollIndicator={false}
+      >
         <View style={styles.hero}>
           <Image resizeMode="cover" source={profileHeroSource} style={styles.heroImage} />
           <View style={styles.heroShade} />
@@ -177,10 +173,9 @@ export default function ProfileScreen() {
             <Text style={styles.signOutText}>로그아웃</Text>
           </Pressable>
         </View>
-        </ScrollView>
-        <BottomNavigation active="profile" />
-      </SafeAreaView>
-    </BrakeSlideScreen>
+      </ScrollView>
+      <BottomNavigation active="profile" />
+    </SafeAreaView>
   );
 }
 
