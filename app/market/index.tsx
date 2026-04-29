@@ -37,21 +37,32 @@ const marketItems = [
 
 const bookstoreSignboardSource: ImageSourcePropType =
   typeof bookstoreSignboardImage === 'string' ? { uri: bookstoreSignboardImage } : bookstoreSignboardImage;
-const bookstoreSignboardRatio = 803 / 1400;
+const bookstoreHeroRatio = 803 / 1400;
+const bookstoreImageRatio = 700 / 1400;
 
 export default function MarketScreen() {
   const { session } = useAuth();
   const { width } = useWindowDimensions();
-  const bookstoreHeroHeight = Math.round(width * bookstoreSignboardRatio);
+  const bookstoreHeroHeight = Math.round(width * bookstoreHeroRatio);
+  const bookstoreImageHeight = Math.round(width * bookstoreImageRatio);
 
   return (
     <SafeAreaView style={styles.safeArea}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={[styles.bookstoreHero, { height: bookstoreHeroHeight }]}>
-          <Image resizeMode="contain" source={bookstoreSignboardSource} style={styles.bookstoreHeroImage} />
+          <Image
+            resizeMode="cover"
+            source={bookstoreSignboardSource}
+            style={[styles.bookstoreHeroImage, { height: bookstoreImageHeight }]}
+          />
           <LinearGradient
-            colors={['rgba(246, 238, 225, 0)', 'rgba(246, 238, 225, 0.38)', '#F6EEE1']}
-            locations={[0, 0.44, 1]}
+            colors={[
+              'rgba(246, 238, 225, 0)',
+              'rgba(246, 238, 225, 0.26)',
+              'rgba(246, 238, 225, 0.78)',
+              '#F6EEE1',
+            ]}
+            locations={[0, 0.28, 0.68, 1]}
             pointerEvents="none"
             style={styles.bookstoreHeroGradient}
           />
@@ -123,12 +134,11 @@ const styles = StyleSheet.create({
     position: 'relative',
   },
   bookstoreHeroImage: {
-    height: '100%',
     width: '100%',
   },
   bookstoreHeroGradient: {
     bottom: -1,
-    height: 118,
+    height: 156,
     left: 0,
     position: 'absolute',
     right: 0,
