@@ -14,7 +14,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import bookroomSignboardImage from '../../assets/bookroom-signboard.png';
+import bookroomSignboardImage from '../../assets/bookroom-signboard.jpg';
 import { BackButton } from '../../src/components/back-button';
 import { BottomNavigation } from '../../src/components/bottom-navigation';
 import { featuredRooms, type FeaturedRoom } from '../../src/data/rooms';
@@ -24,7 +24,7 @@ import { listFeaturedRooms, type RoomSummary } from '../../src/services/rooms';
 
 const bookroomSignboardSource: ImageSourcePropType =
   typeof bookroomSignboardImage === 'string' ? { uri: bookroomSignboardImage } : bookroomSignboardImage;
-const bookroomSignboardRatio = 887 / 1774;
+const bookroomSignboardRatio = 700 / 1400;
 
 export default function RoomsScreen() {
   const { session } = useAuth();

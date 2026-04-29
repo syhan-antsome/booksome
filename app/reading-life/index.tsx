@@ -14,7 +14,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import readingLifeSignboardImage from '../../assets/reading-life-signboard.png';
+import readingLifeSignboardImage from '../../assets/reading-life-signboard.jpg';
 import { AuthRequired } from '../../src/components/auth-required';
 import { BackButton } from '../../src/components/back-button';
 import { BottomNavigation } from '../../src/components/bottom-navigation';
@@ -29,7 +29,7 @@ const recordTypes = [
 
 const readingLifeSignboardSource: ImageSourcePropType =
   typeof readingLifeSignboardImage === 'string' ? { uri: readingLifeSignboardImage } : readingLifeSignboardImage;
-const readingLifeSignboardRatio = 950 / 1655;
+const readingLifeSignboardRatio = 803 / 1400;
 
 export default function ReadingLifeScreen() {
   const { session } = useAuth();
