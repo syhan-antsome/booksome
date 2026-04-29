@@ -1,3 +1,4 @@
+import { LinearGradient } from 'expo-linear-gradient';
 import { Link, router } from 'expo-router';
 import { useEffect, useState } from 'react';
 import {
@@ -77,10 +78,12 @@ export default function ReadingLifeScreen() {
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={[styles.signHero, { height: signHeroHeight }]}>
           <Image resizeMode="contain" source={readingLifeSignboardSource} style={styles.signHeroImage} />
-          <View style={styles.signHeroFadeA} />
-          <View style={styles.signHeroFadeB} />
-          <View style={styles.signHeroFadeC} />
-          <View style={styles.signHeroFadeD} />
+          <LinearGradient
+            colors={['rgba(238, 241, 223, 0)', 'rgba(238, 241, 223, 0.38)', '#EEF1DF']}
+            locations={[0, 0.48, 1]}
+            pointerEvents="none"
+            style={styles.signHeroGradient}
+          />
 
           <View style={styles.signHeroTop}>
             <BackButton />
@@ -247,36 +250,10 @@ const styles = StyleSheet.create({
     height: '100%',
     width: '100%',
   },
-  signHeroFadeA: {
-    backgroundColor: 'rgba(238, 241, 223, 0.10)',
-    bottom: 84,
-    height: 46,
-    left: 0,
-    position: 'absolute',
-    right: 0,
-  },
-  signHeroFadeB: {
-    backgroundColor: 'rgba(238, 241, 223, 0.28)',
-    bottom: 52,
-    height: 48,
-    left: 0,
-    position: 'absolute',
-    right: 0,
-  },
-  signHeroFadeC: {
-    backgroundColor: 'rgba(238, 241, 223, 0.56)',
-    bottom: 22,
-    height: 42,
-    left: 0,
-    position: 'absolute',
-    right: 0,
-  },
-  signHeroFadeD: {
-    backgroundColor: '#EEF1DF',
+  signHeroGradient: {
     bottom: -1,
-    height: 32,
+    height: 118,
     left: 0,
-    opacity: 0.94,
     position: 'absolute',
     right: 0,
   },
