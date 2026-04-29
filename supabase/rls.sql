@@ -12,6 +12,7 @@ alter table public.comments enable row level security;
 alter table public.reactions enable row level security;
 alter table public.reading_sessions enable row level security;
 alter table public.reading_books enable row level security;
+alter table public.reading_notes enable row level security;
 alter table public.meetups enable row level security;
 alter table public.media_assets enable row level security;
 alter table public.push_tokens enable row level security;
@@ -219,6 +220,10 @@ on public.reading_books for select
 to authenticated
 using (profile_id = auth.uid());
 
+create policy "Public can read public reading books"
+on public.reading_books for select
+using (visibility = 'public');
+
 create policy "Users create their reading books"
 on public.reading_books for insert
 to authenticated
@@ -232,6 +237,31 @@ with check (profile_id = auth.uid());
 
 create policy "Users delete their reading books"
 on public.reading_books for delete
+to authenticated
+using (profile_id = auth.uid());
+
+create policy "Users read their reading notes"
+on public.reading_notes for select
+to authenticated
+using (profile_id = auth.uid());
+
+create policy "Public can read public reading notes"
+on public.reading_notes for select
+using (visibility = 'public');
+
+create policy "Users create their reading notes"
+on public.reading_notes for insert
+to authenticated
+with check (profile_id = auth.uid());
+
+create policy "Users update their reading notes"
+on public.reading_notes for update
+to authenticated
+using (profile_id = auth.uid())
+with check (profile_id = auth.uid());
+
+create policy "Users delete their reading notes"
+on public.reading_notes for delete
 to authenticated
 using (profile_id = auth.uid());
 

@@ -168,6 +168,21 @@ create table if not exists public.reading_books (
   unique (profile_id, isbn13)
 );
 
+create table if not exists public.reading_notes (
+  id uuid primary key default gen_random_uuid(),
+  reading_book_id uuid not null references public.reading_books(id) on delete cascade,
+  profile_id uuid not null references public.profiles(id) on delete cascade,
+  kind text not null check (kind in ('quote', 'photo')),
+  quote_text text,
+  body text,
+  page_label text,
+  media_path text,
+  media_url text,
+  visibility text not null default 'private' check (visibility in ('private', 'public')),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
 create table if not exists public.meetups (
   id uuid primary key default gen_random_uuid(),
   room_id uuid references public.rooms(id) on delete cascade,
@@ -278,4 +293,6 @@ create index if not exists room_members_profile_id_idx on public.room_members(pr
 create index if not exists posts_room_id_created_at_idx on public.posts(room_id, created_at desc);
 create index if not exists comments_post_id_created_at_idx on public.comments(post_id, created_at asc);
 create index if not exists reading_books_profile_id_updated_at_idx on public.reading_books(profile_id, updated_at desc);
+create index if not exists reading_notes_book_id_created_at_idx on public.reading_notes(reading_book_id, created_at desc);
+create index if not exists reading_notes_profile_id_created_at_idx on public.reading_notes(profile_id, created_at desc);
 create index if not exists meetups_city_starts_at_idx on public.meetups(city, starts_at);

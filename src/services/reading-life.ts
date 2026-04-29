@@ -15,6 +15,25 @@ export type ReadingLifeBook = {
   externalCoverUrl: string | null;
   status: ReadingBookStatus;
   progressPercent: number;
+  visibility: ReadingVisibility;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type ReadingVisibility = 'private' | 'public';
+export type ReadingNoteKind = 'quote' | 'photo';
+
+export type ReadingLifeNote = {
+  id: string;
+  readingBookId: string;
+  profileId: string;
+  kind: ReadingNoteKind;
+  quoteText: string | null;
+  body: string | null;
+  pageLabel: string | null;
+  mediaPath: string | null;
+  mediaUrl: string | null;
+  visibility: ReadingVisibility;
   createdAt: string;
   updatedAt: string;
 };
@@ -22,6 +41,19 @@ export type ReadingLifeBook = {
 export type UpdateReadingLifeBookInput = {
   status?: ReadingBookStatus;
   progressPercent?: number;
+  visibility?: ReadingVisibility;
+};
+
+export type CreateReadingLifeNoteInput = {
+  readingBookId: string;
+  profileId: string;
+  kind: ReadingNoteKind;
+  quoteText?: string | null;
+  body?: string | null;
+  pageLabel?: string | null;
+  mediaPath?: string | null;
+  mediaUrl?: string | null;
+  visibility?: ReadingVisibility;
 };
 
 type ReadingBookRow = {
@@ -36,16 +68,36 @@ type ReadingBookRow = {
   external_cover_url: string | null;
   status: ReadingBookStatus;
   progress_percent: number;
+  visibility: ReadingVisibility;
   created_at: string;
   updated_at: string;
 };
 
+type ReadingNoteRow = {
+  id: string;
+  reading_book_id: string;
+  profile_id: string;
+  kind: ReadingNoteKind;
+  quote_text: string | null;
+  body: string | null;
+  page_label: string | null;
+  media_path: string | null;
+  media_url: string | null;
+  visibility: ReadingVisibility;
+  created_at: string;
+  updated_at: string;
+};
+
+const readingBookSelect =
+  'id, profile_id, isbn13, title, author, publisher, published_date, description, external_cover_url, status, progress_percent, visibility, created_at, updated_at';
+
+const readingNoteSelect =
+  'id, reading_book_id, profile_id, kind, quote_text, body, page_label, media_path, media_url, visibility, created_at, updated_at';
+
 export async function listReadingLifeBooks(profileId: string) {
   const { data, error } = await supabase
     .from('reading_books')
-    .select(
-      'id, profile_id, isbn13, title, author, publisher, published_date, description, external_cover_url, status, progress_percent, created_at, updated_at',
-    )
+    .select(readingBookSelect)
     .eq('profile_id', profileId)
     .order('updated_at', { ascending: false })
     .returns<ReadingBookRow[]>();
@@ -60,9 +112,7 @@ export async function listReadingLifeBooks(profileId: string) {
 export async function getReadingLifeBook(profileId: string, bookId: string) {
   const { data, error } = await supabase
     .from('reading_books')
-    .select(
-      'id, profile_id, isbn13, title, author, publisher, published_date, description, external_cover_url, status, progress_percent, created_at, updated_at',
-    )
+    .select(readingBookSelect)
     .eq('profile_id', profileId)
     .eq('id', bookId)
     .maybeSingle<ReadingBookRow>();
@@ -74,6 +124,22 @@ export async function getReadingLifeBook(profileId: string, bookId: string) {
   return data ? mapReadingBook(data) : null;
 }
 
+export async function listReadingLifeNotes(profileId: string, readingBookId: string) {
+  const { data, error } = await supabase
+    .from('reading_notes')
+    .select(readingNoteSelect)
+    .eq('profile_id', profileId)
+    .eq('reading_book_id', readingBookId)
+    .order('created_at', { ascending: false })
+    .returns<ReadingNoteRow[]>();
+
+  if (error) {
+    throw error;
+  }
+
+  return (data ?? []).map(mapReadingNote);
+}
+
 export async function addBookToReadingLife(profileId: string, book: BookSearchItem) {
   const isbn13 = normalizeIsbn(book.isbn);
 
@@ -83,9 +149,7 @@ export async function addBookToReadingLife(profileId: string, book: BookSearchIt
 
   const { data: existing, error: existingError } = await supabase
     .from('reading_books')
-    .select(
-      'id, profile_id, isbn13, title, author, publisher, published_date, description, external_cover_url, status, progress_percent, created_at, updated_at',
-    )
+    .select(readingBookSelect)
     .eq('profile_id', profileId)
     .eq('isbn13', isbn13)
     .maybeSingle<ReadingBookRow>();
@@ -115,7 +179,7 @@ export async function addBookToReadingLife(profileId: string, book: BookSearchIt
       source_payload: book.sourcePayload,
     })
     .select(
-      'id, profile_id, isbn13, title, author, publisher, published_date, description, external_cover_url, status, progress_percent, created_at, updated_at',
+      readingBookSelect,
     )
     .single<ReadingBookRow>();
 
@@ -139,6 +203,10 @@ export async function updateReadingLifeBook(
     updatePayload.status = input.status;
   }
 
+  if (input.visibility) {
+    updatePayload.visibility = input.visibility;
+  }
+
   if (typeof input.progressPercent === 'number') {
     updatePayload.progress_percent = Math.min(100, Math.max(0, Math.round(input.progressPercent)));
   }
@@ -148,9 +216,7 @@ export async function updateReadingLifeBook(
     .update(updatePayload)
     .eq('profile_id', profileId)
     .eq('id', bookId)
-    .select(
-      'id, profile_id, isbn13, title, author, publisher, published_date, description, external_cover_url, status, progress_percent, created_at, updated_at',
-    )
+    .select(readingBookSelect)
     .single<ReadingBookRow>();
 
   if (error) {
@@ -158,6 +224,30 @@ export async function updateReadingLifeBook(
   }
 
   return mapReadingBook(data);
+}
+
+export async function createReadingLifeNote(input: CreateReadingLifeNoteInput) {
+  const { data, error } = await supabase
+    .from('reading_notes')
+    .insert({
+      reading_book_id: input.readingBookId,
+      profile_id: input.profileId,
+      kind: input.kind,
+      quote_text: input.quoteText?.trim() || null,
+      body: input.body?.trim() || null,
+      page_label: input.pageLabel?.trim() || null,
+      media_path: input.mediaPath ?? null,
+      media_url: input.mediaUrl ?? null,
+      visibility: input.visibility ?? 'private',
+    })
+    .select(readingNoteSelect)
+    .single<ReadingNoteRow>();
+
+  if (error) {
+    throw error;
+  }
+
+  return mapReadingNote(data);
 }
 
 function mapReadingBook(row: ReadingBookRow): ReadingLifeBook {
@@ -173,6 +263,24 @@ function mapReadingBook(row: ReadingBookRow): ReadingLifeBook {
     externalCoverUrl: row.external_cover_url,
     status: row.status,
     progressPercent: row.progress_percent,
+    visibility: row.visibility,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+function mapReadingNote(row: ReadingNoteRow): ReadingLifeNote {
+  return {
+    id: row.id,
+    readingBookId: row.reading_book_id,
+    profileId: row.profile_id,
+    kind: row.kind,
+    quoteText: row.quote_text,
+    body: row.body,
+    pageLabel: row.page_label,
+    mediaPath: row.media_path,
+    mediaUrl: row.media_url,
+    visibility: row.visibility,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
