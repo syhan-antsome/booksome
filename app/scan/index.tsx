@@ -1,7 +1,18 @@
 import { useMemo, useState } from 'react';
 import { CameraView, type BarcodeScanningResult, useCameraPermissions } from 'expo-camera';
 import { router, useLocalSearchParams } from 'expo-router';
-import { ActivityIndicator, Image, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Image,
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AuthRequired } from '../../src/components/auth-required';
@@ -154,87 +165,103 @@ export default function ScanScreen() {
             ) : null}
 
             {cameraError ? (
-              <View style={styles.resultPanel}>
-                <Text style={styles.resultEyebrow}>CAMERA ERROR</Text>
-                <Text style={styles.resultTitle}>카메라를 열지 못했습니다</Text>
-                <Text style={styles.resultCopy}>{cameraError}</Text>
-                <Pressable onPress={resetScanner} style={styles.resultButton}>
-                  <Text style={styles.resultButtonText}>다시 시도</Text>
-                </Pressable>
+              <View pointerEvents="box-none" style={styles.resultLayer}>
+                <View style={styles.resultPanel}>
+                  <Text style={styles.resultEyebrow}>CAMERA ERROR</Text>
+                  <Text style={styles.resultTitle}>카메라를 열지 못했습니다</Text>
+                  <Text style={styles.resultCopy}>{cameraError}</Text>
+                  <Pressable onPress={resetScanner} style={styles.resultButton}>
+                    <Text style={styles.resultButtonText}>다시 시도</Text>
+                  </Pressable>
+                </View>
               </View>
             ) : null}
 
             {scanResult ? (
-              <View style={styles.resultPanel}>
-                <Text style={styles.resultEyebrow}>{looksLikeIsbn ? 'ISBN FOUND' : 'BARCODE FOUND'}</Text>
-                <Text style={styles.resultTitle}>{normalizedCode || scannedCode}</Text>
-                <Text style={styles.resultCopy}>
-                  {looksLikeIsbn ? '책 ISBN으로 인식했습니다. 도서 정보를 조회하고 있습니다.' : `인식 형식: ${scanResult.type}. 책 ISBN이 맞는지 확인해주세요.`}
-                </Text>
-                {isLookingUpBook ? (
-                  <View style={styles.lookupLoading}>
-                    <ActivityIndicator color="#116653" />
-                    <Text style={styles.lookupLoadingText}>도서 정보를 찾고 있습니다</Text>
-                  </View>
-                ) : null}
-                {selectedBook ? (
-                  <View style={styles.bookResultCard}>
-                    {selectedBook.imageUrl ? (
-                      <Image resizeMode="cover" source={{ uri: selectedBook.imageUrl }} style={styles.bookResultImage} />
-                    ) : (
-                      <View style={styles.bookResultImageFallback}>
-                        <Text style={styles.bookResultImageText}>BOOK</Text>
-                      </View>
-                    )}
-                    <View style={styles.bookResultCopy}>
-                      <Text style={styles.bookResultTitle} numberOfLines={2}>
-                        {selectedBook.title}
-                      </Text>
-                      <Text style={styles.bookResultMeta} numberOfLines={1}>
-                        {selectedBook.author}
-                        {selectedBook.publisher ? ` · ${selectedBook.publisher}` : ''}
-                      </Text>
-                      <Text style={styles.bookResultIsbn}>{selectedBook.isbn}</Text>
-                    </View>
-                  </View>
-                ) : null}
-                {selectedBook && !isRoomContext ? (
-                  <View style={styles.pageCountPanel}>
-                    <View style={styles.pageCountHead}>
-                      <Text style={styles.pageCountLabel}>마지막 페이지</Text>
-                      <Text style={styles.pageCountHint}>진행률 계산 기준</Text>
-                    </View>
-                    <TextInput
-                      keyboardType="number-pad"
-                      onChangeText={(value) => setTotalPagesInput(value.replace(/[^0-9]/g, ''))}
-                      placeholder="예: 312"
-                      placeholderTextColor="#928979"
-                      returnKeyType="done"
-                      style={styles.pageCountInput}
-                      value={totalPagesInput}
-                    />
-                  </View>
-                ) : null}
-                {bookLookupError ? <Text style={styles.lookupError}>{bookLookupError}</Text> : null}
-                {registrationError ? <Text style={styles.lookupError}>{registrationError}</Text> : null}
-                <View style={styles.resultActions}>
-                  <Pressable onPress={resetScanner} style={styles.secondaryButton}>
-                    <Text style={styles.secondaryButtonText}>다시 스캔</Text>
-                  </Pressable>
-                  <Pressable
-                    disabled={!canUseScannedBook}
-                    onPress={useScannedBook}
-                    style={[
-                      styles.resultButton,
-                      !canUseScannedBook ? styles.disabledButton : null,
-                    ]}
-                  >
-                    <Text style={styles.resultButtonText}>
-                      {isAddingToReadingLife ? '등록 중' : isRoomContext ? '북룸 책으로 사용' : '독서생활에 등록'}
+              <KeyboardAvoidingView
+                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                keyboardVerticalOffset={Platform.OS === 'ios' ? 18 : 0}
+                style={styles.resultLayer}
+              >
+                <ScrollView
+                  contentContainerStyle={styles.resultScrollContent}
+                  keyboardShouldPersistTaps="handled"
+                  nestedScrollEnabled
+                  showsVerticalScrollIndicator={false}
+                  style={styles.resultScroll}
+                >
+                  <View style={styles.resultPanel}>
+                    <Text style={styles.resultEyebrow}>{looksLikeIsbn ? 'ISBN FOUND' : 'BARCODE FOUND'}</Text>
+                    <Text style={styles.resultTitle}>{normalizedCode || scannedCode}</Text>
+                    <Text style={styles.resultCopy}>
+                      {looksLikeIsbn ? '책 ISBN으로 인식했습니다. 도서 정보를 조회하고 있습니다.' : `인식 형식: ${scanResult.type}. 책 ISBN이 맞는지 확인해주세요.`}
                     </Text>
-                  </Pressable>
-                </View>
-              </View>
+                    {isLookingUpBook ? (
+                      <View style={styles.lookupLoading}>
+                        <ActivityIndicator color="#116653" />
+                        <Text style={styles.lookupLoadingText}>도서 정보를 찾고 있습니다</Text>
+                      </View>
+                    ) : null}
+                    {selectedBook ? (
+                      <View style={styles.bookResultCard}>
+                        {selectedBook.imageUrl ? (
+                          <Image resizeMode="cover" source={{ uri: selectedBook.imageUrl }} style={styles.bookResultImage} />
+                        ) : (
+                          <View style={styles.bookResultImageFallback}>
+                            <Text style={styles.bookResultImageText}>BOOK</Text>
+                          </View>
+                        )}
+                        <View style={styles.bookResultCopy}>
+                          <Text style={styles.bookResultTitle} numberOfLines={2}>
+                            {selectedBook.title}
+                          </Text>
+                          <Text style={styles.bookResultMeta} numberOfLines={1}>
+                            {selectedBook.author}
+                            {selectedBook.publisher ? ` · ${selectedBook.publisher}` : ''}
+                          </Text>
+                          <Text style={styles.bookResultIsbn}>{selectedBook.isbn}</Text>
+                        </View>
+                      </View>
+                    ) : null}
+                    {selectedBook && !isRoomContext ? (
+                      <View style={styles.pageCountPanel}>
+                        <View style={styles.pageCountHead}>
+                          <Text style={styles.pageCountLabel}>마지막 페이지</Text>
+                          <Text style={styles.pageCountHint}>진행률 계산 기준</Text>
+                        </View>
+                        <TextInput
+                          keyboardType="number-pad"
+                          onChangeText={(value) => setTotalPagesInput(value.replace(/[^0-9]/g, ''))}
+                          placeholder="예: 312"
+                          placeholderTextColor="#928979"
+                          returnKeyType="done"
+                          style={styles.pageCountInput}
+                          value={totalPagesInput}
+                        />
+                      </View>
+                    ) : null}
+                    {bookLookupError ? <Text style={styles.lookupError}>{bookLookupError}</Text> : null}
+                    {registrationError ? <Text style={styles.lookupError}>{registrationError}</Text> : null}
+                    <View style={styles.resultActions}>
+                      <Pressable onPress={resetScanner} style={styles.secondaryButton}>
+                        <Text style={styles.secondaryButtonText}>다시 스캔</Text>
+                      </Pressable>
+                      <Pressable
+                        disabled={!canUseScannedBook}
+                        onPress={useScannedBook}
+                        style={[
+                          styles.resultButton,
+                          !canUseScannedBook ? styles.disabledButton : null,
+                        ]}
+                      >
+                        <Text style={styles.resultButtonText}>
+                          {isAddingToReadingLife ? '등록 중' : isRoomContext ? '북룸 책으로 사용' : '독서생활에 등록'}
+                        </Text>
+                      </Pressable>
+                    </View>
+                  </View>
+                </ScrollView>
+              </KeyboardAvoidingView>
             ) : null}
           </View>
         ) : null}
@@ -466,14 +493,27 @@ const styles = StyleSheet.create({
     textShadowOffset: { height: 1, width: 0 },
     textShadowRadius: 8,
   },
+  resultLayer: {
+    bottom: 18,
+    justifyContent: 'flex-end',
+    left: 18,
+    position: 'absolute',
+    right: 18,
+    top: 0,
+  },
+  resultScrollContent: {
+    flexGrow: 1,
+    justifyContent: 'flex-end',
+    paddingTop: 72,
+  },
+  resultScroll: {
+    flex: 1,
+  },
   resultPanel: {
     backgroundColor: 'rgba(247, 242, 234, 0.96)',
     borderRadius: 24,
-    bottom: 18,
-    left: 18,
     padding: 18,
-    position: 'absolute',
-    right: 18,
+    width: '100%',
   },
   resultEyebrow: {
     color: '#116653',
