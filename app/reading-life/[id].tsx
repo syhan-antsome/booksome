@@ -24,6 +24,7 @@ import {
   deleteReadingLifeBook,
   getReadingLifeBook,
   listReadingLifeNotes,
+  setFeaturedReadingLifeBook,
   type ReadingBookStatus,
   type ReadingLifeBook,
   type ReadingLifeNote,
@@ -51,6 +52,7 @@ export default function ReadingLifeBookScreen() {
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isDeletingBook, setIsDeletingBook] = useState(false);
+  const [isFeaturingBook, setIsFeaturingBook] = useState(false);
   const [isSavingNote, setIsSavingNote] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [composer, setComposer] = useState<ReadingNoteKind>('quote');
@@ -183,6 +185,22 @@ export default function ReadingLifeBookScreen() {
         },
       ],
     );
+  };
+
+  const setFeaturedBook = async () => {
+    if (!session?.user.id || !bookId || !book || book.pinnedAt) return;
+
+    setIsFeaturingBook(true);
+    setErrorMessage(null);
+
+    try {
+      const nextBook = await setFeaturedReadingLifeBook(session.user.id, bookId);
+      setBook(nextBook);
+    } catch (error) {
+      setErrorMessage(getErrorMessage(error, '대표 책으로 설정하지 못했습니다.'));
+    } finally {
+      setIsFeaturingBook(false);
+    }
   };
 
   const setProgress = (progressPercent: number) => {
@@ -383,13 +401,28 @@ export default function ReadingLifeBookScreen() {
               </View>
 
               <View style={styles.heroBottom}>
-                <Pressable
-                  disabled={isSaving}
-                  onPress={() => saveBook({ visibility: book.visibility === 'public' ? 'private' : 'public' })}
-                  style={styles.visibilityButton}
-                >
-                  <Text style={styles.visibilityText}>{book.visibility === 'public' ? '공개 기록' : '나만 보기'}</Text>
-                </Pressable>
+                <View style={styles.heroBottomActions}>
+                  <Pressable
+                    disabled={isSaving}
+                    onPress={() => saveBook({ visibility: book.visibility === 'public' ? 'private' : 'public' })}
+                    style={styles.visibilityButton}
+                  >
+                    <Text style={styles.visibilityText}>{book.visibility === 'public' ? '공개 기록' : '나만 보기'}</Text>
+                  </Pressable>
+                  <Pressable
+                    disabled={isFeaturingBook || !!book.pinnedAt}
+                    onPress={setFeaturedBook}
+                    style={[styles.featuredButton, book.pinnedAt ? styles.featuredButtonActive : null]}
+                  >
+                    {isFeaturingBook ? (
+                      <ActivityIndicator color="#103D2B" />
+                    ) : (
+                      <Text style={[styles.featuredButtonText, book.pinnedAt ? styles.featuredButtonTextActive : null]}>
+                        {book.pinnedAt ? '대표 책' : '대표로 설정'}
+                      </Text>
+                    )}
+                  </Pressable>
+                </View>
                 <View style={styles.heroBottomProgress}>
                   <Text style={styles.heroBottomValue}>{book.progressPercent}%</Text>
                   <Text style={styles.heroBottomPage}>
@@ -802,6 +835,12 @@ const styles = StyleSheet.create({
   heroBottomProgress: {
     alignItems: 'flex-end',
   },
+  heroBottomActions: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    flexShrink: 1,
+    gap: 8,
+  },
   visibilityButton: {
     backgroundColor: 'rgba(247,241,229,0.12)',
     borderRadius: 999,
@@ -812,6 +851,28 @@ const styles = StyleSheet.create({
     color: 'rgba(247,241,229,0.86)',
     fontSize: 12,
     fontWeight: '900',
+  },
+  featuredButton: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(216,190,136,0.18)',
+    borderColor: 'rgba(216,190,136,0.34)',
+    borderRadius: 999,
+    borderWidth: 1,
+    minHeight: 34,
+    justifyContent: 'center',
+    paddingHorizontal: 13,
+    paddingVertical: 8,
+  },
+  featuredButtonActive: {
+    backgroundColor: '#D8BE88',
+  },
+  featuredButtonText: {
+    color: 'rgba(247,241,229,0.9)',
+    fontSize: 12,
+    fontWeight: '900',
+  },
+  featuredButtonTextActive: {
+    color: '#103D2B',
   },
   heroBottomValue: {
     color: '#D8BE88',

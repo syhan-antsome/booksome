@@ -17,6 +17,7 @@ export type ReadingLifeBook = {
   progressPercent: number;
   currentPage: number;
   totalPages: number | null;
+  pinnedAt: string | null;
   visibility: ReadingVisibility;
   createdAt: string;
   updatedAt: string;
@@ -78,6 +79,7 @@ type ReadingBookRow = {
   progress_percent: number;
   current_page: number;
   total_pages: number | null;
+  pinned_at: string | null;
   visibility: ReadingVisibility;
   created_at: string;
   updated_at: string;
@@ -99,7 +101,7 @@ type ReadingNoteRow = {
 };
 
 const readingBookSelect =
-  'id, profile_id, isbn13, title, author, publisher, published_date, description, external_cover_url, status, progress_percent, current_page, total_pages, visibility, created_at, updated_at';
+  'id, profile_id, isbn13, title, author, publisher, published_date, description, external_cover_url, status, progress_percent, current_page, total_pages, pinned_at, visibility, created_at, updated_at';
 
 const readingNoteSelect =
   'id, reading_book_id, profile_id, kind, quote_text, body, page_label, media_path, media_url, visibility, created_at, updated_at';
@@ -116,7 +118,7 @@ export async function listReadingLifeBooks(profileId: string) {
     throw error;
   }
 
-  return (data ?? []).map(mapReadingBook);
+  return (data ?? []).map(mapReadingBook).sort(sortReadingBooksForShelf);
 }
 
 export async function getReadingLifeBook(profileId: string, bookId: string) {
@@ -274,6 +276,37 @@ export async function deleteReadingLifeBook(profileId: string, bookId: string) {
   }
 }
 
+export async function setFeaturedReadingLifeBook(profileId: string, bookId: string) {
+  const pinnedAt = new Date().toISOString();
+  const { error: clearError } = await supabase
+    .from('reading_books')
+    .update({
+      pinned_at: null,
+    })
+    .eq('profile_id', profileId);
+
+  if (clearError) {
+    throw clearError;
+  }
+
+  const { data, error } = await supabase
+    .from('reading_books')
+    .update({
+      pinned_at: pinnedAt,
+      updated_at: pinnedAt,
+    })
+    .eq('profile_id', profileId)
+    .eq('id', bookId)
+    .select(readingBookSelect)
+    .single<ReadingBookRow>();
+
+  if (error) {
+    throw error;
+  }
+
+  return mapReadingBook(data);
+}
+
 export async function createReadingLifeNote(input: CreateReadingLifeNoteInput) {
   const { data, error } = await supabase
     .from('reading_notes')
@@ -313,6 +346,7 @@ function mapReadingBook(row: ReadingBookRow): ReadingLifeBook {
     progressPercent: row.progress_percent,
     currentPage: row.current_page ?? 0,
     totalPages: row.total_pages,
+    pinnedAt: row.pinned_at,
     visibility: row.visibility,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -338,6 +372,13 @@ function mapReadingNote(row: ReadingNoteRow): ReadingLifeNote {
 
 function normalizeIsbn(value: string) {
   return value.replace(/[^0-9X]/gi, '').toUpperCase();
+}
+
+function sortReadingBooksForShelf(a: ReadingLifeBook, b: ReadingLifeBook) {
+  if (a.pinnedAt && !b.pinnedAt) return -1;
+  if (!a.pinnedAt && b.pinnedAt) return 1;
+
+  return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
 }
 
 function normalizePublishedDate(value: string) {

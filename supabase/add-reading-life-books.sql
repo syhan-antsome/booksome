@@ -21,6 +21,7 @@ create table if not exists public.reading_books (
   progress_percent integer not null default 0 check (progress_percent >= 0 and progress_percent <= 100),
   current_page integer not null default 0 check (current_page >= 0),
   total_pages integer check (total_pages is null or total_pages > 0),
+  pinned_at timestamptz,
   visibility text not null default 'private',
   source text,
   source_payload jsonb,
@@ -33,6 +34,10 @@ create table if not exists public.reading_books (
 
 create index if not exists reading_books_profile_id_updated_at_idx
 on public.reading_books(profile_id, updated_at desc);
+
+create unique index if not exists reading_books_one_pinned_per_profile_idx
+on public.reading_books(profile_id)
+where pinned_at is not null;
 
 alter table public.reading_books enable row level security;
 

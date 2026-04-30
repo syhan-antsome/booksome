@@ -162,6 +162,7 @@ create table if not exists public.reading_books (
   progress_percent integer not null default 0 check (progress_percent >= 0 and progress_percent <= 100),
   current_page integer not null default 0 check (current_page >= 0),
   total_pages integer check (total_pages is null or total_pages > 0),
+  pinned_at timestamptz,
   visibility text not null default 'private',
   source text,
   source_payload jsonb,
@@ -297,6 +298,9 @@ create index if not exists room_members_profile_id_idx on public.room_members(pr
 create index if not exists posts_room_id_created_at_idx on public.posts(room_id, created_at desc);
 create index if not exists comments_post_id_created_at_idx on public.comments(post_id, created_at asc);
 create index if not exists reading_books_profile_id_updated_at_idx on public.reading_books(profile_id, updated_at desc);
+create unique index if not exists reading_books_one_pinned_per_profile_idx
+on public.reading_books(profile_id)
+where pinned_at is not null;
 create index if not exists reading_notes_book_id_created_at_idx on public.reading_notes(reading_book_id, created_at desc);
 create index if not exists reading_notes_profile_id_created_at_idx on public.reading_notes(profile_id, created_at desc);
 create index if not exists meetups_city_starts_at_idx on public.meetups(city, starts_at);

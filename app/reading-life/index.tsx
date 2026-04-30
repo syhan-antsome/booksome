@@ -64,7 +64,7 @@ export default function ReadingLifeScreen() {
     };
   }, [session?.user.id]);
 
-  const currentBook = books.find((book) => book.status === 'reading') ?? books[0] ?? null;
+  const currentBook = books.find((book) => book.pinnedAt) ?? books.find((book) => book.status === 'reading') ?? books[0] ?? null;
   const readingStats = [
     { label: '읽는 중', value: String(books.filter((book) => book.status === 'reading').length) },
     { label: '문장 메모', value: '0' },
@@ -131,7 +131,7 @@ export default function ReadingLifeScreen() {
             )}
           </View>
           <View style={styles.bookCopy}>
-            <Text style={styles.bookState}>현재 읽는 책</Text>
+            <Text style={styles.bookState}>{currentBook?.pinnedAt ? '대표로 읽는 책' : '현재 읽는 책'}</Text>
             <Text style={styles.bookTitle} numberOfLines={2}>
               {currentBook?.title ?? '아직 기록된 책이 없어요'}
             </Text>
@@ -156,31 +156,43 @@ export default function ReadingLifeScreen() {
 
         {books.length > 0 ? (
           <View style={styles.myBooks}>
-            <Text style={styles.sectionTitle}>내 책장</Text>
-            {books.map((book) => (
-              <Pressable
-                key={book.id}
-                onPress={() => router.push(`/reading-life/${book.id}`)}
-                style={styles.myBookItem}
-              >
-                {book.externalCoverUrl ? (
-                  <Image resizeMode="cover" source={{ uri: book.externalCoverUrl }} style={styles.myBookImage} />
-                ) : (
-                  <View style={styles.myBookFallback}>
-                    <Text style={styles.myBookFallbackText}>BOOK</Text>
+            <View style={styles.sectionTitleRow}>
+              <Text style={styles.sectionTitle}>내 책장</Text>
+              <Text style={styles.sectionCount}>{books.length}권</Text>
+            </View>
+            <ScrollView
+              contentContainerStyle={styles.bookshelfContent}
+              horizontal
+              showsHorizontalScrollIndicator={false}
+            >
+              {books.map((book) => (
+                <Pressable
+                  key={book.id}
+                  onPress={() => router.push(`/reading-life/${book.id}`)}
+                  style={styles.shelfBook}
+                >
+                  <View style={[styles.shelfCover, book.pinnedAt ? styles.shelfCoverPinned : null]}>
+                    {book.externalCoverUrl ? (
+                      <Image resizeMode="cover" source={{ uri: book.externalCoverUrl }} style={styles.shelfCoverImage} />
+                    ) : (
+                      <Text style={styles.shelfCoverText}>BOOK</Text>
+                    )}
+                    {book.pinnedAt ? (
+                      <View style={styles.pinnedFlag}>
+                        <Text style={styles.pinnedFlagText}>대표</Text>
+                      </View>
+                    ) : null}
                   </View>
-                )}
-                <View style={styles.myBookCopy}>
-                  <Text style={styles.myBookTitle} numberOfLines={2}>
+                  <Text style={styles.shelfTitle} numberOfLines={2}>
                     {book.title}
                   </Text>
-                  <Text style={styles.myBookMeta} numberOfLines={1}>
-                    {book.author}
-                    {book.publisher ? ` · ${book.publisher}` : ''}
+                  <Text style={styles.shelfMeta} numberOfLines={1}>
+                    {book.totalPages ? `${book.progressPercent}%` : book.status === 'finished' ? '완독' : '읽는 중'}
                   </Text>
-                </View>
-              </Pressable>
-            ))}
+                </Pressable>
+              ))}
+            </ScrollView>
+            <View style={styles.bookshelfBoard} />
           </View>
         ) : null}
 
@@ -482,11 +494,87 @@ const styles = StyleSheet.create({
   myBooks: {
     marginTop: 24,
   },
+  sectionTitleRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
   sectionTitle: {
     color: '#26372B',
     fontSize: 20,
     fontWeight: '800',
     marginBottom: 2,
+  },
+  sectionCount: {
+    color: '#8F6A42',
+    fontSize: 12,
+    fontWeight: '900',
+  },
+  bookshelfContent: {
+    gap: 18,
+    paddingRight: 20,
+    paddingTop: 18,
+  },
+  shelfBook: {
+    width: 104,
+  },
+  shelfCover: {
+    alignItems: 'center',
+    backgroundColor: '#D8BE88',
+    borderRadius: 13,
+    height: 138,
+    justifyContent: 'center',
+    overflow: 'hidden',
+    position: 'relative',
+    width: 92,
+  },
+  shelfCoverPinned: {
+    borderColor: '#103D2B',
+    borderWidth: 2,
+  },
+  shelfCoverImage: {
+    height: '100%',
+    width: '100%',
+  },
+  shelfCoverText: {
+    color: '#103D2B',
+    fontSize: 12,
+    fontWeight: '900',
+  },
+  pinnedFlag: {
+    backgroundColor: '#103D2B',
+    borderRadius: 999,
+    bottom: 7,
+    left: 7,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    position: 'absolute',
+  },
+  pinnedFlagText: {
+    color: '#F7F1E5',
+    fontSize: 10,
+    fontWeight: '900',
+  },
+  shelfTitle: {
+    color: '#26372B',
+    fontSize: 13,
+    fontWeight: '800',
+    lineHeight: 18,
+    marginTop: 10,
+    width: 92,
+  },
+  shelfMeta: {
+    color: '#72806E',
+    fontSize: 11,
+    fontWeight: '800',
+    marginTop: 4,
+    width: 92,
+  },
+  bookshelfBoard: {
+    backgroundColor: 'rgba(143,106,66,0.2)',
+    borderRadius: 999,
+    height: 9,
+    marginTop: 8,
   },
   myBookItem: {
     alignItems: 'center',
