@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { CameraView, type BarcodeScanningResult, useCameraPermissions } from 'expo-camera';
 import { router, useLocalSearchParams } from 'expo-router';
-import { ActivityIndicator, Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Image, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AuthRequired } from '../../src/components/auth-required';
@@ -21,18 +21,28 @@ export default function ScanScreen() {
   const [isLookingUpBook, setIsLookingUpBook] = useState(false);
   const [isAddingToReadingLife, setIsAddingToReadingLife] = useState(false);
   const [registrationError, setRegistrationError] = useState<string | null>(null);
+  const [totalPagesInput, setTotalPagesInput] = useState('');
   const isGranted = permission?.granted;
   const isRoomContext = params.context === 'create-room';
   const scannedCode = scanResult?.data ?? '';
   const normalizedCode = useMemo(() => scannedCode.replace(/[^0-9X]/gi, ''), [scannedCode]);
   const looksLikeIsbn = scanResult?.type === 'ean13' && /^(978|979)\d{10}$/.test(normalizedCode);
   const selectedBook = bookResults[0] ?? null;
+  const totalPagesValue = useMemo(() => parsePositiveInteger(totalPagesInput), [totalPagesInput]);
+  const needsPageCount = !isRoomContext && !!selectedBook;
+  const canUseScannedBook =
+    looksLikeIsbn &&
+    !isLookingUpBook &&
+    !isAddingToReadingLife &&
+    !!selectedBook &&
+    (!needsPageCount || totalPagesValue !== null);
 
   const handleBarcodeScanned = (result: BarcodeScanningResult) => {
     setScanResult(result);
     setBookResults([]);
     setBookLookupError(null);
     setRegistrationError(null);
+    setTotalPagesInput('');
 
     const isbn = normalizeIsbn(result.data);
     if (result.type === 'ean13' && /^(978|979)\d{10}$/.test(isbn)) {
@@ -45,6 +55,7 @@ export default function ScanScreen() {
     setBookLookupError(null);
     setRegistrationError(null);
     setBookResults([]);
+    setTotalPagesInput('');
     setScanResult(null);
   };
 
@@ -59,11 +70,16 @@ export default function ScanScreen() {
       return;
     }
 
+    if (!totalPagesValue) {
+      setRegistrationError('책의 마지막 페이지 번호를 입력해주세요.');
+      return;
+    }
+
     setIsAddingToReadingLife(true);
     setRegistrationError(null);
 
     try {
-      await addBookToReadingLife(session.user.id, selectedBook);
+      await addBookToReadingLife(session.user.id, selectedBook, { totalPages: totalPagesValue });
       router.replace('/reading-life');
     } catch (error) {
       setRegistrationError(getErrorMessage(error, '독서생활에 등록하지 못했습니다.'));
@@ -182,6 +198,23 @@ export default function ScanScreen() {
                     </View>
                   </View>
                 ) : null}
+                {selectedBook && !isRoomContext ? (
+                  <View style={styles.pageCountPanel}>
+                    <View style={styles.pageCountHead}>
+                      <Text style={styles.pageCountLabel}>마지막 페이지</Text>
+                      <Text style={styles.pageCountHint}>진행률 계산 기준</Text>
+                    </View>
+                    <TextInput
+                      keyboardType="number-pad"
+                      onChangeText={(value) => setTotalPagesInput(value.replace(/[^0-9]/g, ''))}
+                      placeholder="예: 312"
+                      placeholderTextColor="#928979"
+                      returnKeyType="done"
+                      style={styles.pageCountInput}
+                      value={totalPagesInput}
+                    />
+                  </View>
+                ) : null}
                 {bookLookupError ? <Text style={styles.lookupError}>{bookLookupError}</Text> : null}
                 {registrationError ? <Text style={styles.lookupError}>{registrationError}</Text> : null}
                 <View style={styles.resultActions}>
@@ -189,11 +222,11 @@ export default function ScanScreen() {
                     <Text style={styles.secondaryButtonText}>다시 스캔</Text>
                   </Pressable>
                   <Pressable
-                    disabled={!looksLikeIsbn || isLookingUpBook || isAddingToReadingLife || !selectedBook}
+                    disabled={!canUseScannedBook}
                     onPress={useScannedBook}
                     style={[
                       styles.resultButton,
-                      !looksLikeIsbn || isLookingUpBook || isAddingToReadingLife || !selectedBook ? styles.disabledButton : null,
+                      !canUseScannedBook ? styles.disabledButton : null,
                     ]}
                   >
                     <Text style={styles.resultButtonText}>
@@ -223,6 +256,14 @@ export default function ScanScreen() {
 
 function normalizeIsbn(value: string) {
   return value.replace(/[^0-9X]/gi, '').toUpperCase();
+}
+
+function parsePositiveInteger(value: string) {
+  const normalizedValue = value.replace(/[^0-9]/g, '');
+  if (!normalizedValue) return null;
+
+  const parsedValue = Number(normalizedValue);
+  return Number.isSafeInteger(parsedValue) && parsedValue > 0 ? parsedValue : null;
 }
 
 function getErrorMessage(error: unknown, fallback: string) {
@@ -303,6 +344,37 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '900',
     marginTop: 6,
+  },
+  pageCountPanel: {
+    borderTopColor: 'rgba(20,35,38,0.1)',
+    borderTopWidth: 1,
+    marginTop: 14,
+    paddingTop: 13,
+  },
+  pageCountHead: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  pageCountLabel: {
+    color: '#142326',
+    fontSize: 13,
+    fontWeight: '900',
+  },
+  pageCountHint: {
+    color: '#7E877F',
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  pageCountInput: {
+    borderBottomColor: '#116653',
+    borderBottomWidth: 2,
+    color: '#142326',
+    fontSize: 23,
+    fontWeight: '800',
+    marginTop: 4,
+    paddingBottom: 5,
+    paddingTop: 5,
   },
   lookupError: {
     color: '#A43D20',

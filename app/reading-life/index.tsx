@@ -140,7 +140,7 @@ export default function ReadingLifeScreen() {
               <View style={[styles.progressFill, { width: `${currentBook?.progressPercent ?? 0}%` }]} />
             </View>
             <Text style={styles.bookHint}>
-              {currentBook ? '이제 진행률, 문장, 사진 메모를 이어서 붙일 수 있습니다.' : '책을 추가하면 진행률과 메모가 여기에 모입니다.'}
+              {currentBook ? getCurrentBookHint(currentBook) : '책을 추가하면 진행률과 메모가 여기에 모입니다.'}
             </Text>
           </View>
         </Pressable>
@@ -231,6 +231,14 @@ function getErrorMessage(error: unknown, fallback: string) {
   return fallback;
 }
 
+function getCurrentBookHint(book: ReadingLifeBook) {
+  if (book.totalPages) {
+    return `${book.currentPage} / ${book.totalPages}쪽 · ${book.progressPercent}%까지 읽었습니다.`;
+  }
+
+  return '이제 진행률, 문장, 사진 메모를 이어서 붙일 수 있습니다.';
+}
+
 const styles = StyleSheet.create({
   safeArea: {
     backgroundColor: '#EEF1DF',
@@ -294,9 +302,9 @@ const styles = StyleSheet.create({
     letterSpacing: 0,
   },
   signHeroText: {
-    color: '#14251B',
+    color: '#26372B',
     fontSize: 18,
-    fontWeight: '900',
+    fontWeight: '800',
     height: 48,
     lineHeight: 24,
     marginTop: 6,
@@ -421,9 +429,9 @@ const styles = StyleSheet.create({
     fontWeight: '900',
   },
   bookTitle: {
-    color: '#14251B',
+    color: '#26372B',
     fontSize: 19,
-    fontWeight: '900',
+    fontWeight: '800',
     lineHeight: 24,
     marginTop: 5,
   },
@@ -475,9 +483,9 @@ const styles = StyleSheet.create({
     marginTop: 24,
   },
   sectionTitle: {
-    color: '#14251B',
+    color: '#26372B',
     fontSize: 20,
-    fontWeight: '900',
+    fontWeight: '800',
     marginBottom: 2,
   },
   myBookItem: {
@@ -510,9 +518,9 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   myBookTitle: {
-    color: '#14251B',
+    color: '#26372B',
     fontSize: 16,
-    fontWeight: '900',
+    fontWeight: '800',
     lineHeight: 21,
   },
   myBookMeta: {
@@ -542,9 +550,9 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   recordTitle: {
-    color: '#14251B',
+    color: '#26372B',
     fontSize: 17,
-    fontWeight: '900',
+    fontWeight: '800',
   },
   recordText: {
     color: '#72806E',

@@ -160,11 +160,15 @@ create table if not exists public.reading_books (
   external_cover_url text,
   status public.reading_book_status not null default 'reading',
   progress_percent integer not null default 0 check (progress_percent >= 0 and progress_percent <= 100),
+  current_page integer not null default 0 check (current_page >= 0),
+  total_pages integer check (total_pages is null or total_pages > 0),
   visibility text not null default 'private',
   source text,
   source_payload jsonb,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
+  constraint reading_books_current_page_within_total_check
+    check (total_pages is null or current_page <= total_pages),
   unique (profile_id, isbn13)
 );
 

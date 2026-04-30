@@ -18,6 +18,7 @@ import { BottomNavigation } from '../../src/components/bottom-navigation';
 import { ScreenHeader } from '../../src/components/screen-header';
 import { useAuth } from '../../src/providers/auth-provider';
 import {
+  calculateReadingProgressPercent,
   createReadingLifeNote,
   getReadingLifeBook,
   listReadingLifeNotes,
@@ -53,6 +54,8 @@ export default function ReadingLifeBookScreen() {
   const [quoteText, setQuoteText] = useState('');
   const [quoteBody, setQuoteBody] = useState('');
   const [pageLabel, setPageLabel] = useState('');
+  const [currentPageInput, setCurrentPageInput] = useState('');
+  const [totalPagesInput, setTotalPagesInput] = useState('');
   const [photoBody, setPhotoBody] = useState('');
   const [photoAsset, setPhotoAsset] = useState<ImagePicker.ImagePickerAsset | null>(null);
   const [noteVisibility, setNoteVisibility] = useState<ReadingVisibility>('private');
@@ -104,9 +107,31 @@ export default function ReadingLifeBookScreen() {
     }
   }, [activeSection]);
 
+  useEffect(() => {
+    if (!book) {
+      setCurrentPageInput('');
+      setTotalPagesInput('');
+      return;
+    }
+
+    setCurrentPageInput(book.currentPage > 0 ? String(book.currentPage) : '');
+    setTotalPagesInput(book.totalPages ? String(book.totalPages) : '');
+  }, [book?.id, book?.currentPage, book?.totalPages]);
+
   const statusLabel = useMemo(() => {
     return statusOptions.find((option) => option.value === book?.status)?.label ?? '읽는 중';
   }, [book?.status]);
+
+  const pageProgressPreview = useMemo(() => {
+    const currentPage = parseNonNegativeInteger(currentPageInput);
+    const totalPages = parsePositiveInteger(totalPagesInput);
+
+    if (currentPage === null || totalPages === null || currentPage > totalPages) {
+      return null;
+    }
+
+    return calculateReadingProgressPercent(currentPage, totalPages);
+  }, [currentPageInput, totalPagesInput]);
 
   const saveBook = async (input: UpdateReadingLifeBookInput) => {
     if (!session?.user.id || !bookId) return;
@@ -126,7 +151,46 @@ export default function ReadingLifeBookScreen() {
 
   const setProgress = (progressPercent: number) => {
     const nextStatus = progressPercent >= 100 ? 'finished' : book?.status === 'finished' ? 'reading' : book?.status;
-    void saveBook({ progressPercent, status: nextStatus });
+    const input: UpdateReadingLifeBookInput = { progressPercent, status: nextStatus };
+
+    if (book?.totalPages) {
+      input.currentPage = Math.round((book.totalPages * progressPercent) / 100);
+      input.totalPages = book.totalPages;
+    }
+
+    void saveBook(input);
+  };
+
+  const savePageProgress = () => {
+    if (!book) return;
+
+    const currentPage = parseNonNegativeInteger(currentPageInput);
+    const totalPages = parsePositiveInteger(totalPagesInput);
+
+    if (totalPages === null) {
+      setErrorMessage('책의 마지막 페이지 번호를 입력해주세요.');
+      return;
+    }
+
+    if (currentPage === null) {
+      setErrorMessage('현재 읽은 페이지 번호를 입력해주세요.');
+      return;
+    }
+
+    if (currentPage > totalPages) {
+      setErrorMessage('현재 페이지는 마지막 페이지보다 클 수 없습니다.');
+      return;
+    }
+
+    const progressPercent = calculateReadingProgressPercent(currentPage, totalPages);
+    const nextStatus = progressPercent >= 100 ? 'finished' : book.status === 'finished' ? 'reading' : book.status;
+
+    void saveBook({
+      currentPage,
+      progressPercent,
+      status: nextStatus,
+      totalPages,
+    });
   };
 
   const saveQuoteNote = async () => {
@@ -151,6 +215,19 @@ export default function ReadingLifeBookScreen() {
         visibility: noteVisibility,
       });
       setNotes((current) => [note, ...current]);
+
+      const notePage = parsePageLabel(pageLabel);
+      if (book.totalPages && notePage !== null && notePage <= book.totalPages && notePage > book.currentPage) {
+        const progressPercent = calculateReadingProgressPercent(notePage, book.totalPages);
+        const nextBook = await updateReadingLifeBook(session.user.id, bookId, {
+          currentPage: notePage,
+          progressPercent,
+          status: progressPercent >= 100 ? 'finished' : book.status === 'finished' ? 'reading' : book.status,
+          totalPages: book.totalPages,
+        });
+        setBook(nextBook);
+      }
+
       setQuoteText('');
       setQuoteBody('');
       setPageLabel('');
@@ -277,7 +354,12 @@ export default function ReadingLifeBookScreen() {
                 >
                   <Text style={styles.visibilityText}>{book.visibility === 'public' ? '공개 기록' : '나만 보기'}</Text>
                 </Pressable>
-                <Text style={styles.heroBottomValue}>{book.progressPercent}%</Text>
+                <View style={styles.heroBottomProgress}>
+                  <Text style={styles.heroBottomValue}>{book.progressPercent}%</Text>
+                  <Text style={styles.heroBottomPage}>
+                    {book.totalPages ? `${book.currentPage} / ${book.totalPages}쪽` : '페이지 미설정'}
+                  </Text>
+                </View>
               </View>
             </View>
 
@@ -288,6 +370,43 @@ export default function ReadingLifeBookScreen() {
               </View>
               <View style={styles.progressTrack}>
                 <View style={[styles.progressFill, { width: `${book.progressPercent}%` }]} />
+              </View>
+              <View style={styles.pageProgressPanel}>
+                <View style={styles.pageInputRow}>
+                  <View style={styles.pageField}>
+                    <Text style={styles.pageFieldLabel}>현재 페이지</Text>
+                    <TextInput
+                      keyboardType="number-pad"
+                      onChangeText={(value) => setCurrentPageInput(value.replace(/[^0-9]/g, ''))}
+                      placeholder="0"
+                      placeholderTextColor="#A19989"
+                      returnKeyType="done"
+                      style={styles.pageInput}
+                      value={currentPageInput}
+                    />
+                  </View>
+                  <Text style={styles.pageSlash}>/</Text>
+                  <View style={styles.pageField}>
+                    <Text style={styles.pageFieldLabel}>마지막 페이지</Text>
+                    <TextInput
+                      keyboardType="number-pad"
+                      onChangeText={(value) => setTotalPagesInput(value.replace(/[^0-9]/g, ''))}
+                      placeholder="312"
+                      placeholderTextColor="#A19989"
+                      returnKeyType="done"
+                      style={styles.pageInput}
+                      value={totalPagesInput}
+                    />
+                  </View>
+                </View>
+                <View style={styles.pageProgressBottom}>
+                  <Text style={styles.pageProgressHint}>
+                    {pageProgressPreview === null ? '페이지를 입력하면 진행률을 계산합니다.' : `저장하면 ${pageProgressPreview}%로 반영됩니다.`}
+                  </Text>
+                  <Pressable disabled={isSaving} onPress={savePageProgress} style={styles.pageProgressAction}>
+                    {isSaving ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.pageProgressActionText}>저장</Text>}
+                  </Pressable>
+                </View>
               </View>
               <View style={styles.progressMarks}>
                 {progressMarks.map((mark) => (
@@ -498,6 +617,30 @@ function getErrorMessage(error: unknown, fallback: string) {
   return fallback;
 }
 
+function parsePositiveInteger(value: string) {
+  const normalizedValue = value.replace(/[^0-9]/g, '');
+  if (!normalizedValue) return null;
+
+  const parsedValue = Number(normalizedValue);
+  return Number.isSafeInteger(parsedValue) && parsedValue > 0 ? parsedValue : null;
+}
+
+function parseNonNegativeInteger(value: string) {
+  const normalizedValue = value.replace(/[^0-9]/g, '');
+  if (!normalizedValue) return 0;
+
+  const parsedValue = Number(normalizedValue);
+  return Number.isSafeInteger(parsedValue) && parsedValue >= 0 ? parsedValue : null;
+}
+
+function parsePageLabel(value: string) {
+  const matchedValue = value.match(/\d+/)?.[0];
+  if (!matchedValue) return null;
+
+  const parsedValue = Number(matchedValue);
+  return Number.isSafeInteger(parsedValue) && parsedValue >= 0 ? parsedValue : null;
+}
+
 const styles = StyleSheet.create({
   safeArea: {
     backgroundColor: '#EEF1DF',
@@ -586,7 +729,7 @@ const styles = StyleSheet.create({
   title: {
     color: '#FFFFFF',
     fontSize: 24,
-    fontWeight: '900',
+    fontWeight: '800',
     letterSpacing: 0,
     lineHeight: 30,
   },
@@ -606,6 +749,9 @@ const styles = StyleSheet.create({
     marginTop: 16,
     paddingTop: 14,
   },
+  heroBottomProgress: {
+    alignItems: 'flex-end',
+  },
   visibilityButton: {
     backgroundColor: 'rgba(247,241,229,0.12)',
     borderRadius: 999,
@@ -622,6 +768,12 @@ const styles = StyleSheet.create({
     fontSize: 26,
     fontWeight: '900',
   },
+  heroBottomPage: {
+    color: 'rgba(247,241,229,0.7)',
+    fontSize: 11,
+    fontWeight: '700',
+    marginTop: 1,
+  },
   progressPanel: {
     borderBottomColor: 'rgba(16,61,43,0.12)',
     borderBottomWidth: 1,
@@ -634,9 +786,9 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   sectionTitle: {
-    color: '#14251B',
+    color: '#26372B',
     fontSize: 20,
-    fontWeight: '900',
+    fontWeight: '800',
   },
   progressValue: {
     color: '#116653',
@@ -653,6 +805,69 @@ const styles = StyleSheet.create({
   progressFill: {
     backgroundColor: '#116653',
     height: '100%',
+  },
+  pageProgressPanel: {
+    borderBottomColor: 'rgba(16,61,43,0.12)',
+    borderBottomWidth: 1,
+    marginTop: 18,
+    paddingBottom: 16,
+  },
+  pageInputRow: {
+    alignItems: 'flex-end',
+    flexDirection: 'row',
+    gap: 12,
+  },
+  pageField: {
+    flex: 1,
+  },
+  pageFieldLabel: {
+    color: '#7F725E',
+    fontSize: 11,
+    fontWeight: '800',
+  },
+  pageInput: {
+    borderBottomColor: '#103D2B',
+    borderBottomWidth: 2,
+    color: '#14251B',
+    fontSize: 28,
+    fontWeight: '800',
+    lineHeight: 34,
+    paddingBottom: 5,
+    paddingTop: 4,
+  },
+  pageSlash: {
+    color: '#B4A98F',
+    fontSize: 24,
+    fontWeight: '800',
+    paddingBottom: 7,
+  },
+  pageProgressBottom: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 12,
+    justifyContent: 'space-between',
+    marginTop: 12,
+  },
+  pageProgressHint: {
+    color: '#677268',
+    flex: 1,
+    fontSize: 12,
+    fontWeight: '700',
+    lineHeight: 18,
+  },
+  pageProgressAction: {
+    alignItems: 'center',
+    backgroundColor: '#103D2B',
+    borderRadius: 18,
+    height: 38,
+    justifyContent: 'center',
+    minWidth: 70,
+    paddingHorizontal: 15,
+  },
+  pageProgressActionText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '800',
   },
   progressMarks: {
     flexDirection: 'row',
@@ -697,9 +912,9 @@ const styles = StyleSheet.create({
     borderBottomColor: '#103D2B',
   },
   statusTitle: {
-    color: '#14251B',
+    color: '#26372B',
     fontSize: 16,
-    fontWeight: '900',
+    fontWeight: '800',
   },
   statusTitleActive: {
     color: '#103D2B',
@@ -887,9 +1102,9 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   noteQuote: {
-    color: '#14251B',
+    color: '#26372B',
     fontSize: 18,
-    fontWeight: '900',
+    fontWeight: '800',
     lineHeight: 26,
     marginTop: 12,
   },

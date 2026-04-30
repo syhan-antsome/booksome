@@ -15,6 +15,8 @@ export type ReadingLifeBook = {
   externalCoverUrl: string | null;
   status: ReadingBookStatus;
   progressPercent: number;
+  currentPage: number;
+  totalPages: number | null;
   visibility: ReadingVisibility;
   createdAt: string;
   updatedAt: string;
@@ -41,7 +43,13 @@ export type ReadingLifeNote = {
 export type UpdateReadingLifeBookInput = {
   status?: ReadingBookStatus;
   progressPercent?: number;
+  currentPage?: number;
+  totalPages?: number | null;
   visibility?: ReadingVisibility;
+};
+
+export type AddReadingLifeBookInput = {
+  totalPages?: number | null;
 };
 
 export type CreateReadingLifeNoteInput = {
@@ -68,6 +76,8 @@ type ReadingBookRow = {
   external_cover_url: string | null;
   status: ReadingBookStatus;
   progress_percent: number;
+  current_page: number;
+  total_pages: number | null;
   visibility: ReadingVisibility;
   created_at: string;
   updated_at: string;
@@ -89,7 +99,7 @@ type ReadingNoteRow = {
 };
 
 const readingBookSelect =
-  'id, profile_id, isbn13, title, author, publisher, published_date, description, external_cover_url, status, progress_percent, visibility, created_at, updated_at';
+  'id, profile_id, isbn13, title, author, publisher, published_date, description, external_cover_url, status, progress_percent, current_page, total_pages, visibility, created_at, updated_at';
 
 const readingNoteSelect =
   'id, reading_book_id, profile_id, kind, quote_text, body, page_label, media_path, media_url, visibility, created_at, updated_at';
@@ -140,8 +150,13 @@ export async function listReadingLifeNotes(profileId: string, readingBookId: str
   return (data ?? []).map(mapReadingNote);
 }
 
-export async function addBookToReadingLife(profileId: string, book: BookSearchItem) {
+export async function addBookToReadingLife(
+  profileId: string,
+  book: BookSearchItem,
+  input: AddReadingLifeBookInput = {},
+) {
   const isbn13 = normalizeIsbn(book.isbn);
+  const totalPages = sanitizePositiveInteger(input.totalPages);
 
   if (!isbn13) {
     throw new Error('ISBN이 없어 독서생활에 등록할 수 없습니다.');
@@ -159,6 +174,15 @@ export async function addBookToReadingLife(profileId: string, book: BookSearchIt
   }
 
   if (existing) {
+    if (totalPages && existing.total_pages !== totalPages) {
+      const currentPage = Math.min(existing.current_page ?? 0, totalPages);
+      return updateReadingLifeBook(profileId, existing.id, {
+        currentPage,
+        progressPercent: calculateReadingProgressPercent(currentPage, totalPages),
+        totalPages,
+      });
+    }
+
     return mapReadingBook(existing);
   }
 
@@ -175,6 +199,8 @@ export async function addBookToReadingLife(profileId: string, book: BookSearchIt
       external_cover_url: book.imageUrl,
       status: 'reading',
       progress_percent: 0,
+      current_page: 0,
+      total_pages: totalPages,
       source: book.source,
       source_payload: book.sourcePayload,
     })
@@ -209,6 +235,16 @@ export async function updateReadingLifeBook(
 
   if (typeof input.progressPercent === 'number') {
     updatePayload.progress_percent = Math.min(100, Math.max(0, Math.round(input.progressPercent)));
+  }
+
+  if (typeof input.currentPage === 'number') {
+    updatePayload.current_page = sanitizeNonNegativeInteger(input.currentPage);
+  }
+
+  if (typeof input.totalPages === 'number') {
+    updatePayload.total_pages = sanitizePositiveInteger(input.totalPages);
+  } else if (input.totalPages === null) {
+    updatePayload.total_pages = null;
   }
 
   const { data, error } = await supabase
@@ -263,6 +299,8 @@ function mapReadingBook(row: ReadingBookRow): ReadingLifeBook {
     externalCoverUrl: row.external_cover_url,
     status: row.status,
     progressPercent: row.progress_percent,
+    currentPage: row.current_page ?? 0,
+    totalPages: row.total_pages,
     visibility: row.visibility,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -300,4 +338,30 @@ function normalizePublishedDate(value: string) {
   }
 
   return null;
+}
+
+export function calculateReadingProgressPercent(currentPage: number, totalPages: number | null | undefined) {
+  if (!totalPages || totalPages <= 0) {
+    return 0;
+  }
+
+  const safeCurrentPage = Math.min(totalPages, Math.max(0, Math.round(currentPage)));
+  return Math.min(100, Math.max(0, Math.round((safeCurrentPage / totalPages) * 100)));
+}
+
+function sanitizePositiveInteger(value: number | null | undefined) {
+  if (typeof value !== 'number' || !Number.isFinite(value)) {
+    return null;
+  }
+
+  const integerValue = Math.round(value);
+  return integerValue > 0 ? integerValue : null;
+}
+
+function sanitizeNonNegativeInteger(value: number) {
+  if (!Number.isFinite(value)) {
+    return 0;
+  }
+
+  return Math.max(0, Math.round(value));
 }
