@@ -3,6 +3,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   Image,
   Pressable,
   ScrollView,
@@ -20,6 +21,7 @@ import { useAuth } from '../../src/providers/auth-provider';
 import {
   calculateReadingProgressPercent,
   createReadingLifeNote,
+  deleteReadingLifeBook,
   getReadingLifeBook,
   listReadingLifeNotes,
   type ReadingBookStatus,
@@ -48,6 +50,7 @@ export default function ReadingLifeBookScreen() {
   const [notes, setNotes] = useState<ReadingLifeNote[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [isDeletingBook, setIsDeletingBook] = useState(false);
   const [isSavingNote, setIsSavingNote] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [composer, setComposer] = useState<ReadingNoteKind>('quote');
@@ -147,6 +150,39 @@ export default function ReadingLifeBookScreen() {
     } finally {
       setIsSaving(false);
     }
+  };
+
+  const deleteBook = async () => {
+    if (!session?.user.id || !bookId) return;
+
+    setIsDeletingBook(true);
+    setErrorMessage(null);
+
+    try {
+      await deleteReadingLifeBook(session.user.id, bookId);
+      router.replace('/reading-life');
+    } catch (error) {
+      setErrorMessage(getErrorMessage(error, '책 기록을 삭제하지 못했습니다.'));
+    } finally {
+      setIsDeletingBook(false);
+    }
+  };
+
+  const confirmDeleteBook = () => {
+    if (!book) return;
+
+    Alert.alert(
+      '책 기록을 삭제할까요?',
+      `"${book.title}"의 진행률, 문장 메모, 사진 메모가 함께 삭제됩니다. 이 작업은 되돌릴 수 없습니다.`,
+      [
+        { text: '취소', style: 'cancel' },
+        {
+          text: '삭제',
+          onPress: () => void deleteBook(),
+          style: 'destructive',
+        },
+      ],
+    );
   };
 
   const setProgress = (progressPercent: number) => {
@@ -591,6 +627,20 @@ export default function ReadingLifeBookScreen() {
                   </View>
                 ))}
               </View>
+            </View>
+
+            <View style={styles.deletePanel}>
+              <View style={styles.deleteCopy}>
+                <Text style={styles.deleteTitle}>이 책 기록 삭제</Text>
+                <Text style={styles.deleteText}>진행률과 이 책에 남긴 문장, 사진 메모가 함께 정리됩니다.</Text>
+              </View>
+              <Pressable
+                disabled={isDeletingBook}
+                onPress={confirmDeleteBook}
+                style={[styles.deleteButton, isDeletingBook ? styles.deleteButtonDisabled : null]}
+              >
+                {isDeletingBook ? <ActivityIndicator color="#7D2F22" /> : <Text style={styles.deleteButtonText}>삭제</Text>}
+              </Pressable>
             </View>
           </>
         ) : null}
@@ -1120,5 +1170,47 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     lineHeight: 21,
     marginTop: 8,
+  },
+  deletePanel: {
+    alignItems: 'center',
+    borderTopColor: 'rgba(125,47,34,0.18)',
+    borderTopWidth: 1,
+    flexDirection: 'row',
+    gap: 16,
+    marginTop: 22,
+    paddingTop: 18,
+  },
+  deleteCopy: {
+    flex: 1,
+  },
+  deleteTitle: {
+    color: '#7D2F22',
+    fontSize: 16,
+    fontWeight: '800',
+  },
+  deleteText: {
+    color: '#7D6D60',
+    fontSize: 12,
+    fontWeight: '700',
+    lineHeight: 18,
+    marginTop: 4,
+  },
+  deleteButton: {
+    alignItems: 'center',
+    borderColor: 'rgba(125,47,34,0.3)',
+    borderRadius: 16,
+    borderWidth: 1,
+    height: 42,
+    justifyContent: 'center',
+    minWidth: 72,
+    paddingHorizontal: 14,
+  },
+  deleteButtonDisabled: {
+    opacity: 0.56,
+  },
+  deleteButtonText: {
+    color: '#7D2F22',
+    fontSize: 13,
+    fontWeight: '900',
   },
 });

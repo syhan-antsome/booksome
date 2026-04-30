@@ -81,6 +81,10 @@ export default function ScanResultScreen() {
     });
   };
 
+  const cancelRegistration = () => {
+    router.replace(isRoomContext ? '/create-room' : '/reading-life');
+  };
+
   const useScannedBook = async () => {
     if (!session || !selectedBook) return;
 
@@ -220,6 +224,10 @@ export default function ScanResultScreen() {
                   )}
                 </Pressable>
               </View>
+
+              <Pressable onPress={cancelRegistration} style={styles.cancelButton}>
+                <Text style={styles.cancelButtonText}>{isRoomContext ? '북룸 책 설정 취소' : '등록 취소'}</Text>
+              </Pressable>
             </>
           ) : null}
         </ScrollView>
@@ -434,5 +442,17 @@ const styles = StyleSheet.create({
   },
   disabledButton: {
     opacity: 0.48,
+  },
+  cancelButton: {
+    alignItems: 'center',
+    borderBottomColor: 'rgba(16,61,43,0.18)',
+    borderBottomWidth: 1,
+    marginTop: 14,
+    paddingVertical: 14,
+  },
+  cancelButtonText: {
+    color: '#7D4B35',
+    fontSize: 14,
+    fontWeight: '800',
   },
 });

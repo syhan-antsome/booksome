@@ -262,6 +262,18 @@ export async function updateReadingLifeBook(
   return mapReadingBook(data);
 }
 
+export async function deleteReadingLifeBook(profileId: string, bookId: string) {
+  const { error } = await supabase
+    .from('reading_books')
+    .delete()
+    .eq('profile_id', profileId)
+    .eq('id', bookId);
+
+  if (error) {
+    throw error;
+  }
+}
+
 export async function createReadingLifeNote(input: CreateReadingLifeNoteInput) {
   const { data, error } = await supabase
     .from('reading_notes')
