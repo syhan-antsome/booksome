@@ -1,5 +1,5 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Image,
@@ -29,6 +29,7 @@ export default function ScanResultScreen() {
   const [isAddingToReadingLife, setIsAddingToReadingLife] = useState(false);
   const [registrationError, setRegistrationError] = useState<string | null>(null);
   const [totalPagesInput, setTotalPagesInput] = useState('');
+  const scrollViewRef = useRef<ScrollView>(null);
   const rawIsbn = Array.isArray(params.isbn) ? params.isbn[0] : params.isbn;
   const normalizedIsbn = useMemo(() => normalizeIsbn(rawIsbn ?? ''), [rawIsbn]);
   const isRoomContext = params.context === 'create-room';
@@ -108,22 +109,31 @@ export default function ScanResultScreen() {
       await addBookToReadingLife(session.user.id, selectedBook, { totalPages: totalPagesValue });
       router.replace('/reading-life');
     } catch (error) {
-      setRegistrationError(getErrorMessage(error, '독서생활에 등록하지 못했습니다.'));
+      setRegistrationError(getErrorMessage(error, '내 책장에 등록하지 못했습니다.'));
     } finally {
       setIsAddingToReadingLife(false);
     }
   };
 
+  const scrollToPageInput = () => {
+    setTimeout(() => {
+      scrollViewRef.current?.scrollToEnd({ animated: true });
+    }, 160);
+  };
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 18 : 0}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 18 : 24}
         style={styles.keyboardView}
       >
         <ScrollView
+          automaticallyAdjustKeyboardInsets
           contentContainerStyle={styles.content}
+          keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
           keyboardShouldPersistTaps="handled"
+          ref={scrollViewRef}
           showsVerticalScrollIndicator={false}
         >
           <ScreenHeader
@@ -191,6 +201,7 @@ export default function ScanResultScreen() {
                   <TextInput
                     keyboardType="number-pad"
                     onChangeText={(value) => setTotalPagesInput(value.replace(/[^0-9]/g, ''))}
+                    onFocus={scrollToPageInput}
                     placeholder="예: 312"
                     placeholderTextColor="#9B917E"
                     returnKeyType="done"
@@ -219,7 +230,7 @@ export default function ScanResultScreen() {
                     <ActivityIndicator color="#FFFFFF" />
                   ) : (
                     <Text style={styles.primaryButtonText}>
-                      {isRoomContext ? '북룸 책으로 사용' : '독서생활에 등록'}
+                      {isRoomContext ? '북룸 책으로 사용' : '내 책장에 등록'}
                     </Text>
                   )}
                 </Pressable>
@@ -274,7 +285,7 @@ const styles = StyleSheet.create({
   content: {
     flexGrow: 1,
     padding: 20,
-    paddingBottom: 44,
+    paddingBottom: 140,
   },
   rescanHeaderButton: {
     alignItems: 'center',
@@ -445,10 +456,14 @@ const styles = StyleSheet.create({
   },
   cancelButton: {
     alignItems: 'center',
-    borderBottomColor: 'rgba(16,61,43,0.18)',
-    borderBottomWidth: 1,
+    backgroundColor: 'rgba(125,75,53,0.07)',
+    borderColor: 'rgba(125,75,53,0.22)',
+    borderRadius: 18,
+    borderWidth: 1,
+    justifyContent: 'center',
     marginTop: 14,
-    paddingVertical: 14,
+    minHeight: 50,
+    paddingHorizontal: 14,
   },
   cancelButtonText: {
     color: '#7D4B35',
