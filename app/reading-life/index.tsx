@@ -152,6 +152,44 @@ export default function ReadingLifeScreen() {
           />
         ) : null}
 
+        <Pressable
+          disabled={!currentBook}
+          onPress={() => {
+            if (currentBook) router.push(`/reading-life/${currentBook.id}`);
+          }}
+          style={styles.currentBook}
+        >
+          <View style={styles.bookCover}>
+            {currentBook?.externalCoverUrl ? (
+              <Image resizeMode="cover" source={{ uri: currentBook.externalCoverUrl }} style={styles.bookCoverImage} />
+            ) : (
+              <Text style={styles.bookCoverText}>BOOK</Text>
+            )}
+          </View>
+          <View style={styles.bookCopy}>
+            <Text style={styles.bookState}>{currentBook?.pinnedAt ? '대표로 읽는 책' : '현재 읽는 책'}</Text>
+            <Text style={styles.bookTitle} numberOfLines={2}>
+              {currentBook?.title ?? '아직 기록된 책이 없어요'}
+            </Text>
+            {currentBook ? <Text style={styles.bookAuthor}>{currentBook.author}</Text> : null}
+            <View style={styles.progressTrack}>
+              <View style={[styles.progressFill, { width: `${currentBook?.progressPercent ?? 0}%` }]} />
+            </View>
+            <Text style={styles.bookHint}>
+              {currentBook ? getCurrentBookHint(currentBook) : '책을 추가하면 진행률과 메모가 여기에 모입니다.'}
+            </Text>
+          </View>
+        </Pressable>
+
+        {isLoadingBooks ? (
+          <View style={styles.loadingPanel}>
+            <ActivityIndicator color="#103D2B" />
+            <Text style={styles.loadingText}>나의 책장을 불러오는 중입니다</Text>
+          </View>
+        ) : null}
+
+        {loadError ? <Text style={styles.errorText}>{loadError}</Text> : null}
+
         <View style={styles.calendarSection}>
           <View style={styles.sectionTitleRow}>
             <View style={styles.calendarTitleBlock}>
@@ -295,44 +333,6 @@ export default function ReadingLifeScreen() {
             </View>
           ) : null}
         </View>
-
-        <Pressable
-          disabled={!currentBook}
-          onPress={() => {
-            if (currentBook) router.push(`/reading-life/${currentBook.id}`);
-          }}
-          style={styles.currentBook}
-        >
-          <View style={styles.bookCover}>
-            {currentBook?.externalCoverUrl ? (
-              <Image resizeMode="cover" source={{ uri: currentBook.externalCoverUrl }} style={styles.bookCoverImage} />
-            ) : (
-              <Text style={styles.bookCoverText}>BOOK</Text>
-            )}
-          </View>
-          <View style={styles.bookCopy}>
-            <Text style={styles.bookState}>{currentBook?.pinnedAt ? '대표로 읽는 책' : '현재 읽는 책'}</Text>
-            <Text style={styles.bookTitle} numberOfLines={2}>
-              {currentBook?.title ?? '아직 기록된 책이 없어요'}
-            </Text>
-            {currentBook ? <Text style={styles.bookAuthor}>{currentBook.author}</Text> : null}
-            <View style={styles.progressTrack}>
-              <View style={[styles.progressFill, { width: `${currentBook?.progressPercent ?? 0}%` }]} />
-            </View>
-            <Text style={styles.bookHint}>
-              {currentBook ? getCurrentBookHint(currentBook) : '책을 추가하면 진행률과 메모가 여기에 모입니다.'}
-            </Text>
-          </View>
-        </Pressable>
-
-        {isLoadingBooks ? (
-          <View style={styles.loadingPanel}>
-            <ActivityIndicator color="#103D2B" />
-            <Text style={styles.loadingText}>나의 책장을 불러오는 중입니다</Text>
-          </View>
-        ) : null}
-
-        {loadError ? <Text style={styles.errorText}>{loadError}</Text> : null}
 
         {books.length > 0 ? (
           <View style={styles.myBooks}>
@@ -742,7 +742,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     flexDirection: 'row',
     gap: 16,
-    marginTop: 4,
+    marginTop: 14,
     paddingVertical: 20,
   },
   bookCover: {
@@ -826,7 +826,7 @@ const styles = StyleSheet.create({
   calendarSection: {
     borderBottomColor: 'rgba(16,61,43,0.12)',
     borderBottomWidth: 1,
-    marginTop: 2,
+    marginTop: 22,
     paddingBottom: 20,
   },
   calendarTitleBlock: {
@@ -964,7 +964,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 14,
     justifyContent: 'flex-end',
-    marginTop: 10,
+    marginTop: 4,
   },
   calendarLegendItem: {
     alignItems: 'center',
