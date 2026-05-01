@@ -54,6 +54,7 @@ export default function ReadingLifeScreen() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [bookshelfFilter, setBookshelfFilter] = useState<BookshelfFilter>('all');
   const [selectedShelfBookId, setSelectedShelfBookId] = useState<string | null>(null);
+  const [calendarMonth, setCalendarMonth] = useState(() => startOfMonth(new Date()));
 
   useEffect(() => {
     let isMounted = true;
@@ -91,8 +92,9 @@ export default function ReadingLifeScreen() {
     books.find((book) => book.id === selectedShelfBookId) ??
     filteredBooks[0] ??
     currentBook;
-  const calendarDays = useMemo(() => buildReadingCalendarDays(books), [books]);
+  const calendarDays = useMemo(() => buildReadingCalendarDays(books, calendarMonth), [books, calendarMonth]);
   const dailyQuote = useMemo(() => getDailyReadingLifeQuote(), []);
+  const isViewingCurrentMonth = isSameMonth(calendarMonth, new Date());
   const signHeroHeight = Math.round(width * readingLifeSignboardRatio);
 
   return (
@@ -132,7 +134,39 @@ export default function ReadingLifeScreen() {
         <View style={styles.calendarSection}>
           <View style={styles.sectionTitleRow}>
             <Text style={styles.sectionTitle}>독서달력</Text>
-            <Text style={styles.sectionCount}>{formatCalendarMonth(new Date())}</Text>
+            <View style={styles.calendarMonthControl}>
+              <Pressable
+                accessibilityLabel="이전 달"
+                onPress={() => setCalendarMonth((month) => addMonths(month, -1))}
+                style={styles.calendarMonthButton}
+              >
+                <Text style={styles.calendarMonthButtonText}>‹</Text>
+              </Pressable>
+              <Pressable
+                accessibilityLabel="이번 달로 이동"
+                disabled={isViewingCurrentMonth}
+                onPress={() => setCalendarMonth(startOfMonth(new Date()))}
+              >
+                <Text style={[styles.calendarMonthText, isViewingCurrentMonth ? styles.calendarMonthTextCurrent : null]}>
+                  {formatCalendarMonth(calendarMonth)}
+                </Text>
+              </Pressable>
+              <Pressable
+                accessibilityLabel="다음 달"
+                disabled={isViewingCurrentMonth}
+                onPress={() => setCalendarMonth((month) => addMonths(month, 1))}
+                style={[styles.calendarMonthButton, isViewingCurrentMonth ? styles.calendarMonthButtonDisabled : null]}
+              >
+                <Text
+                  style={[
+                    styles.calendarMonthButtonText,
+                    isViewingCurrentMonth ? styles.calendarMonthButtonTextDisabled : null,
+                  ]}
+                >
+                  ›
+                </Text>
+              </Pressable>
+            </View>
           </View>
           <View style={styles.calendarWeekdays}>
             {weekdayLabels.map((weekday) => (
@@ -376,10 +410,10 @@ function formatCalendarMonth(date: Date) {
   return `${date.getFullYear()}.${String(date.getMonth() + 1).padStart(2, '0')}`;
 }
 
-function buildReadingCalendarDays(books: ReadingLifeBook[]) {
+function buildReadingCalendarDays(books: ReadingLifeBook[], visibleMonth: Date) {
   const today = new Date();
-  const year = today.getFullYear();
-  const month = today.getMonth();
+  const year = visibleMonth.getFullYear();
+  const month = visibleMonth.getMonth();
   const firstDay = new Date(year, month, 1);
   const startDate = new Date(year, month, 1 - firstDay.getDay());
   const registrationDates = new Set(books.map((book) => toDateKey(new Date(book.createdAt))));
@@ -407,6 +441,18 @@ function buildReadingCalendarDays(books: ReadingLifeBook[]) {
 
 function toDateKey(date: Date) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+}
+
+function startOfMonth(date: Date) {
+  return new Date(date.getFullYear(), date.getMonth(), 1);
+}
+
+function addMonths(date: Date, amount: number) {
+  return new Date(date.getFullYear(), date.getMonth() + amount, 1);
+}
+
+function isSameMonth(left: Date, right: Date) {
+  return left.getFullYear() === right.getFullYear() && left.getMonth() === right.getMonth();
 }
 
 const styles = StyleSheet.create({
@@ -656,6 +702,39 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     marginTop: 2,
     paddingBottom: 20,
+  },
+  calendarMonthControl: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 8,
+  },
+  calendarMonthButton: {
+    alignItems: 'center',
+    height: 28,
+    justifyContent: 'center',
+    width: 28,
+  },
+  calendarMonthButtonDisabled: {
+    opacity: 0.32,
+  },
+  calendarMonthButtonText: {
+    color: '#103D2B',
+    fontSize: 28,
+    fontWeight: '500',
+    lineHeight: 30,
+  },
+  calendarMonthButtonTextDisabled: {
+    color: '#7B877D',
+  },
+  calendarMonthText: {
+    color: '#8F6A42',
+    fontSize: 12,
+    fontWeight: '900',
+    minWidth: 54,
+    textAlign: 'center',
+  },
+  calendarMonthTextCurrent: {
+    color: '#103D2B',
   },
   calendarWeekdays: {
     flexDirection: 'row',
