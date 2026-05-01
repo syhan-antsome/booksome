@@ -901,7 +901,7 @@ const styles = StyleSheet.create({
   },
   calendarDay: {
     alignItems: 'center',
-    aspectRatio: 1,
+    height: 36,
     justifyContent: 'center',
     width: `${100 / 7}%`,
   },
