@@ -397,12 +397,11 @@ export default function ReadingLifeScreen() {
                     {book.title}
                   </Text>
                   <Text style={styles.shelfMeta} numberOfLines={1}>
-                    {book.totalPages ? `${book.progressPercent}%` : book.status === 'finished' ? '완독' : '읽는 중'}
+                    {getShelfBookMeta(book)}
                   </Text>
                 </Pressable>
               ))}
             </ScrollView>
-            <View style={styles.bookshelfBoard} />
             {selectedShelfBook ? (
               <View style={styles.shelfPreview}>
                 <View style={styles.previewCopy}>
@@ -485,7 +484,16 @@ function getStatusLabel(book: ReadingLifeBook) {
   if (book.status === 'reading') return '읽는 중';
   if (book.status === 'want_to_read') return '읽고 싶음';
   if (book.status === 'finished') return '완독';
-  return '잠시 멈춤';
+  return '잠시 쉼';
+}
+
+function getShelfBookMeta(book: ReadingLifeBook) {
+  if (book.status === 'finished') return '완독';
+  if (book.status === 'want_to_read') return '읽고 싶음';
+  if (book.status === 'paused') return '잠시 쉼';
+  if (book.totalPages) return `${book.progressPercent}%`;
+
+  return '읽는 중';
 }
 
 function formatCalendarMonth(date: Date) {
@@ -1146,12 +1154,6 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     marginTop: 4,
     width: 92,
-  },
-  bookshelfBoard: {
-    backgroundColor: 'rgba(143,106,66,0.2)',
-    borderRadius: 999,
-    height: 9,
-    marginTop: 8,
   },
   shelfPreview: {
     alignItems: 'center',
