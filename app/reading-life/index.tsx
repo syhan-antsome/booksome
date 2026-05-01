@@ -24,6 +24,12 @@ import { useAuth } from '../../src/providers/auth-provider';
 import { listReadingLifeBooks, type ReadingLifeBook } from '../../src/services/reading-life';
 
 type BookshelfFilter = 'all' | 'reading' | 'want_to_read' | 'finished' | 'paused';
+type CalendarEventType = 'registration' | 'reading';
+
+type CalendarEvent = {
+  book: ReadingLifeBook;
+  type: CalendarEventType;
+};
 
 const recordTypes = [
   { title: '읽는 책', copy: '현재 읽는 책과 진행률을 기록합니다.', section: 'progress' },
@@ -55,6 +61,7 @@ export default function ReadingLifeScreen() {
   const [bookshelfFilter, setBookshelfFilter] = useState<BookshelfFilter>('all');
   const [selectedShelfBookId, setSelectedShelfBookId] = useState<string | null>(null);
   const [calendarMonth, setCalendarMonth] = useState(() => startOfMonth(new Date()));
+  const [selectedCalendarDateKey, setSelectedCalendarDateKey] = useState<string | null>(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -83,6 +90,10 @@ export default function ReadingLifeScreen() {
     };
   }, [session?.user.id]);
 
+  useEffect(() => {
+    setSelectedCalendarDateKey(null);
+  }, [calendarMonth]);
+
   const currentBook = books.find((book) => book.pinnedAt) ?? books.find((book) => book.status === 'reading') ?? books[0] ?? null;
   const filteredBooks = useMemo(() => {
     if (bookshelfFilter === 'all') return books;
@@ -93,6 +104,10 @@ export default function ReadingLifeScreen() {
     filteredBooks[0] ??
     currentBook;
   const calendarDays = useMemo(() => buildReadingCalendarDays(books, calendarMonth), [books, calendarMonth]);
+  const selectedCalendarEvents = useMemo(
+    () => getCalendarEventsForDate(books, selectedCalendarDateKey),
+    [books, selectedCalendarDateKey],
+  );
   const dailyQuote = useMemo(() => getDailyReadingLifeQuote(), []);
   const isViewingCurrentMonth = isSameMonth(calendarMonth, new Date());
   const signHeroHeight = Math.round(width * readingLifeSignboardRatio);
@@ -176,30 +191,56 @@ export default function ReadingLifeScreen() {
             ))}
           </View>
           <View style={styles.calendarGrid}>
-            {calendarDays.map((day) => (
-              <View
-                key={day.key}
-                style={[
-                  styles.calendarDay,
-                  !day.isCurrentMonth ? styles.calendarDayMuted : null,
-                  day.isToday ? styles.calendarDayToday : null,
-                ]}
-              >
-                <Text
+            {calendarDays.map((day) => {
+              const hasEvents = day.hasRegistration || day.hasReading;
+              const isSelectable = day.isCurrentMonth && hasEvents;
+              const isSelected = selectedCalendarDateKey === day.key;
+
+              return (
+                <Pressable
+                  disabled={!isSelectable}
+                  key={day.key}
+                  onPress={() => setSelectedCalendarDateKey(day.key)}
                   style={[
-                    styles.calendarDayText,
-                    !day.isCurrentMonth ? styles.calendarDayTextMuted : null,
-                    day.isToday ? styles.calendarDayTextToday : null,
+                    styles.calendarDay,
+                    !day.isCurrentMonth ? styles.calendarDayMuted : null,
+                    day.isToday ? styles.calendarDayToday : null,
+                    isSelected ? styles.calendarDaySelected : null,
                   ]}
                 >
-                  {day.label}
-                </Text>
-                <View style={styles.calendarDots}>
-                  {day.hasRegistration ? <View style={[styles.calendarDot, styles.calendarDotRegister]} /> : null}
-                  {day.hasReading ? <View style={[styles.calendarDot, styles.calendarDotReading]} /> : null}
-                </View>
-              </View>
-            ))}
+                  <Text
+                    style={[
+                      styles.calendarDayText,
+                      !day.isCurrentMonth ? styles.calendarDayTextMuted : null,
+                      day.isToday ? styles.calendarDayTextToday : null,
+                      isSelected ? styles.calendarDayTextSelected : null,
+                    ]}
+                  >
+                    {day.label}
+                  </Text>
+                  <View style={styles.calendarDots}>
+                    {day.hasRegistration ? (
+                      <View
+                        style={[
+                          styles.calendarDot,
+                          styles.calendarDotRegister,
+                          isSelected ? styles.calendarDotSelected : null,
+                        ]}
+                      />
+                    ) : null}
+                    {day.hasReading ? (
+                      <View
+                        style={[
+                          styles.calendarDot,
+                          styles.calendarDotReading,
+                          isSelected ? styles.calendarDotSelected : null,
+                        ]}
+                      />
+                    ) : null}
+                  </View>
+                </Pressable>
+              );
+            })}
           </View>
           <View style={styles.calendarLegend}>
             <View style={styles.calendarLegendItem}>
@@ -211,6 +252,42 @@ export default function ReadingLifeScreen() {
               <Text style={styles.calendarLegendText}>독서</Text>
             </View>
           </View>
+          {selectedCalendarDateKey ? (
+            <View style={styles.calendarDetail}>
+              <View style={styles.calendarDetailHeader}>
+                <Text style={styles.calendarDetailDate}>{formatCalendarDateLabel(selectedCalendarDateKey)}</Text>
+                <Pressable accessibilityLabel="선택한 날짜 닫기" onPress={() => setSelectedCalendarDateKey(null)}>
+                  <Text style={styles.calendarDetailClose}>×</Text>
+                </Pressable>
+              </View>
+              {selectedCalendarEvents.map((event) => (
+                <Pressable
+                  key={`${event.type}-${event.book.id}`}
+                  onPress={() => router.push(`/reading-life/${event.book.id}`)}
+                  style={styles.calendarEventItem}
+                >
+                  <View
+                    style={[
+                      styles.calendarEventMark,
+                      event.type === 'registration' ? styles.calendarEventMarkRegister : styles.calendarEventMarkReading,
+                    ]}
+                  />
+                  <View style={styles.calendarEventCopy}>
+                    <Text style={styles.calendarEventType}>{event.type === 'registration' ? '책 등록' : '독서'}</Text>
+                    <Text numberOfLines={1} style={styles.calendarEventTitle}>
+                      {event.book.title}
+                    </Text>
+                    <Text numberOfLines={1} style={styles.calendarEventMeta}>
+                      {formatCalendarEventMeta(event)}
+                    </Text>
+                  </View>
+                  <Text style={styles.calendarEventArrow}>›</Text>
+                </Pressable>
+              ))}
+            </View>
+          ) : (
+            <Text style={styles.calendarHint}>점이 찍힌 날짜를 누르면 기록이 열립니다.</Text>
+          )}
         </View>
 
         <Pressable
@@ -410,6 +487,42 @@ function formatCalendarMonth(date: Date) {
   return `${date.getFullYear()}.${String(date.getMonth() + 1).padStart(2, '0')}`;
 }
 
+function formatCalendarDateLabel(dateKey: string) {
+  const date = dateFromKey(dateKey);
+
+  return `${date.getFullYear()}.${String(date.getMonth() + 1).padStart(2, '0')}.${String(date.getDate()).padStart(2, '0')} ${weekdayLabels[date.getDay()]}요일`;
+}
+
+function formatCalendarEventMeta(event: CalendarEvent) {
+  if (event.type === 'registration') {
+    return event.book.author ? `${event.book.author} · 등록됨` : '등록됨';
+  }
+
+  if (event.book.totalPages) {
+    return `${event.book.currentPage} / ${event.book.totalPages}쪽 · ${event.book.progressPercent}%`;
+  }
+
+  return '독서 기록 있음';
+}
+
+function getCalendarEventsForDate(books: ReadingLifeBook[], dateKey: string | null) {
+  if (!dateKey) return [];
+
+  return books.flatMap((book) => {
+    const events: CalendarEvent[] = [];
+
+    if (toDateKey(new Date(book.createdAt)) === dateKey) {
+      events.push({ book, type: 'registration' });
+    }
+
+    if ((book.progressPercent > 0 || book.currentPage > 0) && toDateKey(new Date(book.updatedAt)) === dateKey) {
+      events.push({ book, type: 'reading' });
+    }
+
+    return events;
+  });
+}
+
 function buildReadingCalendarDays(books: ReadingLifeBook[], visibleMonth: Date) {
   const today = new Date();
   const year = visibleMonth.getFullYear();
@@ -427,11 +540,12 @@ function buildReadingCalendarDays(books: ReadingLifeBook[], visibleMonth: Date) 
     const date = new Date(startDate);
     date.setDate(startDate.getDate() + index);
     const key = toDateKey(date);
+    const isCurrentMonth = date.getMonth() === month;
 
     return {
-      hasReading: readingDates.has(key),
-      hasRegistration: registrationDates.has(key),
-      isCurrentMonth: date.getMonth() === month,
+      hasReading: isCurrentMonth && readingDates.has(key),
+      hasRegistration: isCurrentMonth && registrationDates.has(key),
+      isCurrentMonth,
       isToday: key === toDateKey(today),
       key,
       label: String(date.getDate()),
@@ -441,6 +555,12 @@ function buildReadingCalendarDays(books: ReadingLifeBook[], visibleMonth: Date) 
 
 function toDateKey(date: Date) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+}
+
+function dateFromKey(dateKey: string) {
+  const [year, month, day] = dateKey.split('-').map(Number);
+
+  return new Date(year, month - 1, day);
 }
 
 function startOfMonth(date: Date) {
@@ -765,6 +885,10 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(16,61,43,0.1)',
     borderRadius: 18,
   },
+  calendarDaySelected: {
+    backgroundColor: '#103D2B',
+    borderRadius: 18,
+  },
   calendarDayText: {
     color: '#26372B',
     fontSize: 13,
@@ -776,6 +900,9 @@ const styles = StyleSheet.create({
   calendarDayTextToday: {
     color: '#103D2B',
     fontWeight: '900',
+  },
+  calendarDayTextSelected: {
+    color: '#F7F1E5',
   },
   calendarDots: {
     flexDirection: 'row',
@@ -794,6 +921,9 @@ const styles = StyleSheet.create({
   calendarDotReading: {
     backgroundColor: '#116653',
   },
+  calendarDotSelected: {
+    backgroundColor: '#F7F1E5',
+  },
   calendarLegend: {
     flexDirection: 'row',
     gap: 14,
@@ -809,6 +939,82 @@ const styles = StyleSheet.create({
     color: '#72806E',
     fontSize: 11,
     fontWeight: '800',
+  },
+  calendarHint: {
+    color: '#72806E',
+    fontSize: 11,
+    fontWeight: '700',
+    marginTop: 12,
+    textAlign: 'right',
+  },
+  calendarDetail: {
+    borderTopColor: 'rgba(16,61,43,0.12)',
+    borderTopWidth: 1,
+    marginTop: 14,
+    paddingTop: 14,
+  },
+  calendarDetailHeader: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 4,
+  },
+  calendarDetailDate: {
+    color: '#103D2B',
+    fontSize: 13,
+    fontWeight: '900',
+  },
+  calendarDetailClose: {
+    color: '#8F6A42',
+    fontSize: 22,
+    fontWeight: '600',
+    lineHeight: 24,
+    paddingLeft: 16,
+  },
+  calendarEventItem: {
+    alignItems: 'center',
+    borderBottomColor: 'rgba(16,61,43,0.1)',
+    borderBottomWidth: 1,
+    flexDirection: 'row',
+    gap: 12,
+    paddingVertical: 12,
+  },
+  calendarEventMark: {
+    borderRadius: 5,
+    height: 10,
+    width: 10,
+  },
+  calendarEventMarkRegister: {
+    backgroundColor: '#8F6A42',
+  },
+  calendarEventMarkReading: {
+    backgroundColor: '#116653',
+  },
+  calendarEventCopy: {
+    flex: 1,
+  },
+  calendarEventType: {
+    color: '#8F6A42',
+    fontSize: 10,
+    fontWeight: '900',
+  },
+  calendarEventTitle: {
+    color: '#26372B',
+    fontSize: 14,
+    fontWeight: '800',
+    marginTop: 3,
+  },
+  calendarEventMeta: {
+    color: '#72806E',
+    fontSize: 11,
+    fontWeight: '700',
+    marginTop: 3,
+  },
+  calendarEventArrow: {
+    color: '#103D2B',
+    fontSize: 24,
+    fontWeight: '500',
+    lineHeight: 26,
   },
   myBooks: {
     marginTop: 24,
