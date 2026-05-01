@@ -222,6 +222,7 @@ export default function ReadingLifeScreen() {
                     style={[
                       styles.calendarDayText,
                       !day.isCurrentMonth ? styles.calendarDayTextMuted : null,
+                      hasEvents ? styles.calendarDayTextWithEvents : null,
                       day.isToday ? styles.calendarDayTextToday : null,
                       isSelected ? styles.calendarDayTextSelected : null,
                     ]}
@@ -293,9 +294,7 @@ export default function ReadingLifeScreen() {
                 </Pressable>
               ))}
             </View>
-          ) : (
-            <Text style={styles.calendarHint}>점이 찍힌 날을 누르면 기록이 열립니다.</Text>
-          )}
+          ) : null}
         </View>
 
         <Pressable
@@ -931,6 +930,11 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '800',
   },
+  calendarDayTextWithEvents: {
+    color: '#0A3627',
+    fontSize: 15,
+    fontWeight: '900',
+  },
   calendarDayTextMuted: {
     color: '#8E998D',
   },
@@ -975,13 +979,6 @@ const styles = StyleSheet.create({
     color: '#72806E',
     fontSize: 11,
     fontWeight: '800',
-  },
-  calendarHint: {
-    color: '#72806E',
-    fontSize: 11,
-    fontWeight: '700',
-    marginTop: 12,
-    textAlign: 'right',
   },
   calendarDetail: {
     borderTopColor: 'rgba(16,61,43,0.12)',
