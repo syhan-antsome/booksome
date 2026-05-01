@@ -1,7 +1,9 @@
+import * as ImagePicker from 'expo-image-picker';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   Image,
   KeyboardAvoidingView,
   Platform,
@@ -18,6 +20,7 @@ import { AuthRequired } from '../../src/components/auth-required';
 import { ScreenHeader } from '../../src/components/screen-header';
 import { useAuth } from '../../src/providers/auth-provider';
 import { lookupBookByIsbn, type BookSearchItem } from '../../src/services/books';
+import { uploadImageAsset } from '../../src/services/media';
 import { addBookToReadingLife } from '../../src/services/reading-life';
 
 export default function ScanResultScreen() {
@@ -29,11 +32,14 @@ export default function ScanResultScreen() {
   const [isAddingToReadingLife, setIsAddingToReadingLife] = useState(false);
   const [registrationError, setRegistrationError] = useState<string | null>(null);
   const [totalPagesInput, setTotalPagesInput] = useState('');
+  const [customCoverAsset, setCustomCoverAsset] = useState<ImagePicker.ImagePickerAsset | null>(null);
+  const [coverError, setCoverError] = useState<string | null>(null);
   const scrollViewRef = useRef<ScrollView>(null);
   const rawIsbn = Array.isArray(params.isbn) ? params.isbn[0] : params.isbn;
   const normalizedIsbn = useMemo(() => normalizeIsbn(rawIsbn ?? ''), [rawIsbn]);
   const isRoomContext = params.context === 'create-room';
   const selectedBook = bookResults[0] ?? null;
+  const coverPreviewUri = customCoverAsset?.uri ?? selectedBook?.imageUrl ?? null;
   const totalPagesValue = useMemo(() => parsePositiveInteger(totalPagesInput), [totalPagesInput]);
   const canUseBook =
     !!session &&
@@ -53,6 +59,8 @@ export default function ScanResultScreen() {
 
     setIsLookingUpBook(true);
     setBookLookupError(null);
+    setCoverError(null);
+    setCustomCoverAsset(null);
     setBookResults([]);
 
     lookupBookByIsbn(normalizedIsbn)
@@ -104,15 +112,89 @@ export default function ScanResultScreen() {
 
     setIsAddingToReadingLife(true);
     setRegistrationError(null);
+    setCoverError(null);
 
     try {
-      await addBookToReadingLife(session.user.id, selectedBook, { totalPages: totalPagesValue });
+      const customCover = customCoverAsset ? await uploadCustomCover() : null;
+      const externalCoverUrl = customCover?.mediaUrl ?? selectedBook.imageUrl ?? null;
+
+      await addBookToReadingLife(session.user.id, selectedBook, {
+        externalCoverUrl,
+        totalPages: totalPagesValue,
+      });
       router.replace('/reading-life');
     } catch (error) {
       setRegistrationError(getErrorMessage(error, '내 책장에 등록하지 못했습니다.'));
     } finally {
       setIsAddingToReadingLife(false);
     }
+  };
+
+  const chooseCoverSource = () => {
+    if (isRoomContext) return;
+
+    Alert.alert('표지 변경', '앨범에서 고르거나 바로 촬영해서 책장 표지로 사용할 수 있습니다.', [
+      { text: '앨범에서 선택', onPress: pickCoverFromLibrary },
+      { text: '카메라로 촬영', onPress: takeCoverPhoto },
+      { text: '취소', style: 'cancel' },
+    ]);
+  };
+
+  const pickCoverFromLibrary = async () => {
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+
+    if (!permission.granted) {
+      setCoverError('앨범 접근 권한이 필요합니다.');
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      allowsEditing: true,
+      aspect: [2, 3],
+      quality: 0.9,
+    });
+
+    if (!result.canceled) {
+      setCustomCoverAsset(result.assets[0] ?? null);
+      setCoverError(null);
+    }
+  };
+
+  const takeCoverPhoto = async () => {
+    const permission = await ImagePicker.requestCameraPermissionsAsync();
+
+    if (!permission.granted) {
+      setCoverError('카메라 권한이 필요합니다.');
+      return;
+    }
+
+    const result = await ImagePicker.launchCameraAsync({
+      allowsEditing: true,
+      aspect: [2, 3],
+      quality: 0.9,
+    });
+
+    if (!result.canceled) {
+      setCustomCoverAsset(result.assets[0] ?? null);
+      setCoverError(null);
+    }
+  };
+
+  const uploadCustomCover = async () => {
+    if (!session || !customCoverAsset?.uri) {
+      throw new Error('업로드할 표지 이미지가 없습니다.');
+    }
+
+    return uploadImageAsset({
+      kind: 'post-media',
+      entityId: `book-cover-${session.user.id}`,
+      uri: customCoverAsset.uri,
+      ownerId: session.user.id,
+      mimeType: customCoverAsset.mimeType,
+      width: customCoverAsset.width,
+      height: customCoverAsset.height,
+      fileName: customCoverAsset.fileName,
+    });
   };
 
   const scrollToPageInput = () => {
@@ -171,13 +253,26 @@ export default function ScanResultScreen() {
 
               {selectedBook ? (
                 <View style={styles.bookPanel}>
-                  <View style={styles.coverWrap}>
-                    {selectedBook.imageUrl ? (
-                      <Image resizeMode="cover" source={{ uri: selectedBook.imageUrl }} style={styles.coverImage} />
+                  <Pressable
+                    disabled={isRoomContext}
+                    onPress={chooseCoverSource}
+                    style={({ pressed }) => [
+                      styles.coverWrap,
+                      !isRoomContext ? styles.coverWrapEditable : null,
+                      pressed ? styles.coverWrapPressed : null,
+                    ]}
+                  >
+                    {coverPreviewUri ? (
+                      <Image resizeMode="cover" source={{ uri: coverPreviewUri }} style={styles.coverImage} />
                     ) : (
                       <Text style={styles.coverFallback}>BOOK</Text>
                     )}
-                  </View>
+                    {!isRoomContext ? (
+                      <View style={styles.coverEditBadge}>
+                        <Text style={styles.coverEditBadgeText}>{customCoverAsset ? '변경됨' : '표지 변경'}</Text>
+                      </View>
+                    ) : null}
+                  </Pressable>
 
                   <View style={styles.bookCopy}>
                     <Text style={styles.bookKicker}>찾은 책</Text>
@@ -215,6 +310,7 @@ export default function ScanResultScreen() {
               ) : null}
 
               {bookLookupError ? <Text style={styles.errorText}>{bookLookupError}</Text> : null}
+              {coverError ? <Text style={styles.errorText}>{coverError}</Text> : null}
               {registrationError ? <Text style={styles.errorText}>{registrationError}</Text> : null}
 
               <View style={styles.actions}>
@@ -344,7 +440,16 @@ const styles = StyleSheet.create({
     height: 178,
     justifyContent: 'center',
     overflow: 'hidden',
+    position: 'relative',
     width: 118,
+  },
+  coverWrapEditable: {
+    borderColor: 'rgba(16, 61, 43, 0.18)',
+    borderWidth: 1,
+  },
+  coverWrapPressed: {
+    opacity: 0.82,
+    transform: [{ scale: 0.98 }],
   },
   coverImage: {
     height: '100%',
@@ -354,6 +459,22 @@ const styles = StyleSheet.create({
     color: '#103D2B',
     fontSize: 14,
     fontWeight: '900',
+  },
+  coverEditBadge: {
+    backgroundColor: 'rgba(16, 61, 43, 0.9)',
+    borderRadius: 999,
+    bottom: 8,
+    left: 8,
+    paddingHorizontal: 9,
+    paddingVertical: 5,
+    position: 'absolute',
+    right: 8,
+  },
+  coverEditBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 11,
+    fontWeight: '900',
+    textAlign: 'center',
   },
   bookCopy: {
     flex: 1,

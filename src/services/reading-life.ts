@@ -46,10 +46,12 @@ export type UpdateReadingLifeBookInput = {
   progressPercent?: number;
   currentPage?: number;
   totalPages?: number | null;
+  externalCoverUrl?: string | null;
   visibility?: ReadingVisibility;
 };
 
 export type AddReadingLifeBookInput = {
+  externalCoverUrl?: string | null;
   totalPages?: number | null;
 };
 
@@ -159,6 +161,7 @@ export async function addBookToReadingLife(
 ) {
   const isbn13 = normalizeIsbn(book.isbn);
   const totalPages = sanitizePositiveInteger(input.totalPages);
+  const externalCoverUrl = input.externalCoverUrl ?? book.imageUrl ?? null;
 
   if (!isbn13) {
     throw new Error('ISBN이 없어 독서생활에 등록할 수 없습니다.');
@@ -176,16 +179,22 @@ export async function addBookToReadingLife(
   }
 
   if (existing) {
+    const updateInput: UpdateReadingLifeBookInput = {};
+
     if (totalPages && existing.total_pages !== totalPages) {
       const currentPage = Math.min(existing.current_page ?? 0, totalPages);
-      return updateReadingLifeBook(profileId, existing.id, {
-        currentPage,
-        progressPercent: calculateReadingProgressPercent(currentPage, totalPages),
-        totalPages,
-      });
+      updateInput.currentPage = currentPage;
+      updateInput.progressPercent = calculateReadingProgressPercent(currentPage, totalPages);
+      updateInput.totalPages = totalPages;
     }
 
-    return mapReadingBook(existing);
+    if (externalCoverUrl && existing.external_cover_url !== externalCoverUrl) {
+      updateInput.externalCoverUrl = externalCoverUrl;
+    }
+
+    return Object.keys(updateInput).length > 0
+      ? updateReadingLifeBook(profileId, existing.id, updateInput)
+      : mapReadingBook(existing);
   }
 
   const { data, error } = await supabase
@@ -198,7 +207,7 @@ export async function addBookToReadingLife(
       publisher: book.publisher || null,
       published_date: normalizePublishedDate(book.publishedDate),
       description: book.description || null,
-      external_cover_url: book.imageUrl,
+      external_cover_url: externalCoverUrl,
       status: 'reading',
       progress_percent: 0,
       current_page: 0,
@@ -233,6 +242,10 @@ export async function updateReadingLifeBook(
 
   if (input.visibility) {
     updatePayload.visibility = input.visibility;
+  }
+
+  if (typeof input.externalCoverUrl !== 'undefined') {
+    updatePayload.external_cover_url = input.externalCoverUrl;
   }
 
   if (typeof input.progressPercent === 'number') {
