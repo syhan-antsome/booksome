@@ -120,7 +120,6 @@ export default function ReadingLifeScreen() {
           <Text style={[styles.dailyQuoteText, quoteFontsLoaded ? styles.dailyQuoteTextSerif : null]}>
             “{dailyQuote.text}”
           </Text>
-          <Text style={styles.dailyQuoteSource}>{dailyQuote.source}</Text>
         </View>
 
         {!session ? (
@@ -463,27 +462,25 @@ const styles = StyleSheet.create({
     lineHeight: 28,
   },
   signIntro: {
+    alignItems: 'center',
     borderBottomColor: 'rgba(16,61,43,0.12)',
     borderBottomWidth: 1,
-    marginTop: 8,
-    paddingBottom: 18,
+    marginTop: 4,
+    paddingBottom: 22,
+    paddingHorizontal: 16,
+    paddingTop: 12,
   },
   dailyQuoteText: {
     color: '#26372B',
-    fontSize: 17,
+    fontSize: 15,
     fontWeight: '600',
-    lineHeight: 27,
-    marginTop: 2,
+    lineHeight: 25,
+    maxWidth: 286,
+    textAlign: 'center',
   },
   dailyQuoteTextSerif: {
     fontFamily: 'NotoSerifKR_500Medium',
     fontWeight: '500',
-  },
-  dailyQuoteSource: {
-    color: '#7C857C',
-    fontSize: 10,
-    fontWeight: '700',
-    marginTop: 9,
   },
   header: {
     alignItems: 'center',
