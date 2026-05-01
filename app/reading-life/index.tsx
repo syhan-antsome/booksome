@@ -1,6 +1,6 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import { Link, router } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Image,
@@ -20,11 +20,23 @@ import { BottomNavigation } from '../../src/components/bottom-navigation';
 import { useAuth } from '../../src/providers/auth-provider';
 import { listReadingLifeBooks, type ReadingLifeBook } from '../../src/services/reading-life';
 
+type BookshelfFilter = 'all' | 'reading' | 'want_to_read' | 'finished' | 'paused';
+
 const recordTypes = [
   { title: '읽는 책', copy: '현재 읽는 책과 진행률을 기록합니다.', section: 'progress' },
   { title: '문장 메모', copy: '오래 남기고 싶은 문장을 모읍니다.', section: 'quote' },
   { title: '사진 메모', copy: '책상, 페이지, 장소까지 독서의 순간을 남깁니다.', section: 'photo' },
 ];
+
+const bookshelfFilters: Array<{ label: string; value: BookshelfFilter }> = [
+  { label: '전체', value: 'all' },
+  { label: '읽는 중', value: 'reading' },
+  { label: '읽고 싶음', value: 'want_to_read' },
+  { label: '완독', value: 'finished' },
+  { label: '멈춤', value: 'paused' },
+];
+
+const weekdayLabels = ['일', '월', '화', '수', '목', '금', '토'];
 
 const readingLifeSignboardSource: ImageSourcePropType =
   typeof readingLifeSignboardImage === 'string' ? { uri: readingLifeSignboardImage } : readingLifeSignboardImage;
@@ -36,6 +48,8 @@ export default function ReadingLifeScreen() {
   const [books, setBooks] = useState<ReadingLifeBook[]>([]);
   const [isLoadingBooks, setIsLoadingBooks] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [bookshelfFilter, setBookshelfFilter] = useState<BookshelfFilter>('all');
+  const [selectedShelfBookId, setSelectedShelfBookId] = useState<string | null>(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -65,11 +79,15 @@ export default function ReadingLifeScreen() {
   }, [session?.user.id]);
 
   const currentBook = books.find((book) => book.pinnedAt) ?? books.find((book) => book.status === 'reading') ?? books[0] ?? null;
-  const readingStats = [
-    { label: '읽는 중', value: String(books.filter((book) => book.status === 'reading').length) },
-    { label: '문장 메모', value: '0' },
-    { label: '사진 기록', value: '0' },
-  ];
+  const filteredBooks = useMemo(() => {
+    if (bookshelfFilter === 'all') return books;
+    return books.filter((book) => book.status === bookshelfFilter);
+  }, [books, bookshelfFilter]);
+  const selectedShelfBook =
+    books.find((book) => book.id === selectedShelfBookId) ??
+    filteredBooks[0] ??
+    currentBook;
+  const calendarDays = useMemo(() => buildReadingCalendarDays(books), [books]);
   const signHeroHeight = Math.round(width * readingLifeSignboardRatio);
 
   return (
@@ -107,13 +125,54 @@ export default function ReadingLifeScreen() {
           />
         ) : null}
 
-        <View style={styles.statsRow}>
-          {readingStats.map((stat) => (
-            <View key={stat.label} style={styles.statItem}>
-              <Text style={styles.statValue}>{stat.value}</Text>
-              <Text style={styles.statLabel}>{stat.label}</Text>
+        <View style={styles.calendarSection}>
+          <View style={styles.sectionTitleRow}>
+            <Text style={styles.sectionTitle}>독서달력</Text>
+            <Text style={styles.sectionCount}>{formatCalendarMonth(new Date())}</Text>
+          </View>
+          <View style={styles.calendarWeekdays}>
+            {weekdayLabels.map((weekday) => (
+              <Text key={weekday} style={styles.calendarWeekday}>
+                {weekday}
+              </Text>
+            ))}
+          </View>
+          <View style={styles.calendarGrid}>
+            {calendarDays.map((day) => (
+              <View
+                key={day.key}
+                style={[
+                  styles.calendarDay,
+                  !day.isCurrentMonth ? styles.calendarDayMuted : null,
+                  day.isToday ? styles.calendarDayToday : null,
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.calendarDayText,
+                    !day.isCurrentMonth ? styles.calendarDayTextMuted : null,
+                    day.isToday ? styles.calendarDayTextToday : null,
+                  ]}
+                >
+                  {day.label}
+                </Text>
+                <View style={styles.calendarDots}>
+                  {day.hasRegistration ? <View style={[styles.calendarDot, styles.calendarDotRegister]} /> : null}
+                  {day.hasReading ? <View style={[styles.calendarDot, styles.calendarDotReading]} /> : null}
+                </View>
+              </View>
+            ))}
+          </View>
+          <View style={styles.calendarLegend}>
+            <View style={styles.calendarLegendItem}>
+              <View style={[styles.calendarDot, styles.calendarDotRegister]} />
+              <Text style={styles.calendarLegendText}>등록</Text>
             </View>
-          ))}
+            <View style={styles.calendarLegendItem}>
+              <View style={[styles.calendarDot, styles.calendarDotReading]} />
+              <Text style={styles.calendarLegendText}>독서</Text>
+            </View>
+          </View>
         </View>
 
         <Pressable
@@ -158,20 +217,51 @@ export default function ReadingLifeScreen() {
           <View style={styles.myBooks}>
             <View style={styles.sectionTitleRow}>
               <Text style={styles.sectionTitle}>내 책장</Text>
-              <Text style={styles.sectionCount}>{books.length}권</Text>
+              <Text style={styles.sectionCount}>{filteredBooks.length} / {books.length}권</Text>
             </View>
+            <ScrollView
+              contentContainerStyle={styles.shelfFilterContent}
+              horizontal
+              showsHorizontalScrollIndicator={false}
+            >
+              {bookshelfFilters.map((filter) => (
+                <Pressable
+                  key={filter.value}
+                  onPress={() => {
+                    setBookshelfFilter(filter.value);
+                    setSelectedShelfBookId(null);
+                  }}
+                  style={[styles.shelfFilter, bookshelfFilter === filter.value ? styles.shelfFilterActive : null]}
+                >
+                  <Text
+                    style={[
+                      styles.shelfFilterText,
+                      bookshelfFilter === filter.value ? styles.shelfFilterTextActive : null,
+                    ]}
+                  >
+                    {filter.label}
+                  </Text>
+                </Pressable>
+              ))}
+            </ScrollView>
             <ScrollView
               contentContainerStyle={styles.bookshelfContent}
               horizontal
               showsHorizontalScrollIndicator={false}
             >
-              {books.map((book) => (
+              {filteredBooks.map((book) => (
                 <Pressable
                   key={book.id}
-                  onPress={() => router.push(`/reading-life/${book.id}`)}
+                  onPress={() => setSelectedShelfBookId(book.id)}
                   style={styles.shelfBook}
                 >
-                  <View style={[styles.shelfCover, book.pinnedAt ? styles.shelfCoverPinned : null]}>
+                  <View
+                    style={[
+                      styles.shelfCover,
+                      book.pinnedAt ? styles.shelfCoverPinned : null,
+                      selectedShelfBook?.id === book.id ? styles.shelfCoverSelected : null,
+                    ]}
+                  >
                     {book.externalCoverUrl ? (
                       <Image resizeMode="cover" source={{ uri: book.externalCoverUrl }} style={styles.shelfCoverImage} />
                     ) : (
@@ -193,6 +283,25 @@ export default function ReadingLifeScreen() {
               ))}
             </ScrollView>
             <View style={styles.bookshelfBoard} />
+            {selectedShelfBook ? (
+              <View style={styles.shelfPreview}>
+                <View style={styles.previewCopy}>
+                  <Text style={styles.previewState}>{getStatusLabel(selectedShelfBook)}</Text>
+                  <Text style={styles.previewTitle} numberOfLines={2}>
+                    {selectedShelfBook.title}
+                  </Text>
+                  <Text style={styles.previewMeta} numberOfLines={1}>
+                    {getCurrentBookHint(selectedShelfBook)}
+                  </Text>
+                </View>
+                <Pressable
+                  onPress={() => router.push(`/reading-life/${selectedShelfBook.id}`)}
+                  style={styles.previewButton}
+                >
+                  <Text style={styles.previewButtonText}>상세보기</Text>
+                </Pressable>
+              </View>
+            ) : null}
           </View>
         ) : null}
 
@@ -249,6 +358,51 @@ function getCurrentBookHint(book: ReadingLifeBook) {
   }
 
   return '이제 진행률, 문장, 사진 메모를 이어서 붙일 수 있습니다.';
+}
+
+function getStatusLabel(book: ReadingLifeBook) {
+  if (book.pinnedAt) return '대표 책';
+  if (book.status === 'reading') return '읽는 중';
+  if (book.status === 'want_to_read') return '읽고 싶음';
+  if (book.status === 'finished') return '완독';
+  return '잠시 멈춤';
+}
+
+function formatCalendarMonth(date: Date) {
+  return `${date.getFullYear()}.${String(date.getMonth() + 1).padStart(2, '0')}`;
+}
+
+function buildReadingCalendarDays(books: ReadingLifeBook[]) {
+  const today = new Date();
+  const year = today.getFullYear();
+  const month = today.getMonth();
+  const firstDay = new Date(year, month, 1);
+  const startDate = new Date(year, month, 1 - firstDay.getDay());
+  const registrationDates = new Set(books.map((book) => toDateKey(new Date(book.createdAt))));
+  const readingDates = new Set(
+    books
+      .filter((book) => book.progressPercent > 0 || book.currentPage > 0)
+      .map((book) => toDateKey(new Date(book.updatedAt))),
+  );
+
+  return Array.from({ length: 42 }, (_, index) => {
+    const date = new Date(startDate);
+    date.setDate(startDate.getDate() + index);
+    const key = toDateKey(date);
+
+    return {
+      hasReading: readingDates.has(key),
+      hasRegistration: registrationDates.has(key),
+      isCurrentMonth: date.getMonth() === month,
+      isToday: key === toDateKey(today),
+      key,
+      label: String(date.getDate()),
+    };
+  });
+}
+
+function toDateKey(date: Date) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 }
 
 const styles = StyleSheet.create({
@@ -491,6 +645,86 @@ const styles = StyleSheet.create({
     lineHeight: 19,
     marginTop: 14,
   },
+  calendarSection: {
+    borderBottomColor: 'rgba(16,61,43,0.12)',
+    borderBottomWidth: 1,
+    marginTop: 2,
+    paddingBottom: 20,
+  },
+  calendarWeekdays: {
+    flexDirection: 'row',
+    marginTop: 16,
+  },
+  calendarWeekday: {
+    color: '#8F6A42',
+    flex: 1,
+    fontSize: 11,
+    fontWeight: '900',
+    textAlign: 'center',
+  },
+  calendarGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginTop: 8,
+  },
+  calendarDay: {
+    alignItems: 'center',
+    aspectRatio: 1,
+    justifyContent: 'center',
+    width: `${100 / 7}%`,
+  },
+  calendarDayMuted: {
+    opacity: 0.28,
+  },
+  calendarDayToday: {
+    backgroundColor: 'rgba(16,61,43,0.1)',
+    borderRadius: 18,
+  },
+  calendarDayText: {
+    color: '#26372B',
+    fontSize: 13,
+    fontWeight: '800',
+  },
+  calendarDayTextMuted: {
+    color: '#8E998D',
+  },
+  calendarDayTextToday: {
+    color: '#103D2B',
+    fontWeight: '900',
+  },
+  calendarDots: {
+    flexDirection: 'row',
+    gap: 3,
+    height: 6,
+    marginTop: 3,
+  },
+  calendarDot: {
+    borderRadius: 3,
+    height: 6,
+    width: 6,
+  },
+  calendarDotRegister: {
+    backgroundColor: '#8F6A42',
+  },
+  calendarDotReading: {
+    backgroundColor: '#116653',
+  },
+  calendarLegend: {
+    flexDirection: 'row',
+    gap: 14,
+    justifyContent: 'flex-end',
+    marginTop: 10,
+  },
+  calendarLegendItem: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 5,
+  },
+  calendarLegendText: {
+    color: '#72806E',
+    fontSize: 11,
+    fontWeight: '800',
+  },
   myBooks: {
     marginTop: 24,
   },
@@ -508,6 +742,32 @@ const styles = StyleSheet.create({
   sectionCount: {
     color: '#8F6A42',
     fontSize: 12,
+    fontWeight: '900',
+  },
+  shelfFilterContent: {
+    gap: 8,
+    paddingRight: 20,
+    paddingTop: 14,
+  },
+  shelfFilter: {
+    alignItems: 'center',
+    borderBottomColor: 'rgba(16,61,43,0.16)',
+    borderBottomWidth: 1,
+    minWidth: 58,
+    paddingBottom: 8,
+    paddingHorizontal: 4,
+  },
+  shelfFilterActive: {
+    borderBottomColor: '#103D2B',
+    borderBottomWidth: 3,
+  },
+  shelfFilterText: {
+    color: '#72806E',
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  shelfFilterTextActive: {
+    color: '#103D2B',
     fontWeight: '900',
   },
   bookshelfContent: {
@@ -531,6 +791,9 @@ const styles = StyleSheet.create({
   shelfCoverPinned: {
     borderColor: '#103D2B',
     borderWidth: 2,
+  },
+  shelfCoverSelected: {
+    transform: [{ translateY: -5 }],
   },
   shelfCoverImage: {
     height: '100%',
@@ -575,6 +838,52 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     height: 9,
     marginTop: 8,
+  },
+  shelfPreview: {
+    alignItems: 'center',
+    borderTopColor: 'rgba(16,61,43,0.12)',
+    borderTopWidth: 1,
+    flexDirection: 'row',
+    gap: 16,
+    marginTop: 16,
+    paddingTop: 16,
+  },
+  previewCopy: {
+    flex: 1,
+    minWidth: 0,
+  },
+  previewState: {
+    color: '#8F6A42',
+    fontSize: 11,
+    fontWeight: '900',
+  },
+  previewTitle: {
+    color: '#26372B',
+    fontSize: 17,
+    fontWeight: '800',
+    lineHeight: 22,
+    marginTop: 4,
+  },
+  previewMeta: {
+    color: '#72806E',
+    fontSize: 12,
+    fontWeight: '700',
+    lineHeight: 17,
+    marginTop: 6,
+  },
+  previewButton: {
+    alignItems: 'center',
+    backgroundColor: '#103D2B',
+    borderRadius: 17,
+    height: 42,
+    justifyContent: 'center',
+    minWidth: 82,
+    paddingHorizontal: 14,
+  },
+  previewButtonText: {
+    color: '#F7F1E5',
+    fontSize: 13,
+    fontWeight: '900',
   },
   myBookItem: {
     alignItems: 'center',
