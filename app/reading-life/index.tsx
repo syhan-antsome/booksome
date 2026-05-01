@@ -943,20 +943,22 @@ const styles = StyleSheet.create({
   },
   calendarDots: {
     flexDirection: 'row',
-    gap: 3,
-    height: 6,
-    marginTop: 3,
+    gap: 4,
+    height: 9,
+    marginTop: 4,
   },
   calendarDot: {
-    borderRadius: 3,
-    height: 6,
-    width: 6,
+    borderColor: 'rgba(238, 241, 223, 0.85)',
+    borderRadius: 4,
+    borderWidth: 1,
+    height: 8,
+    width: 8,
   },
   calendarDotRegister: {
-    backgroundColor: '#8F6A42',
+    backgroundColor: '#B76E2B',
   },
   calendarDotReading: {
-    backgroundColor: '#116653',
+    backgroundColor: '#00805E',
   },
   calendarLegend: {
     flexDirection: 'row',
