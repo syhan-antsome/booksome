@@ -167,6 +167,7 @@ export default function ReadingLifeScreen() {
                 accessibilityLabel="이번 달로 이동"
                 disabled={isViewingCurrentMonth}
                 onPress={() => setCalendarMonth(startOfMonth(new Date()))}
+                style={styles.calendarMonthLabelButton}
               >
                 <Text style={[styles.calendarMonthText, isViewingCurrentMonth ? styles.calendarMonthTextCurrent : null]}>
                   {formatCalendarMonth(calendarMonth)}
@@ -832,31 +833,43 @@ const styles = StyleSheet.create({
   calendarMonthControl: {
     alignItems: 'center',
     flexDirection: 'row',
-    gap: 8,
+    gap: 10,
+    minHeight: 36,
   },
   calendarMonthButton: {
     alignItems: 'center',
-    height: 28,
+    backgroundColor: 'rgba(16, 61, 43, 0.1)',
+    borderColor: 'rgba(16, 61, 43, 0.12)',
+    borderRadius: 17,
+    borderWidth: 1,
+    height: 34,
     justifyContent: 'center',
-    width: 28,
+    width: 34,
   },
   calendarMonthButtonDisabled: {
-    opacity: 0.32,
+    backgroundColor: 'rgba(16, 61, 43, 0.04)',
+    borderColor: 'rgba(16, 61, 43, 0.06)',
   },
   calendarMonthButtonText: {
     color: '#103D2B',
-    fontSize: 28,
-    fontWeight: '500',
-    lineHeight: 30,
+    fontSize: 24,
+    fontWeight: '800',
+    lineHeight: 26,
   },
   calendarMonthButtonTextDisabled: {
-    color: '#7B877D',
+    color: 'rgba(16, 61, 43, 0.28)',
+  },
+  calendarMonthLabelButton: {
+    alignItems: 'center',
+    height: 34,
+    justifyContent: 'center',
+    minWidth: 70,
   },
   calendarMonthText: {
     color: '#8F6A42',
-    fontSize: 12,
+    fontSize: 14,
     fontWeight: '900',
-    minWidth: 54,
+    lineHeight: 18,
     textAlign: 'center',
   },
   calendarMonthTextCurrent: {
