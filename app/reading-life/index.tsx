@@ -964,7 +964,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 14,
     justifyContent: 'flex-end',
-    marginTop: 4,
+    marginTop: 0,
   },
   calendarLegendItem: {
     alignItems: 'center',
@@ -979,7 +979,7 @@ const styles = StyleSheet.create({
   calendarDetail: {
     borderTopColor: 'rgba(16,61,43,0.12)',
     borderTopWidth: 1,
-    marginTop: 14,
+    marginTop: 12,
     paddingTop: 14,
   },
   calendarDetailHeader: {
