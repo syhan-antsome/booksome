@@ -194,7 +194,16 @@ export default function ReadingLifeScreen() {
           <View style={styles.sectionTitleRow}>
             <View style={styles.calendarTitleBlock}>
               <Text style={styles.calendarTitle}>읽은 날들</Text>
-              <Text style={styles.calendarSubtitle}>책이 머문 날짜를 천천히 모아요</Text>
+              <View style={styles.calendarLegend}>
+                <View style={styles.calendarLegendItem}>
+                  <View style={[styles.calendarDot, styles.calendarDotRegister]} />
+                  <Text style={styles.calendarLegendText}>책을 만난 날</Text>
+                </View>
+                <View style={styles.calendarLegendItem}>
+                  <View style={[styles.calendarDot, styles.calendarDotReading]} />
+                  <Text style={styles.calendarLegendText}>읽은 날</Text>
+                </View>
+              </View>
             </View>
             <View style={styles.calendarMonthControl}>
               <Pressable
@@ -287,16 +296,6 @@ export default function ReadingLifeScreen() {
                 </Pressable>
               );
             })}
-          </View>
-          <View style={styles.calendarLegend}>
-            <View style={styles.calendarLegendItem}>
-              <View style={[styles.calendarDot, styles.calendarDotRegister]} />
-              <Text style={styles.calendarLegendText}>책을 만난 날</Text>
-            </View>
-            <View style={styles.calendarLegendItem}>
-              <View style={[styles.calendarDot, styles.calendarDotReading]} />
-              <Text style={styles.calendarLegendText}>읽은 날</Text>
-            </View>
           </View>
           {selectedCalendarDateKey ? (
             <View style={styles.calendarDetail}>
@@ -839,13 +838,6 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     letterSpacing: 0,
   },
-  calendarSubtitle: {
-    color: '#72806E',
-    fontSize: 11,
-    fontWeight: '700',
-    lineHeight: 16,
-    marginTop: 3,
-  },
   calendarMonthControl: {
     alignItems: 'center',
     flexDirection: 'row',
@@ -961,10 +953,12 @@ const styles = StyleSheet.create({
     backgroundColor: '#00805E',
   },
   calendarLegend: {
+    alignItems: 'center',
     flexDirection: 'row',
-    gap: 14,
-    justifyContent: 'flex-end',
-    marginTop: 0,
+    flexWrap: 'wrap',
+    gap: 10,
+    justifyContent: 'flex-start',
+    marginTop: 7,
   },
   calendarLegendItem: {
     alignItems: 'center',
