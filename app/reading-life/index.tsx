@@ -17,6 +17,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import readingLifeSignboardImage from '../../assets/reading-life-signboard.jpg';
 import { AuthRequired } from '../../src/components/auth-required';
 import { BottomNavigation } from '../../src/components/bottom-navigation';
+import { getDailyReadingLifeQuote } from '../../src/data/reading-life-quotes';
 import { useAuth } from '../../src/providers/auth-provider';
 import { listReadingLifeBooks, type ReadingLifeBook } from '../../src/services/reading-life';
 
@@ -88,6 +89,7 @@ export default function ReadingLifeScreen() {
     filteredBooks[0] ??
     currentBook;
   const calendarDays = useMemo(() => buildReadingCalendarDays(books), [books]);
+  const dailyQuote = useMemo(() => getDailyReadingLifeQuote(), []);
   const signHeroHeight = Math.round(width * readingLifeSignboardRatio);
 
   return (
@@ -112,10 +114,11 @@ export default function ReadingLifeScreen() {
         </View>
 
         <View style={styles.signIntro}>
-          <Text style={styles.signHeroEyebrow}>MY READING LIFE</Text>
-          <Text numberOfLines={2} style={styles.signHeroText}>
-            읽고 있는 책과 오늘의 문장을 조용히 쌓아둡니다.
+          <Text style={styles.dailyQuoteEyebrow}>오늘의 문장</Text>
+          <Text style={styles.dailyQuoteText}>
+            “{dailyQuote.text}”
           </Text>
+          <Text style={styles.dailyQuoteSource}>{dailyQuote.source}</Text>
         </View>
 
         {!session ? (
@@ -458,23 +461,30 @@ const styles = StyleSheet.create({
     lineHeight: 28,
   },
   signIntro: {
-    height: 70,
+    borderBottomColor: 'rgba(16,61,43,0.12)',
+    borderBottomWidth: 1,
     marginTop: 8,
+    paddingBottom: 18,
   },
-  signHeroEyebrow: {
+  dailyQuoteEyebrow: {
     color: '#8F6A42',
     fontSize: 11,
     fontWeight: '900',
     letterSpacing: 0,
+    textTransform: 'uppercase',
   },
-  signHeroText: {
+  dailyQuoteText: {
     color: '#26372B',
-    fontSize: 18,
+    fontSize: 19,
     fontWeight: '800',
-    height: 48,
-    lineHeight: 24,
+    lineHeight: 28,
     marginTop: 6,
-    maxWidth: 270,
+  },
+  dailyQuoteSource: {
+    color: '#72806E',
+    fontSize: 11,
+    fontWeight: '800',
+    marginTop: 8,
   },
   header: {
     alignItems: 'center',
