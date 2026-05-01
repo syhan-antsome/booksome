@@ -399,6 +399,11 @@ export default function ReadingLifeScreen() {
                   <Text style={styles.shelfMeta} numberOfLines={1}>
                     {getShelfBookMeta(book)}
                   </Text>
+                  {shouldShowShelfProgress(book) ? (
+                    <View style={styles.shelfProgressTrack}>
+                      <View style={[styles.shelfProgressFill, { width: `${book.progressPercent}%` }]} />
+                    </View>
+                  ) : null}
                 </Pressable>
               ))}
             </ScrollView>
@@ -494,6 +499,10 @@ function getShelfBookMeta(book: ReadingLifeBook) {
   if (book.totalPages) return `${book.progressPercent}%`;
 
   return '읽는 중';
+}
+
+function shouldShowShelfProgress(book: ReadingLifeBook) {
+  return book.status === 'reading' && Boolean(book.totalPages);
 }
 
 function formatCalendarMonth(date: Date) {
@@ -1154,6 +1163,19 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     marginTop: 4,
     width: 92,
+  },
+  shelfProgressTrack: {
+    backgroundColor: 'rgba(16,61,43,0.12)',
+    borderRadius: 999,
+    height: 4,
+    marginTop: 6,
+    overflow: 'hidden',
+    width: 92,
+  },
+  shelfProgressFill: {
+    backgroundColor: '#103D2B',
+    borderRadius: 999,
+    height: '100%',
   },
   shelfPreview: {
     alignItems: 'center',
