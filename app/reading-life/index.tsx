@@ -154,7 +154,10 @@ export default function ReadingLifeScreen() {
 
         <View style={styles.calendarSection}>
           <View style={styles.sectionTitleRow}>
-            <Text style={styles.sectionTitle}>독서달력</Text>
+            <View style={styles.calendarTitleBlock}>
+              <Text style={styles.calendarTitle}>읽은 날들</Text>
+              <Text style={styles.calendarSubtitle}>책이 머문 날짜를 천천히 모아요</Text>
+            </View>
             <View style={styles.calendarMonthControl}>
               <Pressable
                 accessibilityLabel="이전 달"
@@ -231,7 +234,6 @@ export default function ReadingLifeScreen() {
                         style={[
                           styles.calendarDot,
                           styles.calendarDotRegister,
-                          isSelected ? styles.calendarDotSelected : null,
                         ]}
                       />
                     ) : null}
@@ -240,7 +242,6 @@ export default function ReadingLifeScreen() {
                         style={[
                           styles.calendarDot,
                           styles.calendarDotReading,
-                          isSelected ? styles.calendarDotSelected : null,
                         ]}
                       />
                     ) : null}
@@ -252,11 +253,11 @@ export default function ReadingLifeScreen() {
           <View style={styles.calendarLegend}>
             <View style={styles.calendarLegendItem}>
               <View style={[styles.calendarDot, styles.calendarDotRegister]} />
-              <Text style={styles.calendarLegendText}>등록</Text>
+              <Text style={styles.calendarLegendText}>책을 만난 날</Text>
             </View>
             <View style={styles.calendarLegendItem}>
               <View style={[styles.calendarDot, styles.calendarDotReading]} />
-              <Text style={styles.calendarLegendText}>독서</Text>
+              <Text style={styles.calendarLegendText}>읽은 날</Text>
             </View>
           </View>
           {selectedCalendarDateKey ? (
@@ -293,7 +294,7 @@ export default function ReadingLifeScreen() {
               ))}
             </View>
           ) : (
-            <Text style={styles.calendarHint}>점이 찍힌 날짜를 누르면 기록이 열립니다.</Text>
+            <Text style={styles.calendarHint}>점이 찍힌 날을 누르면 기록이 열립니다.</Text>
           )}
         </View>
 
@@ -830,6 +831,23 @@ const styles = StyleSheet.create({
     marginTop: 2,
     paddingBottom: 20,
   },
+  calendarTitleBlock: {
+    flex: 1,
+    paddingRight: 14,
+  },
+  calendarTitle: {
+    color: '#26372B',
+    fontSize: 18,
+    fontWeight: '800',
+    letterSpacing: 0,
+  },
+  calendarSubtitle: {
+    color: '#72806E',
+    fontSize: 11,
+    fontWeight: '700',
+    lineHeight: 16,
+    marginTop: 3,
+  },
   calendarMonthControl: {
     alignItems: 'center',
     flexDirection: 'row',
@@ -939,9 +957,6 @@ const styles = StyleSheet.create({
   },
   calendarDotReading: {
     backgroundColor: '#116653',
-  },
-  calendarDotSelected: {
-    backgroundColor: '#F7F1E5',
   },
   calendarLegend: {
     flexDirection: 'row',
