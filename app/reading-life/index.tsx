@@ -1,3 +1,5 @@
+import { NotoSerifKR_500Medium } from '@expo-google-fonts/noto-serif-kr/500Medium';
+import { useFonts } from 'expo-font';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Link, router } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
@@ -46,6 +48,7 @@ const readingLifeSignboardRatio = 803 / 1400;
 export default function ReadingLifeScreen() {
   const { session } = useAuth();
   const { width } = useWindowDimensions();
+  const [quoteFontsLoaded] = useFonts({ NotoSerifKR_500Medium });
   const [books, setBooks] = useState<ReadingLifeBook[]>([]);
   const [isLoadingBooks, setIsLoadingBooks] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -114,8 +117,7 @@ export default function ReadingLifeScreen() {
         </View>
 
         <View style={styles.signIntro}>
-          <Text style={styles.dailyQuoteEyebrow}>오늘의 문장</Text>
-          <Text style={styles.dailyQuoteText}>
+          <Text style={[styles.dailyQuoteText, quoteFontsLoaded ? styles.dailyQuoteTextSerif : null]}>
             “{dailyQuote.text}”
           </Text>
           <Text style={styles.dailyQuoteSource}>{dailyQuote.source}</Text>
@@ -466,25 +468,22 @@ const styles = StyleSheet.create({
     marginTop: 8,
     paddingBottom: 18,
   },
-  dailyQuoteEyebrow: {
-    color: '#8F6A42',
-    fontSize: 11,
-    fontWeight: '900',
-    letterSpacing: 0,
-    textTransform: 'uppercase',
-  },
   dailyQuoteText: {
     color: '#26372B',
-    fontSize: 19,
-    fontWeight: '800',
-    lineHeight: 28,
-    marginTop: 6,
+    fontSize: 17,
+    fontWeight: '600',
+    lineHeight: 27,
+    marginTop: 2,
+  },
+  dailyQuoteTextSerif: {
+    fontFamily: 'NotoSerifKR_500Medium',
+    fontWeight: '500',
   },
   dailyQuoteSource: {
-    color: '#72806E',
-    fontSize: 11,
-    fontWeight: '800',
-    marginTop: 8,
+    color: '#7C857C',
+    fontSize: 10,
+    fontWeight: '700',
+    marginTop: 9,
   },
   header: {
     alignItems: 'center',
