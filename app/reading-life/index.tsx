@@ -203,7 +203,7 @@ export default function ReadingLifeScreen() {
           <View style={styles.calendarGrid}>
             {calendarDays.map((day) => {
               const hasEvents = day.hasRegistration || day.hasReading;
-              const isSelectable = day.isCurrentMonth && hasEvents;
+              const isSelectable = hasEvents;
               const isSelected = selectedCalendarDateKey === day.key;
 
               return (
@@ -213,7 +213,6 @@ export default function ReadingLifeScreen() {
                   onPress={() => setSelectedCalendarDateKey(day.key)}
                   style={[
                     styles.calendarDay,
-                    !day.isCurrentMonth ? styles.calendarDayMuted : null,
                     day.isToday ? styles.calendarDayToday : null,
                     isSelected ? styles.calendarDaySelected : null,
                   ]}
@@ -221,8 +220,8 @@ export default function ReadingLifeScreen() {
                   <Text
                     style={[
                       styles.calendarDayText,
-                      !day.isCurrentMonth ? styles.calendarDayTextMuted : null,
                       hasEvents ? styles.calendarDayTextWithEvents : null,
+                      !day.isCurrentMonth ? styles.calendarDayTextMuted : null,
                       day.isToday ? styles.calendarDayTextToday : null,
                       isSelected ? styles.calendarDayTextSelected : null,
                     ]}
@@ -550,8 +549,8 @@ function buildReadingCalendarDays(books: ReadingLifeBook[], visibleMonth: Date) 
     const isCurrentMonth = date.getMonth() === month;
 
     return {
-      hasReading: isCurrentMonth && readingDates.has(key),
-      hasRegistration: isCurrentMonth && registrationDates.has(key),
+      hasReading: readingDates.has(key),
+      hasRegistration: registrationDates.has(key),
       isCurrentMonth,
       isToday: key === toDateKey(today),
       key,
@@ -913,9 +912,6 @@ const styles = StyleSheet.create({
     aspectRatio: 1,
     justifyContent: 'center',
     width: `${100 / 7}%`,
-  },
-  calendarDayMuted: {
-    opacity: 0.28,
   },
   calendarDayToday: {
     backgroundColor: 'rgba(16,61,43,0.1)',
