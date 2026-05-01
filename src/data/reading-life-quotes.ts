@@ -42,3 +42,12 @@ export function getDailyReadingLifeQuote(date = new Date()) {
   );
   return readingLifeQuotes[dayIndex % readingLifeQuotes.length];
 }
+
+export function getRandomReadingLifeQuote(previousText?: string) {
+  const quotes =
+    previousText && readingLifeQuotes.length > 1
+      ? readingLifeQuotes.filter((quote) => quote.text !== previousText)
+      : readingLifeQuotes;
+
+  return quotes[Math.floor(Math.random() * quotes.length)];
+}

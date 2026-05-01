@@ -1,8 +1,8 @@
 import { NotoSerifKR_500Medium } from '@expo-google-fonts/noto-serif-kr/500Medium';
 import { useFonts } from 'expo-font';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Link, router } from 'expo-router';
-import { useEffect, useMemo, useState } from 'react';
+import { Link, router, useFocusEffect } from 'expo-router';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Image,
@@ -19,7 +19,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import readingLifeSignboardImage from '../../assets/reading-life-signboard.jpg';
 import { AuthRequired } from '../../src/components/auth-required';
 import { BottomNavigation } from '../../src/components/bottom-navigation';
-import { getDailyReadingLifeQuote } from '../../src/data/reading-life-quotes';
+import { getRandomReadingLifeQuote } from '../../src/data/reading-life-quotes';
 import { useAuth } from '../../src/providers/auth-provider';
 import { listReadingLifeBooks, type ReadingLifeBook } from '../../src/services/reading-life';
 
@@ -62,6 +62,7 @@ export default function ReadingLifeScreen() {
   const [selectedShelfBookId, setSelectedShelfBookId] = useState<string | null>(null);
   const [calendarMonth, setCalendarMonth] = useState(() => startOfMonth(new Date()));
   const [selectedCalendarDateKey, setSelectedCalendarDateKey] = useState<string | null>(null);
+  const [readingQuote, setReadingQuote] = useState(() => getRandomReadingLifeQuote());
 
   useEffect(() => {
     let isMounted = true;
@@ -94,6 +95,12 @@ export default function ReadingLifeScreen() {
     setSelectedCalendarDateKey(null);
   }, [calendarMonth]);
 
+  useFocusEffect(
+    useCallback(() => {
+      setReadingQuote((currentQuote) => getRandomReadingLifeQuote(currentQuote.text));
+    }, []),
+  );
+
   const currentBook = books.find((book) => book.pinnedAt) ?? books.find((book) => book.status === 'reading') ?? books[0] ?? null;
   const filteredBooks = useMemo(() => {
     if (bookshelfFilter === 'all') return books;
@@ -108,7 +115,6 @@ export default function ReadingLifeScreen() {
     () => getCalendarEventsForDate(books, selectedCalendarDateKey),
     [books, selectedCalendarDateKey],
   );
-  const dailyQuote = useMemo(() => getDailyReadingLifeQuote(), []);
   const isViewingCurrentMonth = isSameMonth(calendarMonth, new Date());
   const signHeroHeight = Math.round(width * readingLifeSignboardRatio);
 
@@ -135,7 +141,7 @@ export default function ReadingLifeScreen() {
 
         <View style={styles.signIntro}>
           <Text style={[styles.dailyQuoteText, quoteFontsLoaded ? styles.dailyQuoteTextSerif : null]}>
-            “{dailyQuote.text}”
+            “{readingQuote.text}”
           </Text>
         </View>
 
