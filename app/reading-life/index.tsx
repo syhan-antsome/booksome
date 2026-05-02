@@ -217,9 +217,9 @@ export default function ReadingLifeScreen() {
               <View style={styles.progressTrack}>
                 <View style={[styles.progressFill, { width: `${currentBook?.progressPercent ?? 0}%` }]} />
               </View>
-              <Text style={styles.bookHint}>
-                {currentBook ? getCurrentBookHint(currentBook) : '첫 책을 등록하면 진행률과 메모가 여기에 모입니다.'}
-              </Text>
+              {currentBook?.totalPages ? (
+                <Text style={styles.bookHint}>{getCurrentBookHint(currentBook)}</Text>
+              ) : null}
             </View>
           </Pressable>
 
@@ -568,11 +568,7 @@ function getErrorMessage(error: unknown, fallback: string) {
 }
 
 function getCurrentBookHint(book: ReadingLifeBook) {
-  if (book.totalPages) {
-    return `${book.currentPage} / ${book.totalPages}쪽 · ${book.progressPercent}%까지 읽었습니다.`;
-  }
-
-  return '이제 진행률, 문장, 사진 메모를 이어서 붙일 수 있습니다.';
+  return `${book.currentPage} / ${book.totalPages}쪽 · ${book.progressPercent}%까지 읽었습니다.`;
 }
 
 function getCurrentBookStatusText(book: ReadingLifeBook) {
