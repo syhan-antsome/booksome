@@ -337,7 +337,10 @@ export default function ReadingLifeScreen() {
           <View style={styles.myBooks}>
             <View style={styles.sectionTitleRow}>
               <Text style={styles.sectionTitle}>내 책장</Text>
-              <Text style={styles.sectionCount}>{filteredBooks.length} / {books.length}권</Text>
+              <View style={styles.shelfHeaderMeta}>
+                <Text style={styles.shelfSwipeHint}>옆으로 보기</Text>
+                <Text style={styles.sectionCount}>{filteredBooks.length} / {books.length}권</Text>
+              </View>
             </View>
             <ScrollView
               contentContainerStyle={styles.shelfFilterContent}
@@ -364,49 +367,64 @@ export default function ReadingLifeScreen() {
                 </Pressable>
               ))}
             </ScrollView>
-            <ScrollView
-              contentContainerStyle={styles.bookshelfContent}
-              horizontal
-              showsHorizontalScrollIndicator={false}
-            >
-              {filteredBooks.map((book) => (
-                <Pressable
-                  key={book.id}
-                  onPress={() => setSelectedShelfBookId(book.id)}
-                  style={styles.shelfBook}
-                >
-                  <View
-                    style={[
-                      styles.shelfCover,
-                      book.pinnedAt ? styles.shelfCoverPinned : null,
-                      selectedShelfBook?.id === book.id ? styles.shelfCoverSelected : null,
-                    ]}
+            <View style={styles.bookshelfFrame}>
+              <ScrollView
+                contentContainerStyle={styles.bookshelfContent}
+                horizontal
+                showsHorizontalScrollIndicator={false}
+              >
+                {filteredBooks.map((book) => (
+                  <Pressable
+                    key={book.id}
+                    onPress={() => setSelectedShelfBookId(book.id)}
+                    style={styles.shelfBook}
                   >
-                    {book.externalCoverUrl ? (
-                      <Image resizeMode="cover" source={{ uri: book.externalCoverUrl }} style={styles.shelfCoverImage} />
-                    ) : (
-                      <Text style={styles.shelfCoverText}>BOOK</Text>
-                    )}
-                    {book.pinnedAt ? (
-                      <View style={styles.pinnedFlag}>
-                        <Text style={styles.pinnedFlagText}>대표</Text>
+                    <View
+                      style={[
+                        styles.shelfCover,
+                        book.pinnedAt ? styles.shelfCoverPinned : null,
+                        selectedShelfBook?.id === book.id ? styles.shelfCoverSelected : null,
+                      ]}
+                    >
+                      {book.externalCoverUrl ? (
+                        <Image resizeMode="cover" source={{ uri: book.externalCoverUrl }} style={styles.shelfCoverImage} />
+                      ) : (
+                        <Text style={styles.shelfCoverText}>BOOK</Text>
+                      )}
+                      {book.pinnedAt ? (
+                        <View style={styles.pinnedFlag}>
+                          <Text style={styles.pinnedFlagText}>대표</Text>
+                        </View>
+                      ) : null}
+                    </View>
+                    <Text style={styles.shelfTitle} numberOfLines={2}>
+                      {book.title}
+                    </Text>
+                    <Text style={styles.shelfMeta} numberOfLines={1}>
+                      {getShelfBookMeta(book)}
+                    </Text>
+                    {shouldShowShelfProgress(book) ? (
+                      <View style={styles.shelfProgressTrack}>
+                        <View style={[styles.shelfProgressFill, { width: `${book.progressPercent}%` }]} />
                       </View>
                     ) : null}
+                  </Pressable>
+                ))}
+              </ScrollView>
+              {filteredBooks.length > 3 ? (
+                <LinearGradient
+                  colors={['rgba(238, 241, 223, 0)', 'rgba(238, 241, 223, 0.96)']}
+                  end={{ x: 1, y: 0.5 }}
+                  pointerEvents="none"
+                  start={{ x: 0, y: 0.5 }}
+                  style={styles.bookshelfMoreFade}
+                >
+                  <View style={styles.bookshelfMoreCue}>
+                    <Text style={styles.bookshelfMoreArrow}>›</Text>
                   </View>
-                  <Text style={styles.shelfTitle} numberOfLines={2}>
-                    {book.title}
-                  </Text>
-                  <Text style={styles.shelfMeta} numberOfLines={1}>
-                    {getShelfBookMeta(book)}
-                  </Text>
-                  {shouldShowShelfProgress(book) ? (
-                    <View style={styles.shelfProgressTrack}>
-                      <View style={[styles.shelfProgressFill, { width: `${book.progressPercent}%` }]} />
-                    </View>
-                  ) : null}
-                </Pressable>
-              ))}
-            </ScrollView>
+                </LinearGradient>
+              ) : null}
+            </View>
             {selectedShelfBook ? (
               <View style={styles.shelfPreview}>
                 <View style={styles.previewCopy}>
@@ -1075,6 +1093,15 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '900',
   },
+  shelfHeaderMeta: {
+    alignItems: 'flex-end',
+    gap: 3,
+  },
+  shelfSwipeHint: {
+    color: '#72806E',
+    fontSize: 10,
+    fontWeight: '800',
+  },
   shelfFilterContent: {
     gap: 8,
     paddingRight: 20,
@@ -1103,8 +1130,38 @@ const styles = StyleSheet.create({
   },
   bookshelfContent: {
     gap: 18,
-    paddingRight: 20,
+    paddingRight: 68,
     paddingTop: 18,
+  },
+  bookshelfFrame: {
+    marginRight: -20,
+    position: 'relative',
+  },
+  bookshelfMoreFade: {
+    alignItems: 'flex-end',
+    bottom: 0,
+    justifyContent: 'center',
+    paddingRight: 14,
+    position: 'absolute',
+    right: 0,
+    top: 18,
+    width: 86,
+  },
+  bookshelfMoreCue: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(238, 241, 223, 0.9)',
+    borderColor: 'rgba(16,61,43,0.1)',
+    borderRadius: 18,
+    borderWidth: 1,
+    height: 36,
+    justifyContent: 'center',
+    width: 36,
+  },
+  bookshelfMoreArrow: {
+    color: '#103D2B',
+    fontSize: 28,
+    fontWeight: '800',
+    lineHeight: 30,
   },
   shelfBook: {
     width: 104,
