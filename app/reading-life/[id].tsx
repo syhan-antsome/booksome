@@ -343,7 +343,6 @@ export default function ReadingLifeBookScreen() {
               <Text style={styles.scanButtonText}>＋</Text>
             </Pressable>
           }
-          eyebrow={book ? statusLabel : undefined}
           title="책과 나"
           tone="paper"
         />
