@@ -126,9 +126,9 @@ export default function ReadingLifeScreen() {
   }, [filteredBooks.length, updateBookshelfMoreCue]);
 
   const selectedShelfBook =
-    books.find((book) => book.id === selectedShelfBookId) ??
+    filteredBooks.find((book) => book.id === selectedShelfBookId) ??
     filteredBooks[0] ??
-    currentBook;
+    null;
   const calendarDays = useMemo(() => buildReadingCalendarDays(books, calendarMonth), [books, calendarMonth]);
   const selectedCalendarEvents = useMemo(
     () => getCalendarEventsForDate(books, selectedCalendarDateKey),
@@ -148,14 +148,6 @@ export default function ReadingLifeScreen() {
             pointerEvents="none"
             style={styles.signHeroGradient}
           />
-
-          <View style={styles.signHeroTop}>
-            <Link asChild href={session ? '/scan' : '/auth'}>
-              <Pressable accessibilityLabel="책 스캔" style={styles.signHeroAction}>
-                <Text style={styles.signHeroActionText}>＋</Text>
-              </Pressable>
-            </Link>
-          </View>
         </View>
 
         <View style={styles.signIntro}>
@@ -352,126 +344,145 @@ export default function ReadingLifeScreen() {
           ) : null}
         </View>
 
-        {books.length > 0 ? (
+        {session ? (
           <View style={styles.myBooks}>
             <View style={styles.sectionTitleRow}>
-              <Text style={styles.sectionTitle}>내 책장</Text>
-              <View style={styles.shelfHeaderMeta}>
-                <Text style={styles.shelfSwipeHint}>옆으로 보기</Text>
+              <View style={styles.shelfTitleGroup}>
+                <Text style={styles.sectionTitle}>내 책장</Text>
                 <Text style={styles.sectionCount}>{filteredBooks.length} / {books.length}권</Text>
               </View>
-            </View>
-            <ScrollView
-              contentContainerStyle={styles.shelfFilterContent}
-              horizontal
-              showsHorizontalScrollIndicator={false}
-            >
-              {bookshelfFilters.map((filter) => (
-                <Pressable
-                  key={filter.value}
-                  onPress={() => {
-                    setBookshelfFilter(filter.value);
-                    setSelectedShelfBookId(null);
-                  }}
-                  style={[styles.shelfFilter, bookshelfFilter === filter.value ? styles.shelfFilterActive : null]}
-                >
-                  <Text
-                    style={[
-                      styles.shelfFilterText,
-                      bookshelfFilter === filter.value ? styles.shelfFilterTextActive : null,
-                    ]}
-                  >
-                    {filter.label}
-                  </Text>
+              <Link asChild href="/scan">
+                <Pressable accessibilityLabel="책 등록" style={styles.shelfAddButton}>
+                  <Text style={styles.shelfAddButtonText}>＋</Text>
                 </Pressable>
-              ))}
-            </ScrollView>
-            <View style={styles.bookshelfFrame}>
-              <ScrollView
-                key={bookshelfFilter}
-                contentContainerStyle={styles.bookshelfContent}
-                horizontal
-                onContentSizeChange={(contentWidth) => updateBookshelfMoreCue({ contentWidth })}
-                onLayout={(event) =>
-                  updateBookshelfMoreCue({ viewportWidth: event.nativeEvent.layout.width })
-                }
-                onScroll={(event) =>
-                  updateBookshelfMoreCue({ offsetX: Math.max(0, event.nativeEvent.contentOffset.x) })
-                }
-                scrollEventThrottle={16}
-                showsHorizontalScrollIndicator={false}
-              >
-                {filteredBooks.map((book) => (
-                  <Pressable
-                    key={book.id}
-                    onPress={() => setSelectedShelfBookId(book.id)}
-                    style={styles.shelfBook}
-                  >
-                    <View
-                      style={[
-                        styles.shelfCover,
-                        book.pinnedAt ? styles.shelfCoverPinned : null,
-                        selectedShelfBook?.id === book.id ? styles.shelfCoverSelected : null,
-                      ]}
+              </Link>
+            </View>
+
+            {books.length > 0 ? (
+              <>
+                <ScrollView
+                  contentContainerStyle={styles.shelfFilterContent}
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                >
+                  {bookshelfFilters.map((filter) => (
+                    <Pressable
+                      key={filter.value}
+                      onPress={() => {
+                        setBookshelfFilter(filter.value);
+                        setSelectedShelfBookId(null);
+                      }}
+                      style={[styles.shelfFilter, bookshelfFilter === filter.value ? styles.shelfFilterActive : null]}
                     >
-                      {book.externalCoverUrl ? (
-                        <Image resizeMode="cover" source={{ uri: book.externalCoverUrl }} style={styles.shelfCoverImage} />
-                      ) : (
-                        <Text style={styles.shelfCoverText}>BOOK</Text>
-                      )}
-                      {book.pinnedAt ? (
-                        <View style={styles.pinnedFlag}>
-                          <Text style={styles.pinnedFlagText}>대표</Text>
-                        </View>
-                      ) : null}
+                      <Text
+                        style={[
+                          styles.shelfFilterText,
+                          bookshelfFilter === filter.value ? styles.shelfFilterTextActive : null,
+                        ]}
+                      >
+                        {filter.label}
+                      </Text>
+                    </Pressable>
+                  ))}
+                </ScrollView>
+                <View style={styles.bookshelfFrame}>
+                  {filteredBooks.length > 0 ? (
+                    <ScrollView
+                      key={bookshelfFilter}
+                      contentContainerStyle={styles.bookshelfContent}
+                      horizontal
+                      onContentSizeChange={(contentWidth) => updateBookshelfMoreCue({ contentWidth })}
+                      onLayout={(event) =>
+                        updateBookshelfMoreCue({ viewportWidth: event.nativeEvent.layout.width })
+                      }
+                      onScroll={(event) =>
+                        updateBookshelfMoreCue({ offsetX: Math.max(0, event.nativeEvent.contentOffset.x) })
+                      }
+                      scrollEventThrottle={16}
+                      showsHorizontalScrollIndicator={false}
+                    >
+                      {filteredBooks.map((book) => (
+                        <Pressable
+                          key={book.id}
+                          onPress={() => setSelectedShelfBookId(book.id)}
+                          style={styles.shelfBook}
+                        >
+                          <View
+                            style={[
+                              styles.shelfCover,
+                              book.pinnedAt ? styles.shelfCoverPinned : null,
+                              selectedShelfBook?.id === book.id ? styles.shelfCoverSelected : null,
+                            ]}
+                          >
+                            {book.externalCoverUrl ? (
+                              <Image resizeMode="cover" source={{ uri: book.externalCoverUrl }} style={styles.shelfCoverImage} />
+                            ) : (
+                              <Text style={styles.shelfCoverText}>BOOK</Text>
+                            )}
+                            {book.pinnedAt ? (
+                              <View style={styles.pinnedFlag}>
+                                <Text style={styles.pinnedFlagText}>대표</Text>
+                              </View>
+                            ) : null}
+                          </View>
+                          <Text style={styles.shelfTitle} numberOfLines={2}>
+                            {book.title}
+                          </Text>
+                          <Text style={styles.shelfMeta} numberOfLines={1}>
+                            {getShelfBookMeta(book)}
+                          </Text>
+                          {shouldShowShelfProgress(book) ? (
+                            <View style={styles.shelfProgressTrack}>
+                              <View style={[styles.shelfProgressFill, { width: `${book.progressPercent}%` }]} />
+                            </View>
+                          ) : null}
+                        </Pressable>
+                      ))}
+                    </ScrollView>
+                  ) : (
+                    <View style={styles.shelfEmptyState}>
+                      <Text style={styles.shelfEmptyText}>없습니다.</Text>
                     </View>
-                    <Text style={styles.shelfTitle} numberOfLines={2}>
-                      {book.title}
-                    </Text>
-                    <Text style={styles.shelfMeta} numberOfLines={1}>
-                      {getShelfBookMeta(book)}
-                    </Text>
-                    {shouldShowShelfProgress(book) ? (
-                      <View style={styles.shelfProgressTrack}>
-                        <View style={[styles.shelfProgressFill, { width: `${book.progressPercent}%` }]} />
+                  )}
+                  {filteredBooks.length > 3 && showBookshelfMoreCue ? (
+                    <LinearGradient
+                      colors={['rgba(238, 241, 223, 0)', 'rgba(238, 241, 223, 0.96)']}
+                      end={{ x: 1, y: 0.5 }}
+                      pointerEvents="none"
+                      start={{ x: 0, y: 0.5 }}
+                      style={styles.bookshelfMoreFade}
+                    >
+                      <View style={styles.bookshelfMoreCue}>
+                        <Text style={styles.bookshelfMoreArrow}>›</Text>
                       </View>
-                    ) : null}
-                  </Pressable>
-                ))}
-              </ScrollView>
-              {filteredBooks.length > 3 && showBookshelfMoreCue ? (
-                <LinearGradient
-                  colors={['rgba(238, 241, 223, 0)', 'rgba(238, 241, 223, 0.96)']}
-                  end={{ x: 1, y: 0.5 }}
-                  pointerEvents="none"
-                  start={{ x: 0, y: 0.5 }}
-                  style={styles.bookshelfMoreFade}
-                >
-                  <View style={styles.bookshelfMoreCue}>
-                    <Text style={styles.bookshelfMoreArrow}>›</Text>
-                  </View>
-                </LinearGradient>
-              ) : null}
-            </View>
-            {selectedShelfBook ? (
-              <View style={styles.shelfPreview}>
-                <View style={styles.previewCopy}>
-                  <Text style={styles.previewState}>{getStatusLabel(selectedShelfBook)}</Text>
-                  <Text style={styles.previewTitle} numberOfLines={2}>
-                    {selectedShelfBook.title}
-                  </Text>
-                  <Text style={styles.previewMeta} numberOfLines={1}>
-                    {getCurrentBookHint(selectedShelfBook)}
-                  </Text>
+                    </LinearGradient>
+                  ) : null}
                 </View>
-                <Pressable
-                  onPress={() => router.push(`/reading-life/${selectedShelfBook.id}`)}
-                  style={styles.previewButton}
-                >
-                  <Text style={styles.previewButtonText}>상세보기</Text>
-                </Pressable>
+                {selectedShelfBook ? (
+                  <View style={styles.shelfPreview}>
+                    <View style={styles.previewCopy}>
+                      <Text style={styles.previewState}>{getStatusLabel(selectedShelfBook)}</Text>
+                      <Text style={styles.previewTitle} numberOfLines={2}>
+                        {selectedShelfBook.title}
+                      </Text>
+                      <Text style={styles.previewMeta} numberOfLines={1}>
+                        {getCurrentBookHint(selectedShelfBook)}
+                      </Text>
+                    </View>
+                    <Pressable
+                      onPress={() => router.push(`/reading-life/${selectedShelfBook.id}`)}
+                      style={styles.previewButton}
+                    >
+                      <Text style={styles.previewButtonText}>상세보기</Text>
+                    </Pressable>
+                  </View>
+                ) : null}
+              </>
+            ) : (
+              <View style={styles.emptyShelf}>
+                <Text style={styles.emptyShelfText}>책을 스캔해 첫 책을 올려두세요.</Text>
               </View>
-            ) : null}
+            )}
           </View>
         ) : null}
 
@@ -668,32 +679,6 @@ const styles = StyleSheet.create({
     left: 0,
     position: 'absolute',
     right: 0,
-  },
-  signHeroTop: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    left: 0,
-    paddingHorizontal: 20,
-    paddingTop: 12,
-    position: 'absolute',
-    right: 0,
-    top: 0,
-    zIndex: 3,
-  },
-  signHeroAction: {
-    alignItems: 'center',
-    backgroundColor: 'rgba(247, 241, 229, 0.92)',
-    borderRadius: 22,
-    height: 44,
-    justifyContent: 'center',
-    width: 44,
-  },
-  signHeroActionText: {
-    color: '#103D2B',
-    fontSize: 25,
-    fontWeight: '900',
-    lineHeight: 28,
   },
   signIntro: {
     alignItems: 'center',
@@ -1121,14 +1106,24 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '900',
   },
-  shelfHeaderMeta: {
-    alignItems: 'flex-end',
-    gap: 3,
+  shelfTitleGroup: {
+    alignItems: 'baseline',
+    flexDirection: 'row',
+    gap: 8,
   },
-  shelfSwipeHint: {
-    color: '#72806E',
-    fontSize: 10,
-    fontWeight: '800',
+  shelfAddButton: {
+    alignItems: 'center',
+    backgroundColor: '#103D2B',
+    borderRadius: 20,
+    height: 40,
+    justifyContent: 'center',
+    width: 40,
+  },
+  shelfAddButtonText: {
+    color: '#F7F1E5',
+    fontSize: 23,
+    fontWeight: '900',
+    lineHeight: 26,
   },
   shelfFilterContent: {
     gap: 8,
@@ -1164,6 +1159,35 @@ const styles = StyleSheet.create({
   bookshelfFrame: {
     marginRight: -20,
     position: 'relative',
+  },
+  shelfEmptyState: {
+    alignItems: 'center',
+    borderBottomColor: 'rgba(16,61,43,0.1)',
+    borderBottomWidth: 1,
+    justifyContent: 'center',
+    marginRight: 20,
+    minHeight: 212,
+    paddingTop: 18,
+  },
+  shelfEmptyText: {
+    color: '#72806E',
+    fontSize: 14,
+    fontWeight: '800',
+  },
+  emptyShelf: {
+    alignItems: 'center',
+    borderBottomColor: 'rgba(16,61,43,0.1)',
+    borderBottomWidth: 1,
+    justifyContent: 'center',
+    minHeight: 176,
+    paddingHorizontal: 22,
+  },
+  emptyShelfText: {
+    color: '#72806E',
+    fontSize: 14,
+    fontWeight: '800',
+    lineHeight: 20,
+    textAlign: 'center',
   },
   bookshelfMoreFade: {
     alignItems: 'flex-end',
