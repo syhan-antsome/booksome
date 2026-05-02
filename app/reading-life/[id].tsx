@@ -42,8 +42,6 @@ const statusOptions: Array<{ value: ReadingBookStatus; label: string }> = [
   { value: 'paused', label: '잠시 멈춤' },
 ];
 
-const progressMarks = [0, 25, 50, 75, 100];
-
 export default function ReadingLifeBookScreen() {
   const { id, section } = useLocalSearchParams<{ id?: string; section?: string }>();
   const { session } = useAuth();
@@ -201,18 +199,6 @@ export default function ReadingLifeBookScreen() {
     } finally {
       setIsFeaturingBook(false);
     }
-  };
-
-  const setProgress = (progressPercent: number) => {
-    const nextStatus = progressPercent >= 100 ? 'finished' : book?.status === 'finished' ? 'reading' : book?.status;
-    const input: UpdateReadingLifeBookInput = { progressPercent, status: nextStatus };
-
-    if (book?.totalPages) {
-      input.currentPage = Math.round((book.totalPages * progressPercent) / 100);
-      input.totalPages = book.totalPages;
-    }
-
-    void saveBook(input);
   };
 
   const savePageProgress = () => {
@@ -477,25 +463,6 @@ export default function ReadingLifeBookScreen() {
                     {isSaving ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.pageProgressActionText}>저장</Text>}
                   </Pressable>
                 </View>
-              </View>
-              <View style={styles.progressMarks}>
-                {progressMarks.map((mark) => (
-                  <Pressable
-                    disabled={isSaving}
-                    key={mark}
-                    onPress={() => setProgress(mark)}
-                    style={[styles.progressMark, book.progressPercent === mark ? styles.progressMarkActive : null]}
-                  >
-                    <Text
-                      style={[
-                        styles.progressMarkText,
-                        book.progressPercent === mark ? styles.progressMarkTextActive : null,
-                      ]}
-                    >
-                      {mark}
-                    </Text>
-                  </Pressable>
-                ))}
               </View>
             </View>
 
@@ -962,30 +929,6 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 13,
     fontWeight: '800',
-  },
-  progressMarks: {
-    flexDirection: 'row',
-    gap: 8,
-    marginTop: 16,
-  },
-  progressMark: {
-    alignItems: 'center',
-    backgroundColor: '#E8DEC9',
-    borderRadius: 16,
-    flex: 1,
-    height: 42,
-    justifyContent: 'center',
-  },
-  progressMarkActive: {
-    backgroundColor: '#116653',
-  },
-  progressMarkText: {
-    color: '#5B675F',
-    fontSize: 13,
-    fontWeight: '900',
-  },
-  progressMarkTextActive: {
-    color: '#FFFFFF',
   },
   memoPanel: {
     marginTop: 18,
