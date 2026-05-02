@@ -46,6 +46,13 @@ const bookshelfFilters: Array<{ label: string; value: BookshelfFilter }> = [
 ];
 
 const weekdayLabels = ['일', '월', '화', '수', '목', '금', '토'];
+const bookshelfEmptyMessages: Record<BookshelfFilter, string> = {
+  all: '아직 등록된 책이 없습니다.',
+  reading: '읽는 중인 책이 없습니다.',
+  want_to_read: '읽고 싶은 책이 없습니다.',
+  finished: '완독한 책이 없습니다.',
+  paused: '잠시 쉬는 책이 없습니다.',
+};
 
 const readingLifeSignboardSource: ImageSourcePropType =
   typeof readingLifeSignboardImage === 'string' ? { uri: readingLifeSignboardImage } : readingLifeSignboardImage;
@@ -129,6 +136,7 @@ export default function ReadingLifeScreen() {
     filteredBooks.find((book) => book.id === selectedShelfBookId) ??
     filteredBooks[0] ??
     null;
+  const bookshelfEmptyMessage = bookshelfEmptyMessages[bookshelfFilter];
   const calendarDays = useMemo(() => buildReadingCalendarDays(books, calendarMonth), [books, calendarMonth]);
   const selectedCalendarEvents = useMemo(
     () => getCalendarEventsForDate(books, selectedCalendarDateKey),
@@ -441,7 +449,7 @@ export default function ReadingLifeScreen() {
                     </ScrollView>
                   ) : (
                     <View style={styles.shelfEmptyState}>
-                      <Text style={styles.shelfEmptyText}>없습니다.</Text>
+                      <Text style={styles.shelfEmptyText}>{bookshelfEmptyMessage}</Text>
                     </View>
                   )}
                   {filteredBooks.length > 3 && showBookshelfMoreCue ? (
