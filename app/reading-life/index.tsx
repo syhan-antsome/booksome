@@ -2,7 +2,7 @@ import { NotoSerifKR_500Medium } from '@expo-google-fonts/noto-serif-kr/500Mediu
 import { useFonts } from 'expo-font';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Link, router, useFocusEffect } from 'expo-router';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Image,
@@ -50,6 +50,7 @@ const weekdayLabels = ['일', '월', '화', '수', '목', '금', '토'];
 const readingLifeSignboardSource: ImageSourcePropType =
   typeof readingLifeSignboardImage === 'string' ? { uri: readingLifeSignboardImage } : readingLifeSignboardImage;
 const readingLifeSignboardRatio = 803 / 1400;
+const bookshelfEndThreshold = 16;
 
 export default function ReadingLifeScreen() {
   const { session } = useAuth();
@@ -63,6 +64,8 @@ export default function ReadingLifeScreen() {
   const [calendarMonth, setCalendarMonth] = useState(() => startOfMonth(new Date()));
   const [selectedCalendarDateKey, setSelectedCalendarDateKey] = useState<string | null>(null);
   const [readingQuote, setReadingQuote] = useState(() => getRandomReadingLifeQuote());
+  const [showBookshelfMoreCue, setShowBookshelfMoreCue] = useState(false);
+  const bookshelfScrollMetrics = useRef({ contentWidth: 0, offsetX: 0, viewportWidth: 0 });
 
   useEffect(() => {
     let isMounted = true;
@@ -101,11 +104,27 @@ export default function ReadingLifeScreen() {
     }, []),
   );
 
+  const updateBookshelfMoreCue = useCallback((nextMetrics: Partial<typeof bookshelfScrollMetrics.current>) => {
+    const metrics = { ...bookshelfScrollMetrics.current, ...nextMetrics };
+    bookshelfScrollMetrics.current = metrics;
+
+    const isScrollable = metrics.contentWidth > metrics.viewportWidth + bookshelfEndThreshold;
+    const isAtEnd = metrics.offsetX + metrics.viewportWidth >= metrics.contentWidth - bookshelfEndThreshold;
+    const shouldShow = isScrollable && !isAtEnd;
+
+    setShowBookshelfMoreCue((current) => (current === shouldShow ? current : shouldShow));
+  }, []);
+
   const currentBook = books.find((book) => book.pinnedAt) ?? books.find((book) => book.status === 'reading') ?? books[0] ?? null;
   const filteredBooks = useMemo(() => {
     if (bookshelfFilter === 'all') return books;
     return books.filter((book) => book.status === bookshelfFilter);
   }, [books, bookshelfFilter]);
+
+  useEffect(() => {
+    updateBookshelfMoreCue({ offsetX: 0 });
+  }, [filteredBooks.length, updateBookshelfMoreCue]);
+
   const selectedShelfBook =
     books.find((book) => book.id === selectedShelfBookId) ??
     filteredBooks[0] ??
@@ -369,8 +388,17 @@ export default function ReadingLifeScreen() {
             </ScrollView>
             <View style={styles.bookshelfFrame}>
               <ScrollView
+                key={bookshelfFilter}
                 contentContainerStyle={styles.bookshelfContent}
                 horizontal
+                onContentSizeChange={(contentWidth) => updateBookshelfMoreCue({ contentWidth })}
+                onLayout={(event) =>
+                  updateBookshelfMoreCue({ viewportWidth: event.nativeEvent.layout.width })
+                }
+                onScroll={(event) =>
+                  updateBookshelfMoreCue({ offsetX: Math.max(0, event.nativeEvent.contentOffset.x) })
+                }
+                scrollEventThrottle={16}
                 showsHorizontalScrollIndicator={false}
               >
                 {filteredBooks.map((book) => (
@@ -411,7 +439,7 @@ export default function ReadingLifeScreen() {
                   </Pressable>
                 ))}
               </ScrollView>
-              {filteredBooks.length > 3 ? (
+              {filteredBooks.length > 3 && showBookshelfMoreCue ? (
                 <LinearGradient
                   colors={['rgba(238, 241, 223, 0)', 'rgba(238, 241, 223, 0.96)']}
                   end={{ x: 1, y: 0.5 }}
