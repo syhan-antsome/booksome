@@ -25,16 +25,17 @@ import { listReadingLifeBooks, type ReadingLifeBook } from '../../src/services/r
 
 type BookshelfFilter = 'all' | 'reading' | 'want_to_read' | 'finished' | 'paused';
 type CalendarEventType = 'registration' | 'reading';
+type ReadingRecordSection = 'progress' | 'quote' | 'photo';
 
 type CalendarEvent = {
   book: ReadingLifeBook;
   type: CalendarEventType;
 };
 
-const recordTypes = [
-  { title: '읽는 책', copy: '현재 읽는 책과 진행률을 기록합니다.', section: 'progress' },
-  { title: '문장 메모', copy: '오래 남기고 싶은 문장을 모읍니다.', section: 'quote' },
-  { title: '사진 메모', copy: '책상, 페이지, 장소까지 독서의 순간을 남깁니다.', section: 'photo' },
+const currentBookActions: Array<{ label: string; section: ReadingRecordSection }> = [
+  { label: '기록하기', section: 'progress' },
+  { label: '문장 남기기', section: 'quote' },
+  { label: '사진 남기기', section: 'photo' },
 ];
 
 const bookshelfFilters: Array<{ label: string; value: BookshelfFilter }> = [
@@ -144,6 +145,20 @@ export default function ReadingLifeScreen() {
   );
   const isViewingCurrentMonth = isSameMonth(calendarMonth, new Date());
   const signHeroHeight = Math.round(width * readingLifeSignboardRatio);
+  const openCurrentBookAction = useCallback(
+    (section: ReadingRecordSection) => {
+      if (currentBook) {
+        router.push({
+          pathname: '/reading-life/[id]',
+          params: { id: currentBook.id, section },
+        });
+        return;
+      }
+
+      router.push(session ? '/scan' : '/auth');
+    },
+    [currentBook, session],
+  );
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -171,34 +186,71 @@ export default function ReadingLifeScreen() {
           />
         ) : null}
 
-        <Pressable
-          disabled={!currentBook}
-          onPress={() => {
-            if (currentBook) router.push(`/reading-life/${currentBook.id}`);
-          }}
-          style={styles.currentBook}
-        >
-          <View style={styles.bookCover}>
-            {currentBook?.externalCoverUrl ? (
-              <Image resizeMode="cover" source={{ uri: currentBook.externalCoverUrl }} style={styles.bookCoverImage} />
+        <View style={styles.currentBook}>
+          <View style={styles.currentBookHeader}>
+            <Text style={styles.currentBookSectionTitle}>지금 읽는 책</Text>
+            {currentBook ? <Text style={styles.currentBookPercent}>{currentBook.progressPercent}%</Text> : null}
+          </View>
+
+          <Pressable
+            disabled={!currentBook}
+            onPress={() => {
+              if (currentBook) router.push(`/reading-life/${currentBook.id}`);
+            }}
+            style={styles.currentBookBody}
+          >
+            <View style={styles.bookCover}>
+              {currentBook?.externalCoverUrl ? (
+                <Image resizeMode="cover" source={{ uri: currentBook.externalCoverUrl }} style={styles.bookCoverImage} />
+              ) : (
+                <Text style={styles.bookCoverText}>BOOK</Text>
+              )}
+            </View>
+            <View style={styles.bookCopy}>
+              <Text style={styles.bookState}>
+                {currentBook ? getCurrentBookStatusText(currentBook) : '기록을 기다리는 중'}
+              </Text>
+              <Text style={styles.bookTitle} numberOfLines={2}>
+                {currentBook?.title ?? '아직 기록된 책이 없어요'}
+              </Text>
+              {currentBook ? <Text style={styles.bookAuthor}>{currentBook.author}</Text> : null}
+              <View style={styles.progressTrack}>
+                <View style={[styles.progressFill, { width: `${currentBook?.progressPercent ?? 0}%` }]} />
+              </View>
+              <Text style={styles.bookHint}>
+                {currentBook ? getCurrentBookHint(currentBook) : '첫 책을 등록하면 진행률과 메모가 여기에 모입니다.'}
+              </Text>
+            </View>
+          </Pressable>
+
+          <View style={styles.currentBookActions}>
+            {currentBook ? (
+              currentBookActions.map((action, index) => (
+                <Pressable
+                  key={action.section}
+                  onPress={() => openCurrentBookAction(action.section)}
+                  style={[
+                    styles.currentBookAction,
+                    index === 0 ? styles.currentBookActionPrimary : null,
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.currentBookActionText,
+                      index === 0 ? styles.currentBookActionTextPrimary : null,
+                    ]}
+                  >
+                    {action.label}
+                  </Text>
+                </Pressable>
+              ))
             ) : (
-              <Text style={styles.bookCoverText}>BOOK</Text>
+              <Pressable onPress={() => router.push(session ? '/scan' : '/auth')} style={styles.currentBookEmptyAction}>
+                <Text style={styles.currentBookActionTextPrimary}>책 등록하기</Text>
+              </Pressable>
             )}
           </View>
-          <View style={styles.bookCopy}>
-            <Text style={styles.bookState}>{currentBook?.pinnedAt ? '대표로 읽는 책' : '현재 읽는 책'}</Text>
-            <Text style={styles.bookTitle} numberOfLines={2}>
-              {currentBook?.title ?? '아직 기록된 책이 없어요'}
-            </Text>
-            {currentBook ? <Text style={styles.bookAuthor}>{currentBook.author}</Text> : null}
-            <View style={styles.progressTrack}>
-              <View style={[styles.progressFill, { width: `${currentBook?.progressPercent ?? 0}%` }]} />
-            </View>
-            <Text style={styles.bookHint}>
-              {currentBook ? getCurrentBookHint(currentBook) : '책을 추가하면 진행률과 메모가 여기에 모입니다.'}
-            </Text>
-          </View>
-        </Pressable>
+        </View>
 
         {isLoadingBooks ? (
           <View style={styles.loadingPanel}>
@@ -429,7 +481,7 @@ export default function ReadingLifeScreen() {
                             )}
                             {book.pinnedAt ? (
                               <View style={styles.pinnedFlag}>
-                                <Text style={styles.pinnedFlagText}>대표</Text>
+                                <Text style={styles.pinnedFlagText}>지금</Text>
                               </View>
                             ) : null}
                           </View>
@@ -494,32 +546,6 @@ export default function ReadingLifeScreen() {
           </View>
         ) : null}
 
-        <View style={styles.recordList}>
-          {recordTypes.map((item) => (
-            <Pressable
-              key={item.title}
-              onPress={() => {
-                if (currentBook) {
-                  router.push({
-                    pathname: '/reading-life/[id]',
-                    params: { id: currentBook.id, section: item.section },
-                  });
-                  return;
-                }
-
-                router.push(session ? '/scan' : '/auth');
-              }}
-              style={styles.recordItem}
-            >
-              <View style={styles.recordMark} />
-              <View style={styles.recordCopy}>
-                <Text style={styles.recordTitle}>{item.title}</Text>
-                <Text style={styles.recordText}>{item.copy}</Text>
-              </View>
-              <Text style={styles.recordArrow}>›</Text>
-            </Pressable>
-          ))}
-        </View>
       </ScrollView>
       <BottomNavigation active="reading-life" />
     </SafeAreaView>
@@ -549,8 +575,16 @@ function getCurrentBookHint(book: ReadingLifeBook) {
   return '이제 진행률, 문장, 사진 메모를 이어서 붙일 수 있습니다.';
 }
 
+function getCurrentBookStatusText(book: ReadingLifeBook) {
+  if (book.status === 'want_to_read') return '곧 읽을 책';
+  if (book.status === 'finished') return '완독한 책';
+  if (book.status === 'paused') return '잠시 쉬는 책';
+
+  return '이어 읽는 중';
+}
+
 function getStatusLabel(book: ReadingLifeBook) {
-  if (book.pinnedAt) return '대표 책';
+  if (book.pinnedAt) return '지금 읽는 책';
   if (book.status === 'reading') return '읽는 중';
   if (book.status === 'want_to_read') return '읽고 싶음';
   if (book.status === 'finished') return '완독';
@@ -795,10 +829,29 @@ const styles = StyleSheet.create({
   currentBook: {
     borderBottomColor: 'rgba(16,61,43,0.12)',
     borderBottomWidth: 1,
+    marginTop: 14,
+    paddingBottom: 20,
+    paddingTop: 4,
+  },
+  currentBookHeader: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  currentBookSectionTitle: {
+    color: '#26372B',
+    fontSize: 20,
+    fontWeight: '800',
+  },
+  currentBookPercent: {
+    color: '#8F6A42',
+    fontSize: 13,
+    fontWeight: '900',
+  },
+  currentBookBody: {
     flexDirection: 'row',
     gap: 16,
-    marginTop: 14,
-    paddingVertical: 20,
+    paddingTop: 16,
   },
   bookCover: {
     alignItems: 'center',
@@ -858,6 +911,40 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     lineHeight: 17,
     marginTop: 9,
+  },
+  currentBookActions: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 16,
+  },
+  currentBookAction: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(16,61,43,0.08)',
+    borderRadius: 18,
+    flex: 1,
+    height: 38,
+    justifyContent: 'center',
+  },
+  currentBookActionPrimary: {
+    backgroundColor: '#103D2B',
+  },
+  currentBookEmptyAction: {
+    alignItems: 'center',
+    backgroundColor: '#103D2B',
+    borderRadius: 19,
+    height: 40,
+    justifyContent: 'center',
+    paddingHorizontal: 18,
+  },
+  currentBookActionText: {
+    color: '#103D2B',
+    fontSize: 12,
+    fontWeight: '900',
+  },
+  currentBookActionTextPrimary: {
+    color: '#F7F1E5',
+    fontSize: 12,
+    fontWeight: '900',
   },
   loadingPanel: {
     alignItems: 'center',
@@ -1380,42 +1467,5 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '800',
     marginTop: 5,
-  },
-  recordList: {
-    marginTop: 20,
-  },
-  recordItem: {
-    alignItems: 'center',
-    borderBottomColor: 'rgba(16,61,43,0.1)',
-    borderBottomWidth: 1,
-    flexDirection: 'row',
-    gap: 14,
-    paddingVertical: 16,
-  },
-  recordMark: {
-    backgroundColor: '#103D2B',
-    borderRadius: 16,
-    height: 32,
-    width: 32,
-  },
-  recordCopy: {
-    flex: 1,
-  },
-  recordTitle: {
-    color: '#26372B',
-    fontSize: 17,
-    fontWeight: '800',
-  },
-  recordText: {
-    color: '#72806E',
-    fontSize: 13,
-    fontWeight: '700',
-    lineHeight: 19,
-    marginTop: 3,
-  },
-  recordArrow: {
-    color: '#103D2B',
-    fontSize: 30,
-    fontWeight: '900',
   },
 });

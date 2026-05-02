@@ -197,7 +197,7 @@ export default function ReadingLifeBookScreen() {
       const nextBook = await setFeaturedReadingLifeBook(session.user.id, bookId);
       setBook(nextBook);
     } catch (error) {
-      setErrorMessage(getErrorMessage(error, '대표 책으로 설정하지 못했습니다.'));
+      setErrorMessage(getErrorMessage(error, '지금 읽는 책으로 설정하지 못했습니다.'));
     } finally {
       setIsFeaturingBook(false);
     }
@@ -418,7 +418,7 @@ export default function ReadingLifeBookScreen() {
                       <ActivityIndicator color="#103D2B" />
                     ) : (
                       <Text style={[styles.featuredButtonText, book.pinnedAt ? styles.featuredButtonTextActive : null]}>
-                        {book.pinnedAt ? '대표 책' : '대표로 설정'}
+                        {book.pinnedAt ? '지금 읽는 책' : '지금 읽기로 설정'}
                       </Text>
                     )}
                   </Pressable>
