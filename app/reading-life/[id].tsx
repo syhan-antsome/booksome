@@ -35,11 +35,11 @@ import {
 } from '../../src/services/reading-life';
 import { uploadImageAsset } from '../../src/services/media';
 
-const statusOptions: Array<{ value: ReadingBookStatus; label: string; copy: string }> = [
-  { value: 'reading', label: '읽는 중', copy: '지금 곁에 두고 읽는 책' },
-  { value: 'want_to_read', label: '읽고 싶음', copy: '다음에 펼칠 책' },
-  { value: 'finished', label: '완독', copy: '끝까지 함께한 책' },
-  { value: 'paused', label: '잠시 멈춤', copy: '나중에 다시 만날 책' },
+const statusOptions: Array<{ value: ReadingBookStatus; label: string }> = [
+  { value: 'reading', label: '읽는 중' },
+  { value: 'want_to_read', label: '읽고 싶음' },
+  { value: 'finished', label: '완독' },
+  { value: 'paused', label: '잠시 멈춤' },
 ];
 
 const progressMarks = [0, 25, 50, 75, 100];
@@ -164,7 +164,7 @@ export default function ReadingLifeBookScreen() {
       await deleteReadingLifeBook(session.user.id, bookId);
       router.replace('/reading-life');
     } catch (error) {
-      setErrorMessage(getErrorMessage(error, '책 기록을 삭제하지 못했습니다.'));
+      setErrorMessage(getErrorMessage(error, '이 책을 삭제하지 못했습니다.'));
     } finally {
       setIsDeletingBook(false);
     }
@@ -174,8 +174,8 @@ export default function ReadingLifeBookScreen() {
     if (!book) return;
 
     Alert.alert(
-      '책 기록을 삭제할까요?',
-      `"${book.title}"의 진행률, 문장 메모, 사진 메모가 함께 삭제됩니다. 이 작업은 되돌릴 수 없습니다.`,
+      '이 책을 삭제할까요?',
+      `"${book.title}"에 남긴 내용이 함께 삭제됩니다. 이 작업은 되돌릴 수 없습니다.`,
       [
         { text: '취소', style: 'cancel' },
         {
@@ -357,9 +357,8 @@ export default function ReadingLifeBookScreen() {
               <Text style={styles.scanButtonText}>＋</Text>
             </Pressable>
           }
-          eyebrow="Reading Note"
-          subtitle="진행률, 문장, 사진을 이 책에 쌓습니다."
-          title="책 기록"
+          eyebrow={book ? statusLabel : undefined}
+          title="책과 나"
           tone="paper"
         />
 
@@ -434,7 +433,7 @@ export default function ReadingLifeBookScreen() {
 
             <View style={styles.progressPanel}>
               <View style={styles.sectionHeader}>
-                <Text style={styles.sectionTitle}>읽은 만큼 남기기</Text>
+                <Text style={styles.sectionTitle}>읽은 만큼</Text>
                 <Text style={styles.progressValue}>{book.progressPercent}%</Text>
               </View>
               <View style={styles.progressTrack}>
@@ -469,9 +468,11 @@ export default function ReadingLifeBookScreen() {
                   </View>
                 </View>
                 <View style={styles.pageProgressBottom}>
-                  <Text style={styles.pageProgressHint}>
-                    {pageProgressPreview === null ? '페이지를 입력하면 진행률을 계산합니다.' : `저장하면 ${pageProgressPreview}%로 반영됩니다.`}
-                  </Text>
+                  {pageProgressPreview === null ? (
+                    <View style={styles.pageProgressHintSpacer} />
+                  ) : (
+                    <Text style={styles.pageProgressHint}>{pageProgressPreview}%</Text>
+                  )}
                   <Pressable disabled={isSaving} onPress={savePageProgress} style={styles.pageProgressAction}>
                     {isSaving ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.pageProgressActionText}>저장</Text>}
                   </Pressable>
@@ -498,158 +499,130 @@ export default function ReadingLifeBookScreen() {
               </View>
             </View>
 
-            <View style={styles.statusPanel}>
-              <Text style={styles.sectionTitle}>책의 현재 위치</Text>
-              <View style={styles.statusList}>
-                {statusOptions.map((option) => (
-                  <Pressable
-                    disabled={isSaving}
-                    key={option.value}
-                    onPress={() =>
-                      saveBook({
-                        status: option.value,
-                        progressPercent: option.value === 'finished' ? 100 : book.progressPercent,
-                      })
-                    }
-                    style={[styles.statusItem, book.status === option.value ? styles.statusItemActive : null]}
-                  >
-                    <View>
-                      <Text style={[styles.statusTitle, book.status === option.value ? styles.statusTitleActive : null]}>
-                        {option.label}
-                      </Text>
-                      <Text style={[styles.statusCopy, book.status === option.value ? styles.statusCopyActive : null]}>
-                        {option.copy}
-                      </Text>
-                    </View>
-                    <Text style={[styles.statusCheck, book.status === option.value ? styles.statusCheckActive : null]}>
-                      {book.status === option.value ? '✓' : '○'}
-                    </Text>
-                  </Pressable>
-                ))}
-              </View>
-            </View>
-
             <View style={styles.memoPanel}>
               <View style={styles.sectionHeader}>
-                <Text style={styles.sectionTitle}>오늘의 기록</Text>
+                <Text style={styles.sectionTitle}>이 책과 나눈 기록</Text>
                 <Text style={styles.noteCount}>{notes.length}</Text>
               </View>
 
-              <View style={styles.composerTabs}>
-                <Pressable
-                  onPress={() => setComposer('quote')}
-                  style={[styles.composerTab, composer === 'quote' ? styles.composerTabActive : null]}
-                >
-                  <Text style={[styles.composerTabText, composer === 'quote' ? styles.composerTabTextActive : null]}>
-                    문장
-                  </Text>
-                </Pressable>
-                <Pressable
-                  onPress={() => setComposer('photo')}
-                  style={[styles.composerTab, composer === 'photo' ? styles.composerTabActive : null]}
-                >
-                  <Text style={[styles.composerTabText, composer === 'photo' ? styles.composerTabTextActive : null]}>
-                    사진
-                  </Text>
-                </Pressable>
-              </View>
-
-              <View style={styles.visibilityRow}>
-                <Pressable
-                  onPress={() => setNoteVisibility('private')}
-                  style={[styles.visibilityChoice, noteVisibility === 'private' ? styles.visibilityChoiceActive : null]}
-                >
-                  <Text
-                    style={[
-                      styles.visibilityChoiceText,
-                      noteVisibility === 'private' ? styles.visibilityChoiceTextActive : null,
-                    ]}
+              <View style={styles.composerBubble}>
+                <View style={styles.composerTabs}>
+                  <Pressable
+                    onPress={() => setComposer('quote')}
+                    style={[styles.composerTab, composer === 'quote' ? styles.composerTabActive : null]}
                   >
-                    나만 보기
-                  </Text>
-                </Pressable>
-                <Pressable
-                  onPress={() => setNoteVisibility('public')}
-                  style={[styles.visibilityChoice, noteVisibility === 'public' ? styles.visibilityChoiceActive : null]}
-                >
-                  <Text
-                    style={[
-                      styles.visibilityChoiceText,
-                      noteVisibility === 'public' ? styles.visibilityChoiceTextActive : null,
-                    ]}
+                    <Text style={[styles.composerTabText, composer === 'quote' ? styles.composerTabTextActive : null]}>
+                      문장
+                    </Text>
+                  </Pressable>
+                  <Pressable
+                    onPress={() => setComposer('photo')}
+                    style={[styles.composerTab, composer === 'photo' ? styles.composerTabActive : null]}
                   >
-                    공개
-                  </Text>
-                </Pressable>
-              </View>
-
-              {composer === 'quote' ? (
-                <View style={styles.composerBox}>
-                  <TextInput
-                    multiline
-                    onChangeText={setQuoteText}
-                    placeholder="마음에 남은 문장"
-                    placeholderTextColor="#9A927F"
-                    style={[styles.input, styles.quoteInput]}
-                    value={quoteText}
-                  />
-                  <TextInput
-                    onChangeText={setPageLabel}
-                    placeholder="페이지 또는 챕터"
-                    placeholderTextColor="#9A927F"
-                    style={styles.input}
-                    value={pageLabel}
-                  />
-                  <TextInput
-                    multiline
-                    onChangeText={setQuoteBody}
-                    placeholder="이 문장이 왜 남았나요?"
-                    placeholderTextColor="#9A927F"
-                    style={[styles.input, styles.bodyInput]}
-                    value={quoteBody}
-                  />
-                  <Pressable disabled={isSavingNote} onPress={saveQuoteNote} style={styles.primaryAction}>
-                    {isSavingNote ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.primaryActionText}>문장 저장</Text>}
+                    <Text style={[styles.composerTabText, composer === 'photo' ? styles.composerTabTextActive : null]}>
+                      사진
+                    </Text>
                   </Pressable>
                 </View>
-              ) : (
-                <View style={styles.composerBox}>
-                  <Pressable onPress={pickPhoto} style={styles.photoPicker}>
-                    {photoAsset?.uri ? (
-                      <Image resizeMode="cover" source={{ uri: photoAsset.uri }} style={styles.photoPreview} />
-                    ) : (
-                      <>
-                        <Text style={styles.photoPickerIcon}>＋</Text>
-                        <Text style={styles.photoPickerText}>사진 선택</Text>
-                      </>
-                    )}
+
+                <View style={styles.visibilityRow}>
+                  <Pressable
+                    onPress={() => setNoteVisibility('private')}
+                    style={[styles.visibilityChoice, noteVisibility === 'private' ? styles.visibilityChoiceActive : null]}
+                  >
+                    <Text
+                      style={[
+                        styles.visibilityChoiceText,
+                        noteVisibility === 'private' ? styles.visibilityChoiceTextActive : null,
+                      ]}
+                    >
+                      나만 보기
+                    </Text>
                   </Pressable>
-                  <TextInput
-                    multiline
-                    onChangeText={setPhotoBody}
-                    placeholder="사진과 함께 남길 생각"
-                    placeholderTextColor="#9A927F"
-                    style={[styles.input, styles.bodyInput]}
-                    value={photoBody}
-                  />
-                  <Pressable disabled={isSavingNote} onPress={savePhotoNote} style={styles.primaryAction}>
-                    {isSavingNote ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.primaryActionText}>사진 메모 저장</Text>}
+                  <Pressable
+                    onPress={() => setNoteVisibility('public')}
+                    style={[styles.visibilityChoice, noteVisibility === 'public' ? styles.visibilityChoiceActive : null]}
+                  >
+                    <Text
+                      style={[
+                        styles.visibilityChoiceText,
+                        noteVisibility === 'public' ? styles.visibilityChoiceTextActive : null,
+                      ]}
+                    >
+                      공개
+                    </Text>
                   </Pressable>
                 </View>
-              )}
-            </View>
 
-            <View style={styles.timelinePanel}>
-              <Text style={styles.sectionTitle}>쌓인 기록</Text>
-              <View style={styles.timelineList}>
+                {composer === 'quote' ? (
+                  <View style={styles.composerBox}>
+                    <TextInput
+                      multiline
+                      onChangeText={setQuoteText}
+                      placeholder="마음에 남은 문장"
+                      placeholderTextColor="#9A927F"
+                      style={[styles.input, styles.quoteInput]}
+                      value={quoteText}
+                    />
+                    <TextInput
+                      onChangeText={setPageLabel}
+                      placeholder="페이지 또는 챕터"
+                      placeholderTextColor="#9A927F"
+                      style={styles.input}
+                      value={pageLabel}
+                    />
+                    <TextInput
+                      multiline
+                      onChangeText={setQuoteBody}
+                      placeholder="짧은 생각"
+                      placeholderTextColor="#9A927F"
+                      style={[styles.input, styles.bodyInput]}
+                      value={quoteBody}
+                    />
+                    <Pressable disabled={isSavingNote} onPress={saveQuoteNote} style={styles.primaryAction}>
+                      {isSavingNote ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.primaryActionText}>남기기</Text>}
+                    </Pressable>
+                  </View>
+                ) : (
+                  <View style={styles.composerBox}>
+                    <Pressable onPress={pickPhoto} style={styles.photoPicker}>
+                      {photoAsset?.uri ? (
+                        <Image resizeMode="cover" source={{ uri: photoAsset.uri }} style={styles.photoPreview} />
+                      ) : (
+                        <>
+                          <Text style={styles.photoPickerIcon}>＋</Text>
+                          <Text style={styles.photoPickerText}>사진 선택</Text>
+                        </>
+                      )}
+                    </Pressable>
+                    <TextInput
+                      multiline
+                      onChangeText={setPhotoBody}
+                      placeholder="사진과 함께 남길 생각"
+                      placeholderTextColor="#9A927F"
+                      style={[styles.input, styles.bodyInput]}
+                      value={photoBody}
+                    />
+                    <Pressable disabled={isSavingNote} onPress={savePhotoNote} style={styles.primaryAction}>
+                      {isSavingNote ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.primaryActionText}>남기기</Text>}
+                    </Pressable>
+                  </View>
+                )}
+              </View>
+
+              <View style={styles.noteStream}>
                 {notes.length === 0 ? (
-                  <Text style={styles.emptyNotes}>아직 남긴 기록이 없습니다. 첫 문장이나 사진을 남겨보세요.</Text>
+                  <View style={styles.emptyNotesBubble}>
+                    <Text style={styles.emptyNotes}>아직 남긴 기록이 없습니다.</Text>
+                  </View>
                 ) : null}
                 {notes.map((note) => (
-                  <View key={note.id} style={styles.noteItem}>
+                  <View key={note.id} style={[styles.noteItem, note.kind === 'photo' ? styles.noteItemPhoto : null]}>
                     <View style={styles.noteHead}>
                       <Text style={styles.noteKind}>{note.kind === 'quote' ? '문장' : '사진'}</Text>
-                      <Text style={styles.noteVisibility}>{note.visibility === 'public' ? '공개' : '비공개'}</Text>
+                      <Text style={styles.noteVisibility}>
+                        {formatNoteDate(note.createdAt)} · {note.visibility === 'public' ? '공개' : '비공개'}
+                      </Text>
                     </View>
                     {note.mediaUrl ? (
                       <Image resizeMode="cover" source={{ uri: note.mediaUrl }} style={styles.noteImage} />
@@ -664,8 +637,8 @@ export default function ReadingLifeBookScreen() {
 
             <View style={styles.deletePanel}>
               <View style={styles.deleteCopy}>
-                <Text style={styles.deleteTitle}>이 책 기록 삭제</Text>
-                <Text style={styles.deleteText}>진행률과 이 책에 남긴 문장, 사진 메모가 함께 정리됩니다.</Text>
+                <Text style={styles.deleteTitle}>이 책 삭제</Text>
+                <Text style={styles.deleteText}>되돌릴 수 없으니 신중히 선택해주세요.</Text>
               </View>
               <Pressable
                 disabled={isDeletingBook}
@@ -722,6 +695,13 @@ function parsePageLabel(value: string) {
 
   const parsedValue = Number(matchedValue);
   return Number.isSafeInteger(parsedValue) && parsedValue >= 0 ? parsedValue : null;
+}
+
+function formatNoteDate(value: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+
+  return `${date.getMonth() + 1}.${date.getDate()} ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
 }
 
 const styles = StyleSheet.create({
@@ -960,11 +940,14 @@ const styles = StyleSheet.create({
     marginTop: 12,
   },
   pageProgressHint: {
-    color: '#677268',
+    color: '#116653',
     flex: 1,
-    fontSize: 12,
-    fontWeight: '700',
-    lineHeight: 18,
+    fontSize: 18,
+    fontWeight: '900',
+    lineHeight: 22,
+  },
+  pageProgressHintSpacer: {
+    flex: 1,
   },
   pageProgressAction: {
     alignItems: 'center',
@@ -1004,54 +987,9 @@ const styles = StyleSheet.create({
   progressMarkTextActive: {
     color: '#FFFFFF',
   },
-  statusPanel: {
-    marginTop: 18,
-  },
-  statusList: {
-    gap: 10,
-    marginTop: 12,
-  },
-  statusItem: {
-    alignItems: 'center',
-    borderBottomColor: 'rgba(16,61,43,0.1)',
-    borderBottomWidth: 1,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingVertical: 16,
-  },
-  statusItemActive: {
-    borderBottomColor: '#103D2B',
-  },
-  statusTitle: {
-    color: '#26372B',
-    fontSize: 16,
-    fontWeight: '800',
-  },
-  statusTitleActive: {
-    color: '#103D2B',
-  },
-  statusCopy: {
-    color: '#72806E',
-    fontSize: 12,
-    fontWeight: '800',
-    marginTop: 4,
-  },
-  statusCopyActive: {
-    color: '#526154',
-  },
-  statusCheck: {
-    color: '#9A8D78',
-    fontSize: 20,
-    fontWeight: '900',
-  },
-  statusCheckActive: {
-    color: '#D8BE88',
-  },
   memoPanel: {
-    borderBottomColor: 'rgba(16,61,43,0.12)',
-    borderBottomWidth: 1,
     marginTop: 18,
-    paddingBottom: 20,
+    paddingBottom: 8,
     paddingTop: 20,
   },
   noteCount: {
@@ -1059,11 +997,19 @@ const styles = StyleSheet.create({
     fontSize: 22,
     fontWeight: '900',
   },
+  composerBubble: {
+    backgroundColor: 'rgba(247, 241, 229, 0.74)',
+    borderColor: 'rgba(16,61,43,0.1)',
+    borderRadius: 24,
+    borderTopLeftRadius: 8,
+    borderWidth: 1,
+    marginTop: 16,
+    padding: 14,
+  },
   composerTabs: {
     borderBottomColor: 'rgba(16,61,43,0.12)',
     borderBottomWidth: 1,
     flexDirection: 'row',
-    marginTop: 16,
   },
   composerTab: {
     alignItems: 'center',
@@ -1086,7 +1032,7 @@ const styles = StyleSheet.create({
   visibilityRow: {
     flexDirection: 'row',
     gap: 8,
-    marginTop: 12,
+    marginTop: 14,
   },
   visibilityChoice: {
     alignItems: 'center',
@@ -1117,7 +1063,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     color: '#14251B',
     fontSize: 15,
-    fontWeight: '800',
+    fontWeight: '700',
     lineHeight: 21,
     minHeight: 48,
     paddingHorizontal: 0,
@@ -1134,8 +1080,8 @@ const styles = StyleSheet.create({
   primaryAction: {
     alignItems: 'center',
     backgroundColor: '#116653',
-    borderRadius: 18,
-    height: 50,
+    borderRadius: 999,
+    height: 46,
     justifyContent: 'center',
   },
   primaryActionText: {
@@ -1173,12 +1119,9 @@ const styles = StyleSheet.create({
     lineHeight: 19,
     marginTop: 14,
   },
-  timelinePanel: {
-    marginTop: 20,
-  },
-  timelineList: {
-    gap: 10,
-    marginTop: 12,
+  noteStream: {
+    gap: 12,
+    marginTop: 18,
   },
   emptyNotes: {
     color: '#69756D',
@@ -1186,10 +1129,27 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     lineHeight: 21,
   },
+  emptyNotesBubble: {
+    alignSelf: 'flex-start',
+    backgroundColor: 'rgba(247,241,229,0.72)',
+    borderRadius: 22,
+    borderTopLeftRadius: 6,
+    paddingHorizontal: 16,
+    paddingVertical: 13,
+  },
   noteItem: {
-    borderBottomColor: 'rgba(16,61,43,0.1)',
-    borderBottomWidth: 1,
-    paddingVertical: 16,
+    alignSelf: 'flex-start',
+    backgroundColor: 'rgba(247,241,229,0.86)',
+    borderColor: 'rgba(16,61,43,0.08)',
+    borderRadius: 24,
+    borderTopLeftRadius: 7,
+    borderWidth: 1,
+    maxWidth: '94%',
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+  },
+  noteItemPhoto: {
+    backgroundColor: 'rgba(232,239,219,0.94)',
   },
   noteHead: {
     alignItems: 'center',
