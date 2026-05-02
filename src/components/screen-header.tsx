@@ -65,6 +65,7 @@ export function ScreenHeader({
     typeof titleImage === 'string' || typeof titleImage === 'number'
       ? toImageSource(titleImage)
       : titleImage;
+  const hasCopy = Boolean(eyebrow || subtitle);
 
   return (
     <View style={styles.shell}>
@@ -104,17 +105,19 @@ export function ScreenHeader({
         <View style={styles.actionSlot}>{action ?? <View style={styles.actionSpacer} />}</View>
       </View>
 
-      <View style={styles.copyBlock}>
-        <View style={[styles.accent, colors.accent]} />
-        <View style={styles.copyText}>
-          {eyebrow ? <Text style={[styles.eyebrow, colors.eyebrow]}>{eyebrow}</Text> : null}
-          {subtitle ? (
-            <Text style={[styles.subtitle, colors.subtitle]} numberOfLines={2}>
-              {subtitle}
-            </Text>
-          ) : null}
+      {hasCopy ? (
+        <View style={styles.copyBlock}>
+          <View style={[styles.accent, colors.accent]} />
+          <View style={styles.copyText}>
+            {eyebrow ? <Text style={[styles.eyebrow, colors.eyebrow]}>{eyebrow}</Text> : null}
+            {subtitle ? (
+              <Text style={[styles.subtitle, colors.subtitle]} numberOfLines={2}>
+                {subtitle}
+              </Text>
+            ) : null}
+          </View>
         </View>
-      </View>
+      ) : null}
     </View>
   );
 }
