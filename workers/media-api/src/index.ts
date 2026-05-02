@@ -12,6 +12,24 @@ type NaverBookItem = {
   description?: string;
 };
 
+type SeojiBookItem = {
+  AUTHOR?: string;
+  BOOK_INTRODUCTION?: string;
+  BOOK_INTRODUCTION_URL?: string;
+  BOOK_SUMMARY?: string;
+  BOOK_SUMMARY_URL?: string;
+  EA_ISBN?: string;
+  INPUT_DATE?: string;
+  PAGE?: string;
+  PUBLISHER?: string;
+  PUBLISH_PREDATE?: string;
+  REAL_PUBLISH_DATE?: string;
+  RELATED_ISBN?: string;
+  SET_ISBN?: string;
+  TITLE?: string;
+  TITLE_URL?: string;
+};
+
 const allowedKinds: Record<UploadKind, { prefix: string; maxBytes: number }> = {
   avatar: { prefix: 'avatars', maxBytes: 2 * 1024 * 1024 },
   'room-cover': { prefix: 'room-covers', maxBytes: 5 * 1024 * 1024 },
@@ -82,10 +100,51 @@ async function handleGetBookByIsbn(request: Request, env: Env) {
     return json({ error: 'Invalid ISBN' }, env, 400);
   }
 
-  if (!env.NAVER_CLIENT_ID || !env.NAVER_CLIENT_SECRET) {
+  if ((!env.NAVER_CLIENT_ID || !env.NAVER_CLIENT_SECRET) && !env.NL_SEOJI_CERT_KEY) {
     return json({ error: 'Book search is not configured' }, env, 500);
   }
 
+  if (env.NAVER_CLIENT_ID && env.NAVER_CLIENT_SECRET) {
+    try {
+      const naverResult = await lookupNaverBookByIsbn(isbn, env);
+
+      if (naverResult.items.length > 0 || !env.NL_SEOJI_CERT_KEY) {
+        return json(
+          {
+            isbn,
+            total: naverResult.total,
+            items: naverResult.items,
+          },
+          env,
+        );
+      }
+    } catch (error) {
+      if (!env.NL_SEOJI_CERT_KEY) {
+        return json(
+          {
+            error: 'Book search failed',
+            message: error instanceof Error ? error.message : 'Unknown error',
+          },
+          env,
+          502,
+        );
+      }
+    }
+  }
+
+  const seojiResult = await lookupSeojiBookByIsbn(isbn, env);
+
+  return json(
+    {
+      isbn,
+      total: seojiResult.total,
+      items: seojiResult.items,
+    },
+    env,
+  );
+}
+
+async function lookupNaverBookByIsbn(isbn: string, env: Env) {
   const naverUrl = new URL('https://openapi.naver.com/v1/search/book_adv.json');
   naverUrl.searchParams.set('d_isbn', isbn);
   naverUrl.searchParams.set('start', '1');
@@ -99,23 +158,56 @@ async function handleGetBookByIsbn(request: Request, env: Env) {
   });
 
   if (!response.ok) {
-    return json({ error: 'Book search failed', status: response.status }, env, 502);
+    throw new Error(`Naver book search failed: ${response.status}`);
   }
 
   const payload = (await response.json()) as {
     total?: number;
     items?: NaverBookItem[];
   };
-  const items = (payload.items ?? []).map(toBookSearchResult).filter((item) => item !== null);
+  const items = (payload.items ?? []).map(toNaverBookSearchResult).filter((item) => item !== null);
 
-  return json(
-    {
-      isbn,
-      total: payload.total ?? items.length,
-      items,
+  return {
+    total: payload.total ?? items.length,
+    items,
+  };
+}
+
+async function lookupSeojiBookByIsbn(isbn: string, env: Env) {
+  if (!env.NL_SEOJI_CERT_KEY) {
+    return {
+      total: 0,
+      items: [],
+    };
+  }
+
+  const seojiUrl = new URL('https://www.nl.go.kr/seoji/SearchApi.do');
+  seojiUrl.searchParams.set('cert_key', env.NL_SEOJI_CERT_KEY);
+  seojiUrl.searchParams.set('isbn', isbn);
+  seojiUrl.searchParams.set('result_style', 'json');
+  seojiUrl.searchParams.set('page_no', '1');
+  seojiUrl.searchParams.set('page_size', '10');
+
+  const response = await fetch(seojiUrl.toString(), {
+    headers: {
+      accept: 'application/json',
     },
-    env,
-  );
+  });
+
+  if (!response.ok) {
+    throw new Error(`NL seoji book search failed: ${response.status}`);
+  }
+
+  const payload = (await response.json()) as {
+    TOTAL_COUNT?: string;
+    docs?: SeojiBookItem[];
+  };
+  const items = (payload.docs ?? []).map(toSeojiBookSearchResult).filter((item) => item !== null);
+
+  return {
+    total: parsePositiveInteger(payload.TOTAL_COUNT) ?? items.length,
+    items,
+  };
 }
 
 async function handleUploadRequest(request: Request, env: Env) {
@@ -292,7 +384,7 @@ function isLikelyIsbn(value: string) {
   return /^[0-9X]{10}$/.test(value) || /^(978|979)[0-9]{10}$/.test(value);
 }
 
-function toBookSearchResult(item: NaverBookItem) {
+function toNaverBookSearchResult(item: NaverBookItem) {
   const isbn = extractPrimaryIsbn(item.isbn ?? '');
 
   if (!item.title || !item.author || !isbn) {
@@ -313,6 +405,32 @@ function toBookSearchResult(item: NaverBookItem) {
   };
 }
 
+function toSeojiBookSearchResult(item: SeojiBookItem) {
+  const isbn = extractPrimaryIsbn(item.EA_ISBN || item.SET_ISBN || item.RELATED_ISBN || '');
+  const title = cleanSeojiText(item.TITLE ?? '');
+
+  if (!title || !isbn) {
+    return null;
+  }
+
+  const introduction = cleanSeojiText(item.BOOK_INTRODUCTION ?? '');
+  const summary = cleanSeojiText(item.BOOK_SUMMARY ?? '');
+  const link = cleanSeojiText(item.TITLE_URL ?? item.BOOK_INTRODUCTION_URL ?? item.BOOK_SUMMARY_URL ?? '');
+
+  return {
+    title,
+    author: cleanSeojiText(item.AUTHOR ?? '') || '작가 미상',
+    publisher: cleanSeojiText(item.PUBLISHER ?? ''),
+    publishedDate: normalizeSeojiPublishedDate(item.REAL_PUBLISH_DATE || item.PUBLISH_PREDATE || item.INPUT_DATE || ''),
+    isbn,
+    imageUrl: null,
+    link: link || null,
+    description: introduction || summary,
+    source: 'nl-seoji',
+    sourcePayload: item,
+  };
+}
+
 function extractPrimaryIsbn(value: string) {
   const candidates = value.split(/\s+/).map(normalizeIsbn).filter(Boolean);
   return candidates.find((isbn) => /^(978|979)[0-9]{10}$/.test(isbn)) ?? candidates.find((isbn) => /^[0-9X]{10}$/.test(isbn)) ?? '';
@@ -326,4 +444,18 @@ function cleanNaverText(value: string) {
     .replace(/&gt;/g, '>')
     .replace(/&quot;/g, '"')
     .trim();
+}
+
+function cleanSeojiText(value: string) {
+  return value.replace(/\s+/g, ' ').trim();
+}
+
+function normalizeSeojiPublishedDate(value: string) {
+  return value.replace(/[^0-9]/g, '').slice(0, 8);
+}
+
+function parsePositiveInteger(value?: string) {
+  if (!value) return null;
+  const parsed = Number(value.replace(/[^0-9]/g, ''));
+  return Number.isSafeInteger(parsed) && parsed > 0 ? parsed : null;
 }

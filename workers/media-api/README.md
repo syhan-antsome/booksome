@@ -23,18 +23,20 @@ npm run dev
 1. create the R2 bucket for the current environment
 2. update `bucket_name` in `wrangler.jsonc`
 3. run `npm run types`
-4. set the Naver book lookup secrets
+4. set the book lookup secrets
 5. add auth verification before exposing upload endpoints publicly
 
 ## Book Lookup Secrets
 
-Naver book lookup runs through this Worker so the mobile app never contains the Naver client secret.
+Book lookup runs through this Worker so the mobile app never contains vendor secrets.
+The Worker first checks Naver Book Search, then falls back to the National Library of Korea Seoji API when Naver returns no items.
 
 Set these as Worker secrets:
 
 ```sh
 npx wrangler secret put NAVER_CLIENT_ID
 npx wrangler secret put NAVER_CLIENT_SECRET
+npx wrangler secret put NL_SEOJI_CERT_KEY
 ```
 
 ## Initial Endpoints

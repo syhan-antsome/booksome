@@ -7,7 +7,7 @@ export type BookSearchItem = {
   imageUrl: string | null;
   link: string | null;
   description: string;
-  source: 'naver';
+  source: 'naver' | 'nl-seoji';
   sourcePayload: unknown;
 };
 
