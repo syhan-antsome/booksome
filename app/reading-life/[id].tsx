@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Animated,
   Image,
   PanResponder,
   Pressable,
@@ -11,6 +12,8 @@ import {
   StyleSheet,
   Text,
   TextInput,
+  type GestureResponderEvent,
+  type PanResponderGestureState,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -42,8 +45,20 @@ const statusOptions: Array<{ value: ReadingBookStatus; label: string }> = [
   { value: 'finished', label: '완독' },
   { value: 'paused', label: '잠시 멈춤' },
 ];
-const shuttleGrooves = Array.from({ length: 20 }, (_, index) => index);
+const shuttleGrooves = Array.from({ length: 32 }, (_, index) => index);
+const shuttleVisualPeriod = 28;
 const shuttlePixelsPerPage = 1.5;
+
+const getGestureStartX = (event: GestureResponderEvent, gestureState: PanResponderGestureState) =>
+  gestureState.x0 || event.nativeEvent.pageX || 0;
+
+const getGestureCurrentX = (event: GestureResponderEvent, gestureState: PanResponderGestureState) =>
+  gestureState.moveX || event.nativeEvent.pageX || gestureState.x0 || 0;
+
+const getShuttleVisualOffset = (deltaX: number) => {
+  const shifted = ((deltaX + shuttleVisualPeriod / 2) % shuttleVisualPeriod + shuttleVisualPeriod) % shuttleVisualPeriod;
+  return shifted - shuttleVisualPeriod / 2;
+};
 
 export default function ReadingLifeBookScreen() {
   const { id, section } = useLocalSearchParams<{ id?: string; section?: string }>();
@@ -65,8 +80,10 @@ export default function ReadingLifeBookScreen() {
   const shuttleDraftPageRef = useRef<number | null>(null);
   const displayCurrentPageRef = useRef(0);
   const savePageProgressRef = useRef<(nextCurrentPage?: number) => void>(() => {});
+  const shuttleDidMoveRef = useRef(false);
   const shuttleStartPageRef = useRef(0);
   const shuttleStartTouchXRef = useRef(0);
+  const shuttleVisualOffset = useRef(new Animated.Value(0)).current;
   const [photoBody, setPhotoBody] = useState('');
   const [photoAsset, setPhotoAsset] = useState<ImagePicker.ImagePickerAsset | null>(null);
   const [noteVisibility, setNoteVisibility] = useState<ReadingVisibility>('private');
@@ -244,9 +261,12 @@ export default function ReadingLifeBookScreen() {
 
   const beginShuttleDrag = useCallback((touchX: number) => {
     shuttleDraftPageRef.current = null;
+    shuttleDidMoveRef.current = false;
     shuttleStartPageRef.current = displayCurrentPageRef.current;
     shuttleStartTouchXRef.current = touchX;
-  }, []);
+    shuttleVisualOffset.stopAnimation();
+    shuttleVisualOffset.setValue(0);
+  }, [shuttleVisualOffset]);
 
   const getPageFromShuttleDelta = useCallback(
     (deltaX: number) => {
@@ -261,6 +281,11 @@ export default function ReadingLifeBookScreen() {
   const updateDraftPageFromShuttle = useCallback(
     (touchX: number) => {
       const deltaX = touchX - shuttleStartTouchXRef.current;
+      shuttleVisualOffset.setValue(getShuttleVisualOffset(deltaX));
+
+      if (Math.abs(deltaX) < 1) return shuttleDraftPageRef.current;
+
+      shuttleDidMoveRef.current = true;
       const nextPage = getPageFromShuttleDelta(deltaX);
       if (nextPage === null) return null;
 
@@ -269,35 +294,49 @@ export default function ReadingLifeBookScreen() {
       setErrorMessage(null);
       return nextPage;
     },
-    [getPageFromShuttleDelta],
+    [getPageFromShuttleDelta, shuttleVisualOffset],
+  );
+
+  const finishShuttleDrag = useCallback(
+    (touchX: number) => {
+      const nextPage = shuttleDidMoveRef.current ? updateDraftPageFromShuttle(touchX) : shuttleDraftPageRef.current;
+
+      Animated.spring(shuttleVisualOffset, {
+        damping: 16,
+        mass: 0.45,
+        stiffness: 190,
+        toValue: 0,
+        useNativeDriver: true,
+      }).start();
+
+      if (shuttleDidMoveRef.current && nextPage !== null) savePageProgressRef.current(nextPage);
+    },
+    [shuttleVisualOffset, updateDraftPageFromShuttle],
   );
 
   const shuttleResponder = useMemo(
     () =>
       PanResponder.create({
+        onStartShouldSetPanResponder: () => Boolean(totalPageValue),
         onMoveShouldSetPanResponder: (_event, gestureState) =>
           Boolean(totalPageValue) &&
           Math.abs(gestureState.moveX - gestureState.x0) > 3 &&
           Math.abs(gestureState.moveX - gestureState.x0) > Math.abs(gestureState.moveY - gestureState.y0),
-        onStartShouldSetPanResponder: () => false,
+        onPanResponderTerminationRequest: () => false,
         onPanResponderGrant: (event, gestureState) => {
-          beginShuttleDrag(gestureState.x0 || event.nativeEvent.pageX);
+          beginShuttleDrag(getGestureStartX(event, gestureState));
         },
         onPanResponderMove: (event, gestureState) => {
-          updateDraftPageFromShuttle(gestureState.moveX || event.nativeEvent.pageX);
+          updateDraftPageFromShuttle(getGestureCurrentX(event, gestureState));
         },
         onPanResponderRelease: (event, gestureState) => {
-          updateDraftPageFromShuttle(gestureState.moveX || event.nativeEvent.pageX);
-          const nextPage = shuttleDraftPageRef.current;
-          if (nextPage !== null) savePageProgressRef.current(nextPage);
+          finishShuttleDrag(getGestureCurrentX(event, gestureState));
         },
         onPanResponderTerminate: (event, gestureState) => {
-          updateDraftPageFromShuttle(gestureState.moveX || event.nativeEvent.pageX);
-          const nextPage = shuttleDraftPageRef.current;
-          if (nextPage !== null) savePageProgressRef.current(nextPage);
+          finishShuttleDrag(getGestureCurrentX(event, gestureState));
         },
       }),
-    [beginShuttleDrag, totalPageValue, updateDraftPageFromShuttle],
+    [beginShuttleDrag, finishShuttleDrag, totalPageValue, updateDraftPageFromShuttle],
   );
 
   const saveQuoteNote = async () => {
@@ -492,15 +531,22 @@ export default function ReadingLifeBookScreen() {
                 >
                   <View style={styles.jogShuttle}>
                     <View style={styles.jogShuttleRidge}>
-                      {shuttleGrooves.map((groove) => (
-                        <View
-                          key={groove}
-                          style={[
-                            styles.jogShuttleGroove,
-                            groove % 2 === 0 ? styles.jogShuttleGrooveDeep : null,
-                          ]}
-                        />
-                      ))}
+                      <Animated.View
+                        style={[
+                          styles.jogShuttleGrooveTrack,
+                          { transform: [{ translateX: shuttleVisualOffset }] },
+                        ]}
+                      >
+                        {shuttleGrooves.map((groove) => (
+                          <View
+                            key={groove}
+                            style={[
+                              styles.jogShuttleGroove,
+                              groove % 2 === 0 ? styles.jogShuttleGrooveDeep : null,
+                            ]}
+                          />
+                        ))}
+                      </Animated.View>
                     </View>
                   </View>
                 </View>
@@ -929,10 +975,17 @@ const styles = StyleSheet.create({
     borderColor: '#5C6057',
     borderRadius: 2,
     borderWidth: 1,
-    flexDirection: 'row',
     height: 36,
     overflow: 'hidden',
     position: 'relative',
+  },
+  jogShuttleGrooveTrack: {
+    bottom: 0,
+    flexDirection: 'row',
+    left: -28,
+    position: 'absolute',
+    right: -28,
+    top: 0,
   },
   jogShuttleGroove: {
     backgroundColor: '#A8A693',
