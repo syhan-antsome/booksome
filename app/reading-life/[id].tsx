@@ -43,7 +43,7 @@ const statusOptions: Array<{ value: ReadingBookStatus; label: string }> = [
   { value: 'paused', label: '잠시 멈춤' },
 ];
 const shuttleGrooves = Array.from({ length: 20 }, (_, index) => index);
-const shuttlePixelsPerPage = 2;
+const shuttlePixelsPerPage = 1.5;
 
 export default function ReadingLifeBookScreen() {
   const { id, section } = useLocalSearchParams<{ id?: string; section?: string }>();
@@ -63,7 +63,10 @@ export default function ReadingLifeBookScreen() {
   const [currentPageInput, setCurrentPageInput] = useState('');
   const [totalPagesInput, setTotalPagesInput] = useState('');
   const shuttleDraftPageRef = useRef<number | null>(null);
+  const displayCurrentPageRef = useRef(0);
+  const savePageProgressRef = useRef<(nextCurrentPage?: number) => void>(() => {});
   const shuttleStartPageRef = useRef(0);
+  const shuttleStartTouchXRef = useRef(0);
   const [photoBody, setPhotoBody] = useState('');
   const [photoAsset, setPhotoAsset] = useState<ImagePicker.ImagePickerAsset | null>(null);
   const [noteVisibility, setNoteVisibility] = useState<ReadingVisibility>('private');
@@ -135,6 +138,7 @@ export default function ReadingLifeBookScreen() {
   const displayProgressPercent = totalPageValue
     ? calculateReadingProgressPercent(displayCurrentPage, totalPageValue)
     : book?.progressPercent ?? 0;
+  displayCurrentPageRef.current = displayCurrentPage;
 
   const saveBook = async (input: UpdateReadingLifeBookInput) => {
     if (!session?.user.id || !bookId) return;
@@ -234,10 +238,15 @@ export default function ReadingLifeBookScreen() {
     });
   }, [book, currentPageInput, saveBook, totalPagesInput]);
 
-  const beginShuttleDrag = useCallback(() => {
+  useEffect(() => {
+    savePageProgressRef.current = savePageProgress;
+  }, [savePageProgress]);
+
+  const beginShuttleDrag = useCallback((touchX: number) => {
     shuttleDraftPageRef.current = null;
-    shuttleStartPageRef.current = displayCurrentPage;
-  }, [displayCurrentPage]);
+    shuttleStartPageRef.current = displayCurrentPageRef.current;
+    shuttleStartTouchXRef.current = touchX;
+  }, []);
 
   const getPageFromShuttleDelta = useCallback(
     (deltaX: number) => {
@@ -250,7 +259,8 @@ export default function ReadingLifeBookScreen() {
   );
 
   const updateDraftPageFromShuttle = useCallback(
-    (deltaX: number) => {
+    (touchX: number) => {
+      const deltaX = touchX - shuttleStartTouchXRef.current;
       const nextPage = getPageFromShuttleDelta(deltaX);
       if (nextPage === null) return null;
 
@@ -267,21 +277,27 @@ export default function ReadingLifeBookScreen() {
       PanResponder.create({
         onMoveShouldSetPanResponder: (_event, gestureState) =>
           Boolean(totalPageValue) &&
-          Math.abs(gestureState.dx) > 3 &&
-          Math.abs(gestureState.dx) > Math.abs(gestureState.dy),
+          Math.abs(gestureState.moveX - gestureState.x0) > 3 &&
+          Math.abs(gestureState.moveX - gestureState.x0) > Math.abs(gestureState.moveY - gestureState.y0),
         onStartShouldSetPanResponder: () => false,
-        onPanResponderGrant: () => {
-          beginShuttleDrag();
+        onPanResponderGrant: (event, gestureState) => {
+          beginShuttleDrag(gestureState.x0 || event.nativeEvent.pageX);
         },
-        onPanResponderMove: (_event, gestureState) => {
-          updateDraftPageFromShuttle(gestureState.dx);
+        onPanResponderMove: (event, gestureState) => {
+          updateDraftPageFromShuttle(gestureState.moveX || event.nativeEvent.pageX);
         },
-        onPanResponderRelease: () => {
+        onPanResponderRelease: (event, gestureState) => {
+          updateDraftPageFromShuttle(gestureState.moveX || event.nativeEvent.pageX);
           const nextPage = shuttleDraftPageRef.current;
-          if (nextPage !== null) savePageProgress(nextPage);
+          if (nextPage !== null) savePageProgressRef.current(nextPage);
+        },
+        onPanResponderTerminate: (event, gestureState) => {
+          updateDraftPageFromShuttle(gestureState.moveX || event.nativeEvent.pageX);
+          const nextPage = shuttleDraftPageRef.current;
+          if (nextPage !== null) savePageProgressRef.current(nextPage);
         },
       }),
-    [beginShuttleDrag, savePageProgress, totalPageValue, updateDraftPageFromShuttle],
+    [beginShuttleDrag, totalPageValue, updateDraftPageFromShuttle],
   );
 
   const saveQuoteNote = async () => {
