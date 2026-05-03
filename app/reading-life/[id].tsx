@@ -125,17 +125,6 @@ export default function ReadingLifeBookScreen() {
     return statusOptions.find((option) => option.value === book?.status)?.label ?? '읽는 중';
   }, [book?.status]);
 
-  const pageProgressPreview = useMemo(() => {
-    const currentPage = parseNonNegativeInteger(currentPageInput);
-    const totalPages = parsePositiveInteger(totalPagesInput);
-
-    if (currentPage === null || totalPages === null || currentPage > totalPages) {
-      return null;
-    }
-
-    return calculateReadingProgressPercent(currentPage, totalPages);
-  }, [currentPageInput, totalPagesInput]);
-
   const saveBook = async (input: UpdateReadingLifeBookInput) => {
     if (!session?.user.id || !bookId) return;
 
@@ -417,51 +406,35 @@ export default function ReadingLifeBookScreen() {
             </View>
 
             <View style={styles.progressPanel}>
-              <View style={styles.sectionHeader}>
-                <Text style={styles.sectionTitle}>읽은 만큼</Text>
-                <Text style={styles.progressValue}>{book.progressPercent}%</Text>
-              </View>
-              <View style={styles.progressTrack}>
-                <View style={[styles.progressFill, { width: `${book.progressPercent}%` }]} />
-              </View>
               <View style={styles.pageProgressPanel}>
-                <View style={styles.pageInputRow}>
-                  <View style={styles.pageField}>
-                    <Text style={styles.pageFieldLabel}>현재 페이지</Text>
-                    <TextInput
-                      keyboardType="number-pad"
-                      onChangeText={(value) => setCurrentPageInput(value.replace(/[^0-9]/g, ''))}
-                      placeholder="0"
-                      placeholderTextColor="#A19989"
-                      returnKeyType="done"
-                      style={styles.pageInput}
-                      value={currentPageInput}
-                    />
-                  </View>
-                  <Text style={styles.pageSlash}>/</Text>
-                  <View style={styles.pageField}>
-                    <Text style={styles.pageFieldLabel}>마지막 페이지</Text>
-                    <TextInput
-                      keyboardType="number-pad"
-                      onChangeText={(value) => setTotalPagesInput(value.replace(/[^0-9]/g, ''))}
-                      placeholder="312"
-                      placeholderTextColor="#A19989"
-                      returnKeyType="done"
-                      style={styles.pageInput}
-                      value={totalPagesInput}
-                    />
-                  </View>
+                <View style={styles.pageField}>
+                  <Text style={styles.pageFieldLabel}>현재</Text>
+                  <TextInput
+                    keyboardType="number-pad"
+                    onChangeText={(value) => setCurrentPageInput(value.replace(/[^0-9]/g, ''))}
+                    placeholder="0"
+                    placeholderTextColor="#A19989"
+                    returnKeyType="done"
+                    style={styles.pageInput}
+                    value={currentPageInput}
+                  />
                 </View>
-                <View style={styles.pageProgressBottom}>
-                  {pageProgressPreview === null ? (
-                    <View style={styles.pageProgressHintSpacer} />
-                  ) : (
-                    <Text style={styles.pageProgressHint}>{pageProgressPreview}%</Text>
-                  )}
-                  <Pressable disabled={isSaving} onPress={savePageProgress} style={styles.pageProgressAction}>
-                    {isSaving ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.pageProgressActionText}>저장</Text>}
-                  </Pressable>
+                <Text style={styles.pageSlash}>/</Text>
+                <View style={styles.pageField}>
+                  <Text style={styles.pageFieldLabel}>마지막</Text>
+                  <TextInput
+                    keyboardType="number-pad"
+                    onChangeText={(value) => setTotalPagesInput(value.replace(/[^0-9]/g, ''))}
+                    placeholder="312"
+                    placeholderTextColor="#A19989"
+                    returnKeyType="done"
+                    style={styles.pageInput}
+                    value={totalPagesInput}
+                  />
                 </View>
+                <Pressable disabled={isSaving} onPress={savePageProgress} style={styles.pageProgressAction}>
+                  {isSaving ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.pageProgressActionText}>저장</Text>}
+                </Pressable>
               </View>
             </View>
 
@@ -834,8 +807,8 @@ const styles = StyleSheet.create({
   progressPanel: {
     borderBottomColor: 'rgba(16,61,43,0.12)',
     borderBottomWidth: 1,
-    marginTop: 16,
-    paddingVertical: 20,
+    paddingBottom: 16,
+    paddingTop: 18,
   },
   sectionHeader: {
     alignItems: 'center',
@@ -847,32 +820,10 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: '800',
   },
-  progressValue: {
-    color: '#116653',
-    fontSize: 24,
-    fontWeight: '900',
-  },
-  progressTrack: {
-    backgroundColor: '#E3D9C7',
-    borderRadius: 999,
-    height: 10,
-    marginTop: 16,
-    overflow: 'hidden',
-  },
-  progressFill: {
-    backgroundColor: '#116653',
-    height: '100%',
-  },
   pageProgressPanel: {
-    borderBottomColor: 'rgba(16,61,43,0.12)',
-    borderBottomWidth: 1,
-    marginTop: 18,
-    paddingBottom: 16,
-  },
-  pageInputRow: {
     alignItems: 'flex-end',
     flexDirection: 'row',
-    gap: 12,
+    gap: 10,
   },
   pageField: {
     flex: 1,
@@ -886,43 +837,26 @@ const styles = StyleSheet.create({
     borderBottomColor: '#103D2B',
     borderBottomWidth: 2,
     color: '#14251B',
-    fontSize: 28,
+    fontSize: 24,
     fontWeight: '800',
-    lineHeight: 34,
-    paddingBottom: 5,
-    paddingTop: 4,
+    lineHeight: 30,
+    paddingBottom: 4,
+    paddingTop: 2,
   },
   pageSlash: {
     color: '#B4A98F',
-    fontSize: 24,
+    fontSize: 21,
     fontWeight: '800',
     paddingBottom: 7,
-  },
-  pageProgressBottom: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    gap: 12,
-    justifyContent: 'space-between',
-    marginTop: 12,
-  },
-  pageProgressHint: {
-    color: '#116653',
-    flex: 1,
-    fontSize: 18,
-    fontWeight: '900',
-    lineHeight: 22,
-  },
-  pageProgressHintSpacer: {
-    flex: 1,
   },
   pageProgressAction: {
     alignItems: 'center',
     backgroundColor: '#103D2B',
-    borderRadius: 18,
-    height: 38,
+    borderRadius: 17,
+    height: 36,
     justifyContent: 'center',
-    minWidth: 70,
-    paddingHorizontal: 15,
+    minWidth: 62,
+    paddingHorizontal: 14,
   },
   pageProgressActionText: {
     color: '#FFFFFF',
