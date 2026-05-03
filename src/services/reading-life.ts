@@ -139,6 +139,27 @@ export async function getReadingLifeBook(profileId: string, bookId: string) {
   return data ? mapReadingBook(data) : null;
 }
 
+export async function getReadingLifeBookByIsbn(profileId: string, isbn: string) {
+  const isbn13 = normalizeIsbn(isbn);
+
+  if (!isbn13) {
+    return null;
+  }
+
+  const { data, error } = await supabase
+    .from('reading_books')
+    .select(readingBookSelect)
+    .eq('profile_id', profileId)
+    .eq('isbn13', isbn13)
+    .maybeSingle<ReadingBookRow>();
+
+  if (error) {
+    throw error;
+  }
+
+  return data ? mapReadingBook(data) : null;
+}
+
 export async function listReadingLifeNotes(profileId: string, readingBookId: string) {
   const { data, error } = await supabase
     .from('reading_notes')

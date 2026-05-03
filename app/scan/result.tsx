@@ -21,7 +21,12 @@ import { ScreenHeader } from '../../src/components/screen-header';
 import { useAuth } from '../../src/providers/auth-provider';
 import { lookupBookByIsbn, type BookSearchItem } from '../../src/services/books';
 import { uploadImageAsset } from '../../src/services/media';
-import { addBookToReadingLife, type ReadingBookStatus } from '../../src/services/reading-life';
+import {
+  addBookToReadingLife,
+  getReadingLifeBookByIsbn,
+  type ReadingBookStatus,
+  type ReadingLifeBook,
+} from '../../src/services/reading-life';
 
 const readingStatusOptions: Array<{ value: ReadingBookStatus; label: string }> = [
   { value: 'reading', label: '읽는 중' },
@@ -36,6 +41,8 @@ export default function ScanResultScreen() {
   const [bookResults, setBookResults] = useState<BookSearchItem[]>([]);
   const [isLookingUpBook, setIsLookingUpBook] = useState(false);
   const [bookLookupError, setBookLookupError] = useState<string | null>(null);
+  const [duplicateBook, setDuplicateBook] = useState<ReadingLifeBook | null>(null);
+  const [isCheckingDuplicate, setIsCheckingDuplicate] = useState(false);
   const [isAddingToReadingLife, setIsAddingToReadingLife] = useState(false);
   const [registrationError, setRegistrationError] = useState<string | null>(null);
   const [totalPagesInput, setTotalPagesInput] = useState('');
@@ -47,13 +54,19 @@ export default function ScanResultScreen() {
   const normalizedIsbn = useMemo(() => normalizeIsbn(rawIsbn ?? ''), [rawIsbn]);
   const isRoomContext = params.context === 'create-room';
   const selectedBook = bookResults[0] ?? null;
+  const selectedBookIsbn = useMemo(
+    () => normalizeIsbn(selectedBook?.isbn || normalizedIsbn),
+    [normalizedIsbn, selectedBook?.isbn],
+  );
   const coverPreviewUri = customCoverAsset?.uri ?? selectedBook?.imageUrl ?? null;
   const totalPagesValue = useMemo(() => parsePositiveInteger(totalPagesInput), [totalPagesInput]);
   const canUseBook =
     !!session &&
     !!selectedBook &&
     !isLookingUpBook &&
+    !isCheckingDuplicate &&
     !isAddingToReadingLife &&
+    !duplicateBook &&
     (isRoomContext || totalPagesValue !== null);
 
   useEffect(() => {
@@ -69,6 +82,7 @@ export default function ScanResultScreen() {
     setBookLookupError(null);
     setCoverError(null);
     setCustomCoverAsset(null);
+    setDuplicateBook(null);
     setBookResults([]);
 
     lookupBookByIsbn(normalizedIsbn)
@@ -90,6 +104,35 @@ export default function ScanResultScreen() {
       isMounted = false;
     };
   }, [normalizedIsbn]);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    if (!session?.user.id || isRoomContext || !selectedBookIsbn) {
+      setDuplicateBook(null);
+      setIsCheckingDuplicate(false);
+      return;
+    }
+
+    setDuplicateBook(null);
+    setIsCheckingDuplicate(true);
+    setRegistrationError(null);
+
+    getReadingLifeBookByIsbn(session.user.id, selectedBookIsbn)
+      .then((existingBook) => {
+        if (isMounted) setDuplicateBook(existingBook);
+      })
+      .catch((error) => {
+        if (isMounted) setRegistrationError(getErrorMessage(error, '중복 등록 여부를 확인하지 못했습니다.'));
+      })
+      .finally(() => {
+        if (isMounted) setIsCheckingDuplicate(false);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [isRoomContext, selectedBookIsbn, session?.user.id]);
 
   const returnToScanner = () => {
     router.replace({
@@ -312,7 +355,29 @@ export default function ScanResultScreen() {
                 </View>
               ) : null}
 
-              {selectedBook && !isRoomContext ? (
+              {selectedBook && !isRoomContext && isCheckingDuplicate ? (
+                <View style={styles.duplicatePanel}>
+                  <ActivityIndicator color="#116653" />
+                  <Text style={styles.duplicateText}>내 책장에 이미 있는 책인지 확인하고 있습니다.</Text>
+                </View>
+              ) : null}
+
+              {selectedBook && !isRoomContext && duplicateBook ? (
+                <View style={styles.duplicatePanel}>
+                  <Text style={styles.duplicateTitle}>이미 내 책장에 있는 책입니다</Text>
+                  <Text numberOfLines={2} style={styles.duplicateText}>
+                    {duplicateBook.title}
+                  </Text>
+                  <Pressable
+                    onPress={() => router.replace(`/reading-life/${duplicateBook.id}`)}
+                    style={styles.duplicateButton}
+                  >
+                    <Text style={styles.duplicateButtonText}>등록된 책 보기</Text>
+                  </Pressable>
+                </View>
+              ) : null}
+
+              {selectedBook && !isRoomContext && !isCheckingDuplicate && !duplicateBook ? (
                 <View style={styles.statusPanel}>
                   <Text style={styles.statusLabel}>내 책장 위치</Text>
                   <View style={styles.statusOptions}>
@@ -339,7 +404,7 @@ export default function ScanResultScreen() {
                 </View>
               ) : null}
 
-              {selectedBook && !isRoomContext ? (
+              {selectedBook && !isRoomContext && !isCheckingDuplicate && !duplicateBook ? (
                 <View style={styles.pagePanel}>
                   <Text style={styles.pageLabel}>마지막 페이지</Text>
                   <TextInput
@@ -588,6 +653,39 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     lineHeight: 20,
     marginTop: 10,
+  },
+  duplicatePanel: {
+    alignItems: 'flex-start',
+    backgroundColor: 'rgba(164, 61, 32, 0.08)',
+    borderColor: 'rgba(164, 61, 32, 0.18)',
+    borderRadius: 20,
+    borderWidth: 1,
+    gap: 8,
+    marginTop: 22,
+    padding: 16,
+  },
+  duplicateTitle: {
+    color: '#A43D20',
+    fontSize: 16,
+    fontWeight: '900',
+  },
+  duplicateText: {
+    color: '#5D4B3F',
+    fontSize: 13,
+    fontWeight: '800',
+    lineHeight: 19,
+  },
+  duplicateButton: {
+    backgroundColor: '#A43D20',
+    borderRadius: 15,
+    marginTop: 4,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+  },
+  duplicateButtonText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '900',
   },
   statusPanel: {
     marginTop: 24,
