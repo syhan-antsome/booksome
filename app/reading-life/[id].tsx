@@ -76,6 +76,9 @@ export default function ReadingLifeBookScreen() {
   const [pageLabel, setPageLabel] = useState('');
   const [currentPageInput, setCurrentPageInput] = useState('');
   const [totalPagesInput, setTotalPagesInput] = useState('');
+  const [isShuttleDragging, setIsShuttleDragging] = useState(false);
+  const [shuttleDeltaPage, setShuttleDeltaPage] = useState(0);
+  const [undoProgress, setUndoProgress] = useState<{ fromPage: number; toPage: number } | null>(null);
   const shuttleDraftPageRef = useRef<number | null>(null);
   const displayCurrentPageRef = useRef(0);
   const savePageProgressRef = useRef<(nextCurrentPage?: number) => void>(() => {});
@@ -83,6 +86,7 @@ export default function ReadingLifeBookScreen() {
   const shuttleStartPageRef = useRef(0);
   const shuttleStartTouchXRef = useRef(0);
   const shuttleVisualOffset = useRef(new Animated.Value(0)).current;
+  const undoProgressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [photoBody, setPhotoBody] = useState('');
   const [photoAsset, setPhotoAsset] = useState<ImagePicker.ImagePickerAsset | null>(null);
   const [noteVisibility, setNoteVisibility] = useState<ReadingVisibility>('private');
@@ -242,11 +246,47 @@ export default function ReadingLifeBookScreen() {
     savePageProgressRef.current = savePageProgress;
   }, [savePageProgress]);
 
+  useEffect(
+    () => () => {
+      if (undoProgressTimerRef.current) clearTimeout(undoProgressTimerRef.current);
+    },
+    [],
+  );
+
+  const showUndoProgress = useCallback((fromPage: number, toPage: number) => {
+    if (fromPage === toPage) return;
+
+    if (undoProgressTimerRef.current) clearTimeout(undoProgressTimerRef.current);
+    setUndoProgress({ fromPage, toPage });
+    undoProgressTimerRef.current = setTimeout(() => {
+      setUndoProgress(null);
+      undoProgressTimerRef.current = null;
+    }, 5000);
+  }, []);
+
+  const undoShuttleProgress = useCallback(() => {
+    if (!undoProgress) return;
+
+    if (undoProgressTimerRef.current) clearTimeout(undoProgressTimerRef.current);
+    undoProgressTimerRef.current = null;
+    setUndoProgress(null);
+    setCurrentPageInput(String(undoProgress.fromPage));
+    setErrorMessage(null);
+    savePageProgressRef.current(undoProgress.fromPage);
+  }, [undoProgress]);
+
   const beginShuttleDrag = useCallback((touchX: number) => {
     shuttleDraftPageRef.current = null;
     shuttleDidMoveRef.current = false;
     shuttleStartPageRef.current = displayCurrentPageRef.current;
     shuttleStartTouchXRef.current = touchX;
+    setIsShuttleDragging(true);
+    setShuttleDeltaPage(0);
+    setUndoProgress(null);
+    if (undoProgressTimerRef.current) {
+      clearTimeout(undoProgressTimerRef.current);
+      undoProgressTimerRef.current = null;
+    }
     shuttleVisualOffset.stopAnimation();
     shuttleVisualOffset.setValue(0);
   }, [shuttleVisualOffset]);
@@ -273,6 +313,7 @@ export default function ReadingLifeBookScreen() {
       if (nextPage === null) return null;
 
       shuttleDraftPageRef.current = nextPage;
+      setShuttleDeltaPage(nextPage - shuttleStartPageRef.current);
       setCurrentPageInput(String(nextPage));
       setErrorMessage(null);
       return nextPage;
@@ -292,9 +333,15 @@ export default function ReadingLifeBookScreen() {
         useNativeDriver: true,
       }).start();
 
-      if (shuttleDidMoveRef.current && nextPage !== null) savePageProgressRef.current(nextPage);
+      setIsShuttleDragging(false);
+      setShuttleDeltaPage(0);
+
+      if (shuttleDidMoveRef.current && nextPage !== null && nextPage !== shuttleStartPageRef.current) {
+        showUndoProgress(shuttleStartPageRef.current, nextPage);
+        savePageProgressRef.current(nextPage);
+      }
     },
-    [shuttleVisualOffset, updateDraftPageFromShuttle],
+    [shuttleVisualOffset, showUndoProgress, updateDraftPageFromShuttle],
   );
 
   const shuttleResponder = useMemo(
@@ -474,11 +521,17 @@ export default function ReadingLifeBookScreen() {
               </View>
 
               <View style={styles.heroBottom}>
-                <Text style={styles.heroBottomPage}>
-                  {totalPageValue ? `${displayCurrentPage} / ${totalPageValue}쪽` : '페이지 미설정'}
-                </Text>
+                {totalPageValue ? (
+                  <View style={styles.pageReadout}>
+                    <Text style={styles.currentPageValue}>{displayCurrentPage}</Text>
+                    <Text style={styles.totalPageValue}>/ {totalPageValue}쪽</Text>
+                  </View>
+                ) : (
+                  <Text style={styles.heroBottomPage}>페이지 미설정</Text>
+                )}
                 <View style={styles.heroBottomProgress}>
                   <Text style={styles.heroBottomValue}>{displayProgressPercent}%</Text>
+                  <Text style={styles.heroBottomLabel}>읽음</Text>
                 </View>
               </View>
 
@@ -489,6 +542,17 @@ export default function ReadingLifeBookScreen() {
                     style={styles.jogShuttleTouch}
                     {...shuttleResponder.panHandlers}
                   >
+                    {isShuttleDragging ? (
+                      <View style={styles.shuttleDeltaRow}>
+                        <Text style={styles.shuttlePreviousText}>이전 {shuttleStartPageRef.current}쪽</Text>
+                        {shuttleDeltaPage !== 0 ? (
+                          <Text style={styles.shuttleDeltaText}>
+                            {shuttleDeltaPage > 0 ? '+' : ''}
+                            {shuttleDeltaPage}쪽
+                          </Text>
+                        ) : null}
+                      </View>
+                    ) : null}
                     <View style={styles.jogShuttle}>
                       <View style={styles.jogShuttleRidge}>
                         <Animated.View
@@ -695,6 +759,14 @@ export default function ReadingLifeBookScreen() {
 
         {errorMessage ? <Text style={styles.errorText}>{errorMessage}</Text> : null}
       </ScrollView>
+      {undoProgress ? (
+        <View style={styles.undoToast}>
+          <Text style={styles.undoToastText}>{undoProgress.toPage}쪽으로 기록했어요</Text>
+          <Pressable onPress={undoShuttleProgress} style={styles.undoToastButton}>
+            <Text style={styles.undoToastButtonText}>되돌리기</Text>
+          </Pressable>
+        </View>
+      ) : null}
       <BottomNavigation active="reading-life" />
     </SafeAreaView>
   );
@@ -859,14 +931,38 @@ const styles = StyleSheet.create({
   },
   heroBottomValue: {
     color: '#D8BE88',
-    fontSize: 32,
+    fontSize: 20,
     fontWeight: '900',
-    lineHeight: 36,
+    lineHeight: 22,
+  },
+  heroBottomLabel: {
+    color: 'rgba(247,241,229,0.54)',
+    fontSize: 10,
+    fontWeight: '800',
+    marginTop: 2,
   },
   heroBottomPage: {
     color: 'rgba(247,241,229,0.76)',
     fontSize: 14,
     fontWeight: '800',
+  },
+  pageReadout: {
+    alignItems: 'flex-end',
+    flexDirection: 'row',
+    gap: 5,
+  },
+  currentPageValue: {
+    color: '#F7F1E5',
+    fontSize: 42,
+    fontWeight: '900',
+    lineHeight: 46,
+  },
+  totalPageValue: {
+    color: 'rgba(247,241,229,0.62)',
+    fontSize: 13,
+    fontWeight: '800',
+    lineHeight: 22,
+    paddingBottom: 5,
   },
   progressPanel: {
     backgroundColor: 'rgba(4,18,13,0.35)',
@@ -880,6 +976,23 @@ const styles = StyleSheet.create({
   jogShuttleTouch: {
     justifyContent: 'center',
     minHeight: 60,
+  },
+  shuttleDeltaRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 7,
+    paddingHorizontal: 4,
+  },
+  shuttlePreviousText: {
+    color: 'rgba(247,241,229,0.6)',
+    fontSize: 11,
+    fontWeight: '800',
+  },
+  shuttleDeltaText: {
+    color: '#D8BE88',
+    fontSize: 13,
+    fontWeight: '900',
   },
   jogShuttle: {
     backgroundColor: '#A7A28F',
@@ -1210,6 +1323,45 @@ const styles = StyleSheet.create({
   deleteButtonText: {
     color: '#7D2F22',
     fontSize: 13,
+    fontWeight: '900',
+  },
+  undoToast: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(16,61,43,0.96)',
+    borderColor: 'rgba(216,190,136,0.34)',
+    borderRadius: 22,
+    borderWidth: 1,
+    bottom: 108,
+    elevation: 10,
+    flexDirection: 'row',
+    gap: 12,
+    justifyContent: 'space-between',
+    left: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 13,
+    position: 'absolute',
+    right: 20,
+    shadowColor: '#102519',
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.2,
+    shadowRadius: 24,
+    zIndex: 30,
+  },
+  undoToastText: {
+    color: '#F7F1E5',
+    flex: 1,
+    fontSize: 13,
+    fontWeight: '800',
+  },
+  undoToastButton: {
+    backgroundColor: '#D8BE88',
+    borderRadius: 999,
+    paddingHorizontal: 13,
+    paddingVertical: 8,
+  },
+  undoToastButtonText: {
+    color: '#103D2B',
+    fontSize: 12,
     fontWeight: '900',
   },
 });
