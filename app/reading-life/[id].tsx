@@ -1504,7 +1504,8 @@ const styles = StyleSheet.create({
     shadowRadius: 18,
   },
   noteItemPhoto: {
-    backgroundColor: 'rgba(238,241,223,0.96)',
+    backgroundColor: 'rgba(248,244,235,0.96)',
+    borderColor: 'rgba(143,106,66,0.12)',
   },
   noteHead: {
     alignItems: 'center',
