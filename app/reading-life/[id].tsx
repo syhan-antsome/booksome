@@ -43,7 +43,7 @@ const statusOptions: Array<{ value: ReadingBookStatus; label: string }> = [
   { value: 'paused', label: '잠시 멈춤' },
 ];
 const shuttleGrooves = Array.from({ length: 20 }, (_, index) => index);
-const shuttlePixelsPerPage = 7;
+const shuttlePixelsPerPage = 2;
 
 export default function ReadingLifeBookScreen() {
   const { id, section } = useLocalSearchParams<{ id?: string; section?: string }>();
@@ -267,7 +267,7 @@ export default function ReadingLifeBookScreen() {
       PanResponder.create({
         onMoveShouldSetPanResponder: (_event, gestureState) =>
           Boolean(totalPageValue) &&
-          Math.abs(gestureState.dx) > 4 &&
+          Math.abs(gestureState.dx) > 3 &&
           Math.abs(gestureState.dx) > Math.abs(gestureState.dy),
         onStartShouldSetPanResponder: () => false,
         onPanResponderGrant: () => {
