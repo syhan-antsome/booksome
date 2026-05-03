@@ -1,4 +1,5 @@
 import * as ImagePicker from 'expo-image-picker';
+import { LinearGradient } from 'expo-linear-gradient';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -547,6 +548,20 @@ export default function ReadingLifeBookScreen() {
                           />
                         ))}
                       </Animated.View>
+                      <LinearGradient
+                        colors={['rgba(42,43,38,0.5)', 'rgba(42,43,38,0.08)', 'rgba(42,43,38,0)']}
+                        pointerEvents="none"
+                        start={{ x: 0, y: 0.5 }}
+                        end={{ x: 1, y: 0.5 }}
+                        style={[styles.jogShuttleEdgeShade, styles.jogShuttleEdgeShadeLeft]}
+                      />
+                      <LinearGradient
+                        colors={['rgba(42,43,38,0)', 'rgba(42,43,38,0.08)', 'rgba(42,43,38,0.5)']}
+                        pointerEvents="none"
+                        start={{ x: 0, y: 0.5 }}
+                        end={{ x: 1, y: 0.5 }}
+                        style={[styles.jogShuttleEdgeShade, styles.jogShuttleEdgeShadeRight]}
+                      />
                     </View>
                   </View>
                 </View>
@@ -998,6 +1013,18 @@ const styles = StyleSheet.create({
   },
   jogShuttleGrooveDeep: {
     backgroundColor: '#858679',
+  },
+  jogShuttleEdgeShade: {
+    bottom: 0,
+    position: 'absolute',
+    top: 0,
+    width: 42,
+  },
+  jogShuttleEdgeShadeLeft: {
+    left: 0,
+  },
+  jogShuttleEdgeShadeRight: {
+    right: 0,
   },
   pageSetupPanel: {
     alignItems: 'flex-end',
