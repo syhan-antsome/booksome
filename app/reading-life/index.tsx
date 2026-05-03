@@ -1,7 +1,7 @@
 import { NotoSerifKR_500Medium } from '@expo-google-fonts/noto-serif-kr/500Medium';
 import { useFonts } from 'expo-font';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Link, router, useFocusEffect } from 'expo-router';
+import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -21,7 +21,7 @@ import { AuthRequired } from '../../src/components/auth-required';
 import { BottomNavigation } from '../../src/components/bottom-navigation';
 import { getRandomReadingLifeQuote } from '../../src/data/reading-life-quotes';
 import { useAuth } from '../../src/providers/auth-provider';
-import { listReadingLifeBooks, type ReadingLifeBook } from '../../src/services/reading-life';
+import { listReadingLifeBooks, type ReadingBookStatus, type ReadingLifeBook } from '../../src/services/reading-life';
 
 type BookshelfFilter = 'all' | 'reading' | 'want_to_read' | 'finished' | 'paused';
 type CalendarEventType = 'registration' | 'reading';
@@ -53,8 +53,28 @@ const readingLifeSignboardSource: ImageSourcePropType =
 const readingLifeSignboardRatio = 803 / 1400;
 const bookshelfEndThreshold = 16;
 
+function parseBookshelfFilter(value?: string): BookshelfFilter | null {
+  return bookshelfFilters.some((filter) => filter.value === value) ? (value as BookshelfFilter) : null;
+}
+
+function getReadingStatusForFilter(filter: BookshelfFilter): ReadingBookStatus | null {
+  return filter === 'all' ? null : filter;
+}
+
+function getScanRouteForFilter(filter: BookshelfFilter) {
+  const status = getReadingStatusForFilter(filter);
+
+  return status
+    ? {
+        pathname: '/scan' as const,
+        params: { status },
+      }
+    : '/scan';
+}
+
 export default function ReadingLifeScreen() {
   const { session } = useAuth();
+  const params = useLocalSearchParams<{ filter?: string }>();
   const { width } = useWindowDimensions();
   const [quoteFontsLoaded] = useFonts({ NotoSerifKR_500Medium });
   const [books, setBooks] = useState<ReadingLifeBook[]>([]);
@@ -67,6 +87,7 @@ export default function ReadingLifeScreen() {
   const [readingQuote, setReadingQuote] = useState(() => getRandomReadingLifeQuote());
   const [showBookshelfMoreCue, setShowBookshelfMoreCue] = useState(false);
   const bookshelfScrollMetrics = useRef({ contentWidth: 0, offsetX: 0, viewportWidth: 0 });
+  const requestedFilter = parseBookshelfFilter(Array.isArray(params.filter) ? params.filter[0] : params.filter);
 
   useEffect(() => {
     let isMounted = true;
@@ -104,6 +125,12 @@ export default function ReadingLifeScreen() {
       setReadingQuote((currentQuote) => getRandomReadingLifeQuote(currentQuote.text));
     }, []),
   );
+
+  useEffect(() => {
+    if (requestedFilter) {
+      setBookshelfFilter(requestedFilter);
+    }
+  }, [requestedFilter]);
 
   const updateBookshelfMoreCue = useCallback((nextMetrics: Partial<typeof bookshelfScrollMetrics.current>) => {
     const metrics = { ...bookshelfScrollMetrics.current, ...nextMetrics };
@@ -365,11 +392,13 @@ export default function ReadingLifeScreen() {
                 <Text style={styles.sectionTitle}>내 책장</Text>
                 <Text style={styles.sectionCount}>{filteredBooks.length} / {books.length}권</Text>
               </View>
-              <Link asChild href="/scan">
-                <Pressable accessibilityLabel="책 등록" style={styles.shelfAddButton}>
-                  <Text style={styles.shelfAddButtonText}>＋</Text>
-                </Pressable>
-              </Link>
+              <Pressable
+                accessibilityLabel="책 등록"
+                onPress={() => router.push(getScanRouteForFilter(bookshelfFilter))}
+                style={styles.shelfAddButton}
+              >
+                <Text style={styles.shelfAddButtonText}>＋</Text>
+              </Pressable>
             </View>
 
             {books.length > 0 ? (

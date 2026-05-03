@@ -42,7 +42,7 @@ const statusOptions: Array<{ value: ReadingBookStatus; label: string }> = [
   { value: 'reading', label: '읽는 중' },
   { value: 'want_to_read', label: '읽고 싶음' },
   { value: 'finished', label: '완독' },
-  { value: 'paused', label: '잠시 멈춤' },
+  { value: 'paused', label: '멈춤' },
 ];
 const shuttleGrooves = Array.from({ length: 32 }, (_, index) => index);
 const shuttleVisualPeriod = 28;
@@ -153,9 +153,6 @@ export default function ReadingLifeBookScreen() {
     setTotalPagesInput(book.totalPages ? String(book.totalPages) : '');
   }, [book?.id, book?.currentPage, book?.totalPages]);
 
-  const statusLabel = useMemo(() => {
-    return statusOptions.find((option) => option.value === book?.status)?.label ?? '읽는 중';
-  }, [book?.status]);
   const totalPageValue = parsePositiveInteger(totalPagesInput);
   const currentPageValue = parseNonNegativeInteger(currentPageInput) ?? 0;
   const displayCurrentPage = totalPageValue ? Math.min(totalPageValue, Math.max(0, currentPageValue)) : book?.currentPage ?? 0;
@@ -202,6 +199,20 @@ export default function ReadingLifeBookScreen() {
     } finally {
       setIsSaving(false);
     }
+  };
+
+  const changeBookStatus = async (nextStatus: ReadingBookStatus) => {
+    if (!book || nextStatus === book.status) return;
+
+    const input: UpdateReadingLifeBookInput = { status: nextStatus };
+
+    if (nextStatus === 'finished' && totalPageValue) {
+      input.currentPage = totalPageValue;
+      input.progressPercent = 100;
+      input.totalPages = totalPageValue;
+    }
+
+    await saveBook(input);
   };
 
   const deleteBook = async () => {
@@ -629,7 +640,6 @@ export default function ReadingLifeBookScreen() {
                   )}
                 </View>
                 <View style={styles.heroCopy}>
-                  <Text style={styles.kicker}>{statusLabel}</Text>
                   <Text style={styles.title} numberOfLines={3}>
                     {book.title}
                   </Text>
@@ -638,6 +648,25 @@ export default function ReadingLifeBookScreen() {
                     {book.publisher ? ` · ${book.publisher}` : ''}
                   </Text>
                 </View>
+              </View>
+
+              <View style={styles.statusRail}>
+                {statusOptions.map((option) => {
+                  const isActive = book.status === option.value;
+
+                  return (
+                    <Pressable
+                      disabled={isSaving || isActive}
+                      key={option.value}
+                      onPress={() => void changeBookStatus(option.value)}
+                      style={[styles.statusChip, isActive ? styles.statusChipActive : null]}
+                    >
+                      <Text style={[styles.statusChipText, isActive ? styles.statusChipTextActive : null]}>
+                        {option.label}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
               </View>
 
               <View style={styles.heroBottom}>
@@ -1064,13 +1093,6 @@ const styles = StyleSheet.create({
     flex: 1,
     minWidth: 0,
   },
-  kicker: {
-    color: '#D8BE88',
-    fontSize: 12,
-    fontWeight: '900',
-    letterSpacing: 0,
-    marginBottom: 9,
-  },
   title: {
     color: '#FFFFFF',
     fontSize: 24,
@@ -1084,6 +1106,32 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     lineHeight: 19,
     marginTop: 10,
+  },
+  statusRail: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 16,
+  },
+  statusChip: {
+    backgroundColor: 'rgba(247,241,229,0.09)',
+    borderColor: 'rgba(247,241,229,0.1)',
+    borderRadius: 999,
+    borderWidth: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  statusChipActive: {
+    backgroundColor: '#D8BE88',
+    borderColor: '#D8BE88',
+  },
+  statusChipText: {
+    color: 'rgba(247,241,229,0.72)',
+    fontSize: 12,
+    fontWeight: '900',
+  },
+  statusChipTextActive: {
+    color: '#103D2B',
   },
   heroBottom: {
     alignItems: 'center',

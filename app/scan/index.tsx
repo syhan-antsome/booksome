@@ -7,16 +7,18 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { AuthRequired } from '../../src/components/auth-required';
 import { ScreenHeader } from '../../src/components/screen-header';
 import { useAuth } from '../../src/providers/auth-provider';
+import type { ReadingBookStatus } from '../../src/services/reading-life';
 
 export default function ScanScreen() {
   const { session } = useAuth();
-  const params = useLocalSearchParams<{ context?: string }>();
+  const params = useLocalSearchParams<{ context?: string; status?: string }>();
   const [permission, requestPermission] = useCameraPermissions();
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [scanError, setScanError] = useState<string | null>(null);
   const [isMovingToResult, setIsMovingToResult] = useState(false);
   const isGranted = permission?.granted;
   const isRoomContext = params.context === 'create-room';
+  const readingStatus = parseReadingStatus(Array.isArray(params.status) ? params.status[0] : params.status);
 
   const handleBarcodeScanned = (result: BarcodeScanningResult) => {
     if (isMovingToResult) return;
@@ -30,6 +32,7 @@ export default function ScanScreen() {
         params: {
           isbn,
           ...(isRoomContext ? { context: 'create-room' } : {}),
+          ...(!isRoomContext && readingStatus ? { status: readingStatus } : {}),
         },
       });
       return;
@@ -124,6 +127,14 @@ export default function ScanScreen() {
 
 function normalizeIsbn(value: string) {
   return value.replace(/[^0-9X]/gi, '').toUpperCase();
+}
+
+function parseReadingStatus(value?: string): ReadingBookStatus | null {
+  if (value === 'reading' || value === 'want_to_read' || value === 'finished' || value === 'paused') {
+    return value;
+  }
+
+  return null;
 }
 
 const styles = StyleSheet.create({

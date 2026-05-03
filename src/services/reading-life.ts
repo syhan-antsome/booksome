@@ -52,6 +52,7 @@ export type UpdateReadingLifeBookInput = {
 
 export type AddReadingLifeBookInput = {
   externalCoverUrl?: string | null;
+  status?: ReadingBookStatus;
   totalPages?: number | null;
 };
 
@@ -162,6 +163,7 @@ export async function addBookToReadingLife(
   const isbn13 = normalizeIsbn(book.isbn);
   const totalPages = sanitizePositiveInteger(input.totalPages);
   const externalCoverUrl = input.externalCoverUrl ?? book.imageUrl ?? null;
+  const status = input.status ?? 'reading';
 
   if (!isbn13) {
     throw new Error('ISBN이 없어 독서생활에 등록할 수 없습니다.');
@@ -192,10 +194,23 @@ export async function addBookToReadingLife(
       updateInput.externalCoverUrl = externalCoverUrl;
     }
 
+    if (existing.status !== status) {
+      updateInput.status = status;
+    }
+
+    if (status === 'finished' && totalPages) {
+      updateInput.currentPage = totalPages;
+      updateInput.progressPercent = 100;
+      updateInput.totalPages = totalPages;
+    }
+
     return Object.keys(updateInput).length > 0
       ? updateReadingLifeBook(profileId, existing.id, updateInput)
       : mapReadingBook(existing);
   }
+
+  const currentPage = status === 'finished' ? totalPages ?? 0 : 0;
+  const progressPercent = status === 'finished' && totalPages ? 100 : 0;
 
   const { data, error } = await supabase
     .from('reading_books')
@@ -208,9 +223,9 @@ export async function addBookToReadingLife(
       published_date: normalizePublishedDate(book.publishedDate),
       description: book.description || null,
       external_cover_url: externalCoverUrl,
-      status: 'reading',
-      progress_percent: 0,
-      current_page: 0,
+      status,
+      progress_percent: progressPercent,
+      current_page: currentPage,
       total_pages: totalPages,
       source: book.source,
       source_payload: book.sourcePayload,

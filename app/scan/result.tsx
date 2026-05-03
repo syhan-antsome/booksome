@@ -21,17 +21,26 @@ import { ScreenHeader } from '../../src/components/screen-header';
 import { useAuth } from '../../src/providers/auth-provider';
 import { lookupBookByIsbn, type BookSearchItem } from '../../src/services/books';
 import { uploadImageAsset } from '../../src/services/media';
-import { addBookToReadingLife } from '../../src/services/reading-life';
+import { addBookToReadingLife, type ReadingBookStatus } from '../../src/services/reading-life';
+
+const readingStatusOptions: Array<{ value: ReadingBookStatus; label: string }> = [
+  { value: 'reading', label: '읽는 중' },
+  { value: 'want_to_read', label: '읽고 싶음' },
+  { value: 'finished', label: '완독' },
+  { value: 'paused', label: '멈춤' },
+];
 
 export default function ScanResultScreen() {
   const { session } = useAuth();
-  const params = useLocalSearchParams<{ context?: string; isbn?: string }>();
+  const params = useLocalSearchParams<{ context?: string; isbn?: string; status?: string }>();
+  const initialReadingStatus = parseReadingStatus(Array.isArray(params.status) ? params.status[0] : params.status) ?? 'reading';
   const [bookResults, setBookResults] = useState<BookSearchItem[]>([]);
   const [isLookingUpBook, setIsLookingUpBook] = useState(false);
   const [bookLookupError, setBookLookupError] = useState<string | null>(null);
   const [isAddingToReadingLife, setIsAddingToReadingLife] = useState(false);
   const [registrationError, setRegistrationError] = useState<string | null>(null);
   const [totalPagesInput, setTotalPagesInput] = useState('');
+  const [readingStatus, setReadingStatus] = useState<ReadingBookStatus>(initialReadingStatus);
   const [customCoverAsset, setCustomCoverAsset] = useState<ImagePicker.ImagePickerAsset | null>(null);
   const [coverError, setCoverError] = useState<string | null>(null);
   const scrollViewRef = useRef<ScrollView>(null);
@@ -86,12 +95,22 @@ export default function ScanResultScreen() {
   const returnToScanner = () => {
     router.replace({
       pathname: '/scan',
-      params: isRoomContext ? { context: 'create-room' } : {},
+      params: {
+        ...(isRoomContext ? { context: 'create-room' } : {}),
+        ...(!isRoomContext ? { status: readingStatus } : {}),
+      },
     });
   };
 
   const cancelRegistration = () => {
-    router.replace(isRoomContext ? '/create-room' : '/reading-life');
+    router.replace(
+      isRoomContext
+        ? '/create-room'
+        : {
+            pathname: '/reading-life',
+            params: { filter: readingStatus },
+          },
+    );
   };
 
   const useScannedBook = async () => {
@@ -120,9 +139,13 @@ export default function ScanResultScreen() {
 
       await addBookToReadingLife(session.user.id, selectedBook, {
         externalCoverUrl,
+        status: readingStatus,
         totalPages: totalPagesValue,
       });
-      router.replace('/reading-life');
+      router.replace({
+        pathname: '/reading-life',
+        params: { filter: readingStatus },
+      });
     } catch (error) {
       setRegistrationError(getErrorMessage(error, '내 책장에 등록하지 못했습니다.'));
     } finally {
@@ -291,6 +314,33 @@ export default function ScanResultScreen() {
               ) : null}
 
               {selectedBook && !isRoomContext ? (
+                <View style={styles.statusPanel}>
+                  <Text style={styles.statusLabel}>내 책장 위치</Text>
+                  <View style={styles.statusOptions}>
+                    {readingStatusOptions.map((option) => (
+                      <Pressable
+                        key={option.value}
+                        onPress={() => setReadingStatus(option.value)}
+                        style={[
+                          styles.statusOption,
+                          readingStatus === option.value ? styles.statusOptionActive : null,
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            styles.statusOptionText,
+                            readingStatus === option.value ? styles.statusOptionTextActive : null,
+                          ]}
+                        >
+                          {option.label}
+                        </Text>
+                      </Pressable>
+                    ))}
+                  </View>
+                </View>
+              ) : null}
+
+              {selectedBook && !isRoomContext ? (
                 <View style={styles.pagePanel}>
                   <Text style={styles.pageLabel}>마지막 페이지</Text>
                   <TextInput
@@ -353,6 +403,14 @@ function parsePositiveInteger(value: string) {
 
   const parsedValue = Number(normalizedValue);
   return Number.isSafeInteger(parsedValue) && parsedValue > 0 ? parsedValue : null;
+}
+
+function parseReadingStatus(value?: string): ReadingBookStatus | null {
+  if (value === 'reading' || value === 'want_to_read' || value === 'finished' || value === 'paused') {
+    return value;
+  }
+
+  return null;
 }
 
 function getErrorMessage(error: unknown, fallback: string) {
@@ -531,6 +589,40 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     lineHeight: 20,
     marginTop: 10,
+  },
+  statusPanel: {
+    marginTop: 24,
+  },
+  statusLabel: {
+    color: '#8F6A42',
+    fontSize: 12,
+    fontWeight: '900',
+  },
+  statusOptions: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 10,
+  },
+  statusOption: {
+    backgroundColor: 'rgba(16, 61, 43, 0.07)',
+    borderColor: 'rgba(16, 61, 43, 0.1)',
+    borderRadius: 999,
+    borderWidth: 1,
+    paddingHorizontal: 13,
+    paddingVertical: 9,
+  },
+  statusOptionActive: {
+    backgroundColor: '#103D2B',
+    borderColor: '#103D2B',
+  },
+  statusOptionText: {
+    color: '#26372B',
+    fontSize: 13,
+    fontWeight: '900',
+  },
+  statusOptionTextActive: {
+    color: '#F7F2EA',
   },
   errorText: {
     color: '#A43D20',
