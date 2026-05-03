@@ -1023,10 +1023,13 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   calendarDetail: {
-    borderTopColor: 'rgba(16,61,43,0.12)',
-    borderTopWidth: 1,
+    backgroundColor: 'rgba(247,241,229,0.68)',
+    borderColor: 'rgba(16,61,43,0.08)',
+    borderRadius: 20,
+    borderWidth: 1,
     marginTop: 12,
-    paddingTop: 14,
+    paddingHorizontal: 14,
+    paddingTop: 12,
   },
   calendarDetailHeader: {
     alignItems: 'center',
