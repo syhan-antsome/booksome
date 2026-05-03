@@ -32,7 +32,6 @@ import {
   type ReadingBookStatus,
   type ReadingLifeBook,
   type ReadingLifeNote,
-  type ReadingNoteKind,
   type ReadingVisibility,
   type UpdateReadingLifeBookInput,
   updateReadingLifeBook,
@@ -48,6 +47,9 @@ const statusOptions: Array<{ value: ReadingBookStatus; label: string }> = [
 const shuttleGrooves = Array.from({ length: 32 }, (_, index) => index);
 const shuttleVisualPeriod = 28;
 const shuttlePixelsPerPage = 1.5;
+
+type ComposerMode = 'closed' | 'choice' | 'text' | 'photo';
+type NoteSortDirection = 'desc' | 'asc';
 
 const getGestureStartX = (event: GestureResponderEvent, gestureState: PanResponderGestureState) =>
   gestureState.x0 || event.nativeEvent.pageX || 0;
@@ -70,9 +72,8 @@ export default function ReadingLifeBookScreen() {
   const [isDeletingBook, setIsDeletingBook] = useState(false);
   const [isSavingNote, setIsSavingNote] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [composer, setComposer] = useState<ReadingNoteKind>('quote');
-  const [quoteText, setQuoteText] = useState('');
-  const [quoteBody, setQuoteBody] = useState('');
+  const [composer, setComposer] = useState<ComposerMode>('closed');
+  const [noteText, setNoteText] = useState('');
   const [pageLabel, setPageLabel] = useState('');
   const [currentPageInput, setCurrentPageInput] = useState('');
   const [totalPagesInput, setTotalPagesInput] = useState('');
@@ -90,6 +91,9 @@ export default function ReadingLifeBookScreen() {
   const [photoBody, setPhotoBody] = useState('');
   const [photoAsset, setPhotoAsset] = useState<ImagePicker.ImagePickerAsset | null>(null);
   const [noteVisibility, setNoteVisibility] = useState<ReadingVisibility>('private');
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [noteSearchQuery, setNoteSearchQuery] = useState('');
+  const [noteSortDirection, setNoteSortDirection] = useState<NoteSortDirection>('desc');
 
   const bookId = Array.isArray(id) ? id[0] : id;
   const activeSection = Array.isArray(section) ? section[0] : section;
@@ -129,12 +133,12 @@ export default function ReadingLifeBookScreen() {
 
   useEffect(() => {
     if (activeSection === 'photo') {
-      setComposer('photo');
+      setComposer('choice');
       return;
     }
 
     if (activeSection === 'quote') {
-      setComposer('quote');
+      setComposer('text');
     }
   }, [activeSection]);
 
@@ -158,6 +162,30 @@ export default function ReadingLifeBookScreen() {
   const displayProgressPercent = totalPageValue
     ? calculateReadingProgressPercent(displayCurrentPage, totalPageValue)
     : book?.progressPercent ?? 0;
+  const visibleNotes = useMemo(() => {
+    const query = noteSearchQuery.trim().toLowerCase();
+    const filteredNotes = query
+      ? notes.filter((note) => {
+          const searchableText = [
+            note.quoteText,
+            note.body,
+            note.pageLabel,
+            note.kind === 'photo' ? '사진' : note.quoteText ? '문장' : '글',
+          ]
+            .filter(Boolean)
+            .join(' ')
+            .toLowerCase();
+
+          return searchableText.includes(query);
+        })
+      : notes;
+
+    return [...filteredNotes].sort((firstNote, secondNote) => {
+      const firstTime = new Date(firstNote.createdAt).getTime();
+      const secondTime = new Date(secondNote.createdAt).getTime();
+      return noteSortDirection === 'desc' ? secondTime - firstTime : firstTime - secondTime;
+    });
+  }, [noteSearchQuery, noteSortDirection, notes]);
   displayCurrentPageRef.current = displayCurrentPage;
 
   const saveBook = async (input: UpdateReadingLifeBookInput) => {
@@ -369,11 +397,73 @@ export default function ReadingLifeBookScreen() {
     [beginShuttleDrag, finishShuttleDrag, totalPageValue, updateDraftPageFromShuttle],
   );
 
-  const saveQuoteNote = async () => {
+  const getDefaultNotePage = useCallback(() => (displayCurrentPage > 0 ? String(displayCurrentPage) : ''), [displayCurrentPage]);
+
+  const openComposerChoice = () => {
+    setComposer((current) => (current === 'choice' ? 'closed' : 'choice'));
+    setErrorMessage(null);
+  };
+
+  const toggleSearch = () => {
+    if (isSearchOpen) setNoteSearchQuery('');
+    setIsSearchOpen((current) => !current);
+  };
+
+  const openTextComposer = () => {
+    setComposer('text');
+    setNoteText('');
+    setPhotoBody('');
+    setPhotoAsset(null);
+    setPageLabel(getDefaultNotePage());
+    setErrorMessage(null);
+  };
+
+  const openPhotoComposer = (asset: ImagePicker.ImagePickerAsset) => {
+    setComposer('photo');
+    setPhotoAsset(asset);
+    setPhotoBody('');
+    setNoteText('');
+    setPageLabel(getDefaultNotePage());
+    setErrorMessage(null);
+  };
+
+  const getValidatedNotePage = () => {
+    const notePage = parsePositiveInteger(pageLabel);
+
+    if (notePage === null) {
+      setErrorMessage('페이지 번호를 입력해주세요.');
+      return null;
+    }
+
+    if (totalPageValue && notePage > totalPageValue) {
+      setErrorMessage('기록한 페이지는 마지막 페이지보다 클 수 없습니다.');
+      return null;
+    }
+
+    return notePage;
+  };
+
+  const updateBookProgressFromNotePage = async (notePage: number) => {
+    if (!session?.user.id || !bookId || !book?.totalPages || notePage <= book.currentPage) return;
+
+    const progressPercent = calculateReadingProgressPercent(notePage, book.totalPages);
+    const nextBook = await updateReadingLifeBook(session.user.id, bookId, {
+      currentPage: notePage,
+      progressPercent,
+      status: progressPercent >= 100 ? 'finished' : book.status === 'finished' ? 'reading' : book.status,
+      totalPages: book.totalPages,
+    });
+    setBook(nextBook);
+  };
+
+  const saveTextNote = async () => {
     if (!session?.user.id || !bookId || !book) return;
 
-    if (!quoteText.trim() && !quoteBody.trim()) {
-      setErrorMessage('남길 문장이나 생각을 입력해주세요.');
+    const notePage = getValidatedNotePage();
+    if (notePage === null) return;
+
+    if (!noteText.trim()) {
+      setErrorMessage('남길 글을 입력해주세요.');
       return;
     }
 
@@ -385,32 +475,38 @@ export default function ReadingLifeBookScreen() {
         readingBookId: bookId,
         profileId: session.user.id,
         kind: 'quote',
-        quoteText,
-        body: quoteBody,
-        pageLabel,
+        body: noteText.trim(),
+        pageLabel: String(notePage),
         visibility: noteVisibility,
       });
       setNotes((current) => [note, ...current]);
-
-      const notePage = parsePageLabel(pageLabel);
-      if (book.totalPages && notePage !== null && notePage <= book.totalPages && notePage > book.currentPage) {
-        const progressPercent = calculateReadingProgressPercent(notePage, book.totalPages);
-        const nextBook = await updateReadingLifeBook(session.user.id, bookId, {
-          currentPage: notePage,
-          progressPercent,
-          status: progressPercent >= 100 ? 'finished' : book.status === 'finished' ? 'reading' : book.status,
-          totalPages: book.totalPages,
-        });
-        setBook(nextBook);
-      }
-
-      setQuoteText('');
-      setQuoteBody('');
+      await updateBookProgressFromNotePage(notePage);
+      setNoteText('');
       setPageLabel('');
+      setComposer('closed');
     } catch (error) {
-      setErrorMessage(getErrorMessage(error, '문장 메모를 저장하지 못했습니다.'));
+      setErrorMessage(getErrorMessage(error, '글 기록을 저장하지 못했습니다.'));
     } finally {
       setIsSavingNote(false);
+    }
+  };
+
+  const takePhoto = async () => {
+    const permission = await ImagePicker.requestCameraPermissionsAsync();
+
+    if (!permission.granted) {
+      setErrorMessage('카메라 권한이 필요합니다.');
+      return;
+    }
+
+    const result = await ImagePicker.launchCameraAsync({
+      allowsEditing: true,
+      aspect: [4, 5],
+      quality: 0.86,
+    });
+
+    if (!result.canceled && result.assets[0]) {
+      openPhotoComposer(result.assets[0]);
     }
   };
 
@@ -421,16 +517,19 @@ export default function ReadingLifeBookScreen() {
       quality: 0.86,
     });
 
-    if (!result.canceled) {
-      setPhotoAsset(result.assets[0] ?? null);
+    if (!result.canceled && result.assets[0]) {
+      openPhotoComposer(result.assets[0]);
     }
   };
 
   const savePhotoNote = async () => {
     if (!session?.user.id || !bookId || !photoAsset?.uri) {
-      setErrorMessage('사진 메모에 남길 이미지를 선택해주세요.');
+      setErrorMessage('사진 기록에 남길 이미지를 선택해주세요.');
       return;
     }
+
+    const notePage = getValidatedNotePage();
+    if (notePage === null) return;
 
     setIsSavingNote(true);
     setErrorMessage(null);
@@ -450,16 +549,20 @@ export default function ReadingLifeBookScreen() {
         readingBookId: bookId,
         profileId: session.user.id,
         kind: 'photo',
-        body: photoBody,
+        body: photoBody.trim() || null,
+        pageLabel: String(notePage),
         mediaPath: uploaded.objectPath,
         mediaUrl: uploaded.mediaUrl,
         visibility: noteVisibility,
       });
       setNotes((current) => [note, ...current]);
+      await updateBookProgressFromNotePage(notePage);
       setPhotoBody('');
       setPhotoAsset(null);
+      setPageLabel('');
+      setComposer('closed');
     } catch (error) {
-      setErrorMessage(getErrorMessage(error, '사진 메모를 저장하지 못했습니다.'));
+      setErrorMessage(getErrorMessage(error, '사진 기록을 저장하지 못했습니다.'));
     } finally {
       setIsSavingNote(false);
     }
@@ -611,110 +714,170 @@ export default function ReadingLifeBookScreen() {
             </View>
 
             <View style={styles.memoPanel}>
-              <View style={styles.composerBubble}>
-                <View style={styles.composerTabs}>
+              <View style={styles.memoToolbar}>
+                <Pressable onPress={openComposerChoice} style={styles.writeButton}>
+                  <Text style={styles.writeButtonText}>✎</Text>
+                </Pressable>
+                <View style={styles.memoTools}>
                   <Pressable
-                    onPress={() => setComposer('quote')}
-                    style={[styles.composerTab, composer === 'quote' ? styles.composerTabActive : null]}
+                    onPress={toggleSearch}
+                    style={[styles.memoToolButton, isSearchOpen ? styles.memoToolButtonActive : null]}
                   >
-                    <Text style={[styles.composerTabText, composer === 'quote' ? styles.composerTabTextActive : null]}>
-                      문장
-                    </Text>
+                    <Text style={[styles.memoToolText, isSearchOpen ? styles.memoToolTextActive : null]}>찾기</Text>
                   </Pressable>
                   <Pressable
-                    onPress={() => setComposer('photo')}
-                    style={[styles.composerTab, composer === 'photo' ? styles.composerTabActive : null]}
+                    onPress={() => setNoteSortDirection((current) => (current === 'desc' ? 'asc' : 'desc'))}
+                    style={styles.memoToolButton}
                   >
-                    <Text style={[styles.composerTabText, composer === 'photo' ? styles.composerTabTextActive : null]}>
-                      사진
-                    </Text>
-                  </Pressable>
-                </View>
-
-                <View style={styles.visibilityRow}>
-                  <Pressable
-                    onPress={() => setNoteVisibility('private')}
-                    style={[styles.visibilityChoice, noteVisibility === 'private' ? styles.visibilityChoiceActive : null]}
-                  >
-                    <Text
-                      style={[
-                        styles.visibilityChoiceText,
-                        noteVisibility === 'private' ? styles.visibilityChoiceTextActive : null,
-                      ]}
-                    >
-                      나만 보기
-                    </Text>
-                  </Pressable>
-                  <Pressable
-                    onPress={() => setNoteVisibility('public')}
-                    style={[styles.visibilityChoice, noteVisibility === 'public' ? styles.visibilityChoiceActive : null]}
-                  >
-                    <Text
-                      style={[
-                        styles.visibilityChoiceText,
-                        noteVisibility === 'public' ? styles.visibilityChoiceTextActive : null,
-                      ]}
-                    >
-                      공개
-                    </Text>
+                    <Text style={styles.memoToolText}>{noteSortDirection === 'desc' ? '최신순' : '오래된순'}</Text>
                   </Pressable>
                 </View>
-
-                {composer === 'quote' ? (
-                  <View style={styles.composerBox}>
-                    <TextInput
-                      multiline
-                      onChangeText={setQuoteText}
-                      placeholder="마음에 남은 문장"
-                      placeholderTextColor="#9A927F"
-                      style={[styles.input, styles.quoteInput]}
-                      value={quoteText}
-                    />
-                    <TextInput
-                      onChangeText={setPageLabel}
-                      placeholder="페이지 또는 챕터"
-                      placeholderTextColor="#9A927F"
-                      style={styles.input}
-                      value={pageLabel}
-                    />
-                    <TextInput
-                      multiline
-                      onChangeText={setQuoteBody}
-                      placeholder="짧은 생각"
-                      placeholderTextColor="#9A927F"
-                      style={[styles.input, styles.bodyInput]}
-                      value={quoteBody}
-                    />
-                    <Pressable disabled={isSavingNote} onPress={saveQuoteNote} style={styles.primaryAction}>
-                      {isSavingNote ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.primaryActionText}>남기기</Text>}
-                    </Pressable>
-                  </View>
-                ) : (
-                  <View style={styles.composerBox}>
-                    <Pressable onPress={pickPhoto} style={styles.photoPicker}>
-                      {photoAsset?.uri ? (
-                        <Image resizeMode="cover" source={{ uri: photoAsset.uri }} style={styles.photoPreview} />
-                      ) : (
-                        <>
-                          <Text style={styles.photoPickerIcon}>＋</Text>
-                          <Text style={styles.photoPickerText}>사진 선택</Text>
-                        </>
-                      )}
-                    </Pressable>
-                    <TextInput
-                      multiline
-                      onChangeText={setPhotoBody}
-                      placeholder="사진과 함께 남길 생각"
-                      placeholderTextColor="#9A927F"
-                      style={[styles.input, styles.bodyInput]}
-                      value={photoBody}
-                    />
-                    <Pressable disabled={isSavingNote} onPress={savePhotoNote} style={styles.primaryAction}>
-                      {isSavingNote ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.primaryActionText}>남기기</Text>}
-                    </Pressable>
-                  </View>
-                )}
               </View>
+
+              {isSearchOpen ? (
+                <TextInput
+                  onChangeText={setNoteSearchQuery}
+                  placeholder="문장, 메모, 페이지 검색"
+                  placeholderTextColor="#9A927F"
+                  style={styles.searchInput}
+                  value={noteSearchQuery}
+                />
+              ) : null}
+
+              {composer !== 'closed' ? (
+                <View style={styles.composerBubble}>
+                  {composer === 'choice' ? (
+                    <View style={styles.captureChoices}>
+                      <Pressable onPress={takePhoto} style={styles.captureChoice}>
+                        <Text style={styles.captureChoiceTitle}>카메라</Text>
+                        <Text style={styles.captureChoiceText}>지금 찍기</Text>
+                      </Pressable>
+                      <Pressable onPress={pickPhoto} style={styles.captureChoice}>
+                        <Text style={styles.captureChoiceTitle}>갤러리</Text>
+                        <Text style={styles.captureChoiceText}>사진 고르기</Text>
+                      </Pressable>
+                      <Pressable onPress={openTextComposer} style={styles.captureChoice}>
+                        <Text style={styles.captureChoiceTitle}>글</Text>
+                        <Text style={styles.captureChoiceText}>문장과 생각</Text>
+                      </Pressable>
+                    </View>
+                  ) : null}
+
+                  {composer === 'text' ? (
+                    <View style={styles.composerBox}>
+                      <TextInput
+                        keyboardType="number-pad"
+                        onChangeText={(value) => setPageLabel(value.replace(/[^0-9]/g, ''))}
+                        placeholder="페이지 번호"
+                        placeholderTextColor="#9A927F"
+                        style={styles.input}
+                        value={pageLabel}
+                      />
+                      <TextInput
+                        multiline
+                        onChangeText={setNoteText}
+                        placeholder="남겨두고 싶은 문장이나 생각"
+                        placeholderTextColor="#9A927F"
+                        style={[styles.input, styles.bodyInput]}
+                        value={noteText}
+                      />
+                      <View style={styles.visibilityRow}>
+                        <Pressable
+                          onPress={() => setNoteVisibility('private')}
+                          style={[styles.visibilityChoice, noteVisibility === 'private' ? styles.visibilityChoiceActive : null]}
+                        >
+                          <Text
+                            style={[
+                              styles.visibilityChoiceText,
+                              noteVisibility === 'private' ? styles.visibilityChoiceTextActive : null,
+                            ]}
+                          >
+                            나만 보기
+                          </Text>
+                        </Pressable>
+                        <Pressable
+                          onPress={() => setNoteVisibility('public')}
+                          style={[styles.visibilityChoice, noteVisibility === 'public' ? styles.visibilityChoiceActive : null]}
+                        >
+                          <Text
+                            style={[
+                              styles.visibilityChoiceText,
+                              noteVisibility === 'public' ? styles.visibilityChoiceTextActive : null,
+                            ]}
+                          >
+                            공개
+                          </Text>
+                        </Pressable>
+                      </View>
+                      <Pressable disabled={isSavingNote} onPress={saveTextNote} style={styles.primaryAction}>
+                        {isSavingNote ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.primaryActionText}>남기기</Text>}
+                      </Pressable>
+                    </View>
+                  ) : null}
+
+                  {composer === 'photo' ? (
+                    <View style={styles.composerBox}>
+                      <Pressable onPress={pickPhoto} style={styles.photoPicker}>
+                        {photoAsset?.uri ? (
+                          <Image resizeMode="cover" source={{ uri: photoAsset.uri }} style={styles.photoPreview} />
+                        ) : (
+                          <>
+                            <Text style={styles.photoPickerIcon}>＋</Text>
+                            <Text style={styles.photoPickerText}>사진 선택</Text>
+                          </>
+                        )}
+                      </Pressable>
+                      <TextInput
+                        keyboardType="number-pad"
+                        onChangeText={(value) => setPageLabel(value.replace(/[^0-9]/g, ''))}
+                        placeholder="페이지 번호"
+                        placeholderTextColor="#9A927F"
+                        style={styles.input}
+                        value={pageLabel}
+                      />
+                      <TextInput
+                        multiline
+                        onChangeText={setPhotoBody}
+                        placeholder="사진과 함께 남길 생각"
+                        placeholderTextColor="#9A927F"
+                        style={[styles.input, styles.bodyInput]}
+                        value={photoBody}
+                      />
+                      <View style={styles.visibilityRow}>
+                        <Pressable
+                          onPress={() => setNoteVisibility('private')}
+                          style={[styles.visibilityChoice, noteVisibility === 'private' ? styles.visibilityChoiceActive : null]}
+                        >
+                          <Text
+                            style={[
+                              styles.visibilityChoiceText,
+                              noteVisibility === 'private' ? styles.visibilityChoiceTextActive : null,
+                            ]}
+                          >
+                            나만 보기
+                          </Text>
+                        </Pressable>
+                        <Pressable
+                          onPress={() => setNoteVisibility('public')}
+                          style={[styles.visibilityChoice, noteVisibility === 'public' ? styles.visibilityChoiceActive : null]}
+                        >
+                          <Text
+                            style={[
+                              styles.visibilityChoiceText,
+                              noteVisibility === 'public' ? styles.visibilityChoiceTextActive : null,
+                            ]}
+                          >
+                            공개
+                          </Text>
+                        </Pressable>
+                      </View>
+                      <Pressable disabled={isSavingNote} onPress={savePhotoNote} style={styles.primaryAction}>
+                        {isSavingNote ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.primaryActionText}>남기기</Text>}
+                      </Pressable>
+                    </View>
+                  ) : null}
+                </View>
+              ) : null}
 
               <View style={styles.noteStream}>
                 {notes.length === 0 ? (
@@ -722,10 +885,15 @@ export default function ReadingLifeBookScreen() {
                     <Text style={styles.emptyNotes}>아직 남긴 기록이 없습니다.</Text>
                   </View>
                 ) : null}
-                {notes.map((note) => (
+                {notes.length > 0 && visibleNotes.length === 0 ? (
+                  <View style={styles.emptyNotesBubble}>
+                    <Text style={styles.emptyNotes}>검색된 기록이 없습니다.</Text>
+                  </View>
+                ) : null}
+                {visibleNotes.map((note) => (
                   <View key={note.id} style={[styles.noteItem, note.kind === 'photo' ? styles.noteItemPhoto : null]}>
                     <View style={styles.noteHead}>
-                      <Text style={styles.noteKind}>{note.kind === 'quote' ? '문장' : '사진'}</Text>
+                      <Text style={styles.noteKind}>{note.kind === 'photo' ? '사진' : note.quoteText ? '문장' : '글'}</Text>
                       <Text style={styles.noteVisibility}>
                         {formatNoteDate(note.createdAt)} · {note.visibility === 'public' ? '공개' : '비공개'}
                       </Text>
@@ -800,14 +968,6 @@ function parseNonNegativeInteger(value: string) {
   if (!normalizedValue) return 0;
 
   const parsedValue = Number(normalizedValue);
-  return Number.isSafeInteger(parsedValue) && parsedValue >= 0 ? parsedValue : null;
-}
-
-function parsePageLabel(value: string) {
-  const matchedValue = value.match(/\d+/)?.[0];
-  if (!matchedValue) return null;
-
-  const parsedValue = Number(matchedValue);
   return Number.isSafeInteger(parsedValue) && parsedValue >= 0 ? parsedValue : null;
 }
 
@@ -1089,35 +1249,102 @@ const styles = StyleSheet.create({
     marginTop: 22,
     paddingBottom: 8,
   },
+  memoToolbar: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  writeButton: {
+    alignItems: 'center',
+    backgroundColor: '#103D2B',
+    borderColor: 'rgba(216,190,136,0.34)',
+    borderRadius: 28,
+    borderWidth: 1,
+    height: 56,
+    justifyContent: 'center',
+    shadowColor: '#102519',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.16,
+    shadowRadius: 18,
+    width: 56,
+  },
+  writeButtonText: {
+    color: '#D8BE88',
+    fontSize: 28,
+    fontWeight: '900',
+    lineHeight: 32,
+  },
+  memoTools: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  memoToolButton: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(247,241,229,0.72)',
+    borderColor: 'rgba(16,61,43,0.08)',
+    borderRadius: 999,
+    borderWidth: 1,
+    height: 38,
+    justifyContent: 'center',
+    paddingHorizontal: 14,
+  },
+  memoToolButtonActive: {
+    backgroundColor: '#D8BE88',
+  },
+  memoToolText: {
+    color: '#4E5B53',
+    fontSize: 12,
+    fontWeight: '900',
+  },
+  memoToolTextActive: {
+    color: '#103D2B',
+  },
+  searchInput: {
+    backgroundColor: 'rgba(247,241,229,0.78)',
+    borderColor: 'rgba(16,61,43,0.08)',
+    borderRadius: 19,
+    borderWidth: 1,
+    color: '#14251B',
+    fontSize: 14,
+    fontWeight: '800',
+    height: 48,
+    marginTop: 12,
+    paddingHorizontal: 16,
+  },
   composerBubble: {
     backgroundColor: 'rgba(247,241,229,0.72)',
     borderColor: 'rgba(16,61,43,0.08)',
     borderRadius: 22,
     borderWidth: 1,
+    marginTop: 12,
     padding: 14,
   },
-  composerTabs: {
-    borderBottomColor: 'rgba(16,61,43,0.12)',
-    borderBottomWidth: 1,
+  captureChoices: {
     flexDirection: 'row',
+    gap: 9,
   },
-  composerTab: {
-    alignItems: 'center',
+  captureChoice: {
+    backgroundColor: '#EFE7D7',
+    borderColor: 'rgba(16,61,43,0.08)',
+    borderRadius: 18,
+    borderWidth: 1,
     flex: 1,
-    height: 42,
+    minHeight: 88,
     justifyContent: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 12,
   },
-  composerTabActive: {
-    borderBottomColor: '#103D2B',
-    borderBottomWidth: 3,
-  },
-  composerTabText: {
-    color: '#5B675F',
-    fontSize: 14,
+  captureChoiceTitle: {
+    color: '#103D2B',
+    fontSize: 15,
     fontWeight: '900',
   },
-  composerTabTextActive: {
-    color: '#103D2B',
+  captureChoiceText: {
+    color: '#6D766F',
+    fontSize: 11,
+    fontWeight: '800',
+    lineHeight: 16,
+    marginTop: 6,
   },
   visibilityRow: {
     flexDirection: 'row',
@@ -1158,10 +1385,6 @@ const styles = StyleSheet.create({
     minHeight: 48,
     paddingHorizontal: 0,
     paddingVertical: 13,
-  },
-  quoteInput: {
-    minHeight: 92,
-    textAlignVertical: 'top',
   },
   bodyInput: {
     minHeight: 84,
