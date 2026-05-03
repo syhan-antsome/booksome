@@ -43,8 +43,7 @@ const statusOptions: Array<{ value: ReadingBookStatus; label: string }> = [
   { value: 'paused', label: '잠시 멈춤' },
 ];
 const shuttleGrooves = Array.from({ length: 20 }, (_, index) => index);
-const shuttleTrackInset = 7;
-const shuttleThumbSize = 30;
+const shuttlePixelsPerPage = 7;
 
 export default function ReadingLifeBookScreen() {
   const { id, section } = useLocalSearchParams<{ id?: string; section?: string }>();
@@ -63,9 +62,8 @@ export default function ReadingLifeBookScreen() {
   const [pageLabel, setPageLabel] = useState('');
   const [currentPageInput, setCurrentPageInput] = useState('');
   const [totalPagesInput, setTotalPagesInput] = useState('');
-  const shuttleRef = useRef<View>(null);
-  const shuttlePageXRef = useRef(0);
-  const [shuttleWidth, setShuttleWidth] = useState(0);
+  const shuttleDraftPageRef = useRef<number | null>(null);
+  const shuttleStartPageRef = useRef(0);
   const [photoBody, setPhotoBody] = useState('');
   const [photoAsset, setPhotoAsset] = useState<ImagePicker.ImagePickerAsset | null>(null);
   const [noteVisibility, setNoteVisibility] = useState<ReadingVisibility>('private');
@@ -137,23 +135,6 @@ export default function ReadingLifeBookScreen() {
   const displayProgressPercent = totalPageValue
     ? calculateReadingProgressPercent(displayCurrentPage, totalPageValue)
     : book?.progressPercent ?? 0;
-  const shuttleTrackWidth = Math.max(0, shuttleWidth - shuttleTrackInset * 2);
-  const shuttleThumbOffset =
-    shuttleTrackWidth > 0
-      ? Math.max(
-          0,
-          Math.min(
-            shuttleTrackWidth - shuttleThumbSize,
-            (displayProgressPercent / 100) * shuttleTrackWidth - shuttleThumbSize / 2,
-          ),
-        )
-      : 0;
-  const measureShuttle = useCallback(() => {
-    shuttleRef.current?.measureInWindow((x, _y, width) => {
-      shuttlePageXRef.current = x;
-      setShuttleWidth(width);
-    });
-  }, []);
 
   const saveBook = async (input: UpdateReadingLifeBookInput) => {
     if (!session?.user.id || !bookId) return;
@@ -253,27 +234,32 @@ export default function ReadingLifeBookScreen() {
     });
   }, [book, currentPageInput, saveBook, totalPagesInput]);
 
-  const getPageFromShuttlePageX = useCallback(
-    (pageX: number) => {
-      if (!totalPageValue || shuttleTrackWidth <= 0) return null;
+  const beginShuttleDrag = useCallback(() => {
+    shuttleDraftPageRef.current = null;
+    shuttleStartPageRef.current = displayCurrentPage;
+  }, [displayCurrentPage]);
 
-      const locationX = pageX - shuttlePageXRef.current;
-      const progress = Math.min(1, Math.max(0, (locationX - shuttleTrackInset) / shuttleTrackWidth));
-      return Math.min(totalPageValue, Math.max(0, Math.round(totalPageValue * progress)));
+  const getPageFromShuttleDelta = useCallback(
+    (deltaX: number) => {
+      if (!totalPageValue) return null;
+
+      const deltaPages = Math.round(deltaX / shuttlePixelsPerPage);
+      return Math.min(totalPageValue, Math.max(0, shuttleStartPageRef.current + deltaPages));
     },
-    [shuttleTrackWidth, totalPageValue],
+    [totalPageValue],
   );
 
   const updateDraftPageFromShuttle = useCallback(
-    (pageX: number) => {
-      const nextPage = getPageFromShuttlePageX(pageX);
+    (deltaX: number) => {
+      const nextPage = getPageFromShuttleDelta(deltaX);
       if (nextPage === null) return null;
 
+      shuttleDraftPageRef.current = nextPage;
       setCurrentPageInput(String(nextPage));
       setErrorMessage(null);
       return nextPage;
     },
-    [getPageFromShuttlePageX],
+    [getPageFromShuttleDelta],
   );
 
   const shuttleResponder = useMemo(
@@ -283,20 +269,19 @@ export default function ReadingLifeBookScreen() {
           Boolean(totalPageValue) &&
           Math.abs(gestureState.dx) > 4 &&
           Math.abs(gestureState.dx) > Math.abs(gestureState.dy),
-        onStartShouldSetPanResponder: () => Boolean(totalPageValue),
-        onPanResponderGrant: (event, gestureState) => {
-          measureShuttle();
-          updateDraftPageFromShuttle(gestureState.x0 || event.nativeEvent.pageX);
+        onStartShouldSetPanResponder: () => false,
+        onPanResponderGrant: () => {
+          beginShuttleDrag();
         },
         onPanResponderMove: (_event, gestureState) => {
-          updateDraftPageFromShuttle(gestureState.moveX);
+          updateDraftPageFromShuttle(gestureState.dx);
         },
-        onPanResponderRelease: (_event, gestureState) => {
-          const nextPage = updateDraftPageFromShuttle(gestureState.moveX);
+        onPanResponderRelease: () => {
+          const nextPage = shuttleDraftPageRef.current;
           if (nextPage !== null) savePageProgress(nextPage);
         },
       }),
-    [measureShuttle, savePageProgress, totalPageValue, updateDraftPageFromShuttle],
+    [beginShuttleDrag, savePageProgress, totalPageValue, updateDraftPageFromShuttle],
   );
 
   const saveQuoteNote = async () => {
@@ -486,8 +471,6 @@ export default function ReadingLifeBookScreen() {
               {totalPageValue ? (
                 <View
                   accessibilityLabel="현재 읽은 페이지 조절"
-                  onLayout={() => requestAnimationFrame(measureShuttle)}
-                  ref={shuttleRef}
                   style={styles.jogShuttleTouch}
                   {...shuttleResponder.panHandlers}
                 >
@@ -502,7 +485,6 @@ export default function ReadingLifeBookScreen() {
                           ]}
                         />
                       ))}
-                      <View style={[styles.jogShuttleThumb, { left: shuttleThumbOffset }]} />
                     </View>
                   </View>
                 </View>
@@ -947,16 +929,6 @@ const styles = StyleSheet.create({
   },
   jogShuttleGrooveDeep: {
     backgroundColor: '#858679',
-  },
-  jogShuttleThumb: {
-    backgroundColor: 'rgba(16,61,43,0.5)',
-    borderColor: 'rgba(247,241,229,0.5)',
-    borderRadius: 3,
-    borderWidth: 1,
-    bottom: 3,
-    position: 'absolute',
-    top: 3,
-    width: shuttleThumbSize,
   },
   pageSetupPanel: {
     alignItems: 'flex-end',
