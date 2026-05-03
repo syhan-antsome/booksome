@@ -89,32 +89,35 @@ export default function ReadingLifeScreen() {
   const bookshelfScrollMetrics = useRef({ contentWidth: 0, offsetX: 0, viewportWidth: 0 });
   const requestedFilter = parseBookshelfFilter(Array.isArray(params.filter) ? params.filter[0] : params.filter);
 
-  useEffect(() => {
-    let isMounted = true;
+  useFocusEffect(
+    useCallback(() => {
+      let isMounted = true;
 
-    if (!session?.user.id) {
-      setBooks([]);
-      return;
-    }
+      if (!session?.user.id) {
+        setBooks([]);
+        setIsLoadingBooks(false);
+        return undefined;
+      }
 
-    setIsLoadingBooks(true);
-    setLoadError(null);
+      setIsLoadingBooks(true);
+      setLoadError(null);
 
-    listReadingLifeBooks(session.user.id)
-      .then((nextBooks) => {
-        if (isMounted) setBooks(nextBooks);
-      })
-      .catch((error) => {
-        if (isMounted) setLoadError(getErrorMessage(error, '독서생활 기록을 불러오지 못했습니다.'));
-      })
-      .finally(() => {
-        if (isMounted) setIsLoadingBooks(false);
-      });
+      listReadingLifeBooks(session.user.id)
+        .then((nextBooks) => {
+          if (isMounted) setBooks(nextBooks);
+        })
+        .catch((error) => {
+          if (isMounted) setLoadError(getErrorMessage(error, '독서생활 기록을 불러오지 못했습니다.'));
+        })
+        .finally(() => {
+          if (isMounted) setIsLoadingBooks(false);
+        });
 
-    return () => {
-      isMounted = false;
-    };
-  }, [session?.user.id]);
+      return () => {
+        isMounted = false;
+      };
+    }, [session?.user.id]),
+  );
 
   useEffect(() => {
     setSelectedCalendarDateKey(null);
