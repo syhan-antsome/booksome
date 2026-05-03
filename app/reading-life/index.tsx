@@ -454,7 +454,7 @@ export default function ReadingLifeScreen() {
                   )}
                   {filteredBooks.length > 3 && showBookshelfMoreCue ? (
                     <LinearGradient
-                      colors={['rgba(238, 241, 223, 0)', 'rgba(238, 241, 223, 0.96)']}
+                      colors={['rgba(231,238,219,0)', 'rgba(231,238,219,0.96)']}
                       end={{ x: 1, y: 0.5 }}
                       pointerEvents="none"
                       start={{ x: 0, y: 0.5 }}
@@ -770,11 +770,17 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   currentBook: {
-    borderBottomColor: 'rgba(16,61,43,0.12)',
-    borderBottomWidth: 1,
+    backgroundColor: '#103D2B',
+    borderColor: 'rgba(216,190,136,0.2)',
+    borderRadius: 30,
+    borderWidth: 1,
     marginTop: 14,
-    paddingBottom: 20,
-    paddingTop: 4,
+    overflow: 'hidden',
+    padding: 18,
+    shadowColor: '#102519',
+    shadowOffset: { width: 0, height: 14 },
+    shadowOpacity: 0.16,
+    shadowRadius: 28,
   },
   currentBookHeader: {
     alignItems: 'center',
@@ -782,12 +788,12 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   currentBookSectionTitle: {
-    color: '#26372B',
+    color: '#F7F1E5',
     fontSize: 20,
-    fontWeight: '800',
+    fontWeight: '900',
   },
   currentBookPercent: {
-    color: '#8F6A42',
+    color: '#D8BE88',
     fontSize: 13,
     fontWeight: '900',
   },
@@ -819,37 +825,37 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   bookState: {
-    color: '#8F6A42',
+    color: '#D8BE88',
     fontSize: 12,
     fontWeight: '900',
   },
   bookTitle: {
-    color: '#26372B',
+    color: '#FFFFFF',
     fontSize: 19,
     fontWeight: '800',
     lineHeight: 24,
     marginTop: 5,
   },
   bookAuthor: {
-    color: '#72806E',
+    color: 'rgba(247,241,229,0.68)',
     fontSize: 12,
     fontWeight: '800',
     marginTop: 5,
   },
   progressTrack: {
-    backgroundColor: '#E5DCC9',
+    backgroundColor: 'rgba(247,241,229,0.18)',
     borderRadius: 4,
     height: 8,
     marginTop: 14,
     overflow: 'hidden',
   },
   progressFill: {
-    backgroundColor: '#103D2B',
+    backgroundColor: '#D8BE88',
     height: '100%',
     width: '12%',
   },
   bookHint: {
-    color: '#72806E',
+    color: 'rgba(247,241,229,0.68)',
     fontSize: 12,
     fontWeight: '700',
     lineHeight: 17,
@@ -875,10 +881,14 @@ const styles = StyleSheet.create({
     marginTop: 14,
   },
   calendarSection: {
-    borderBottomColor: 'rgba(16,61,43,0.12)',
-    borderBottomWidth: 1,
+    backgroundColor: 'rgba(247,241,229,0.68)',
+    borderColor: 'rgba(16,61,43,0.08)',
+    borderRadius: 28,
+    borderWidth: 1,
     marginTop: 22,
-    paddingBottom: 20,
+    paddingBottom: 18,
+    paddingHorizontal: 16,
+    paddingTop: 18,
   },
   calendarTitleBlock: {
     flex: 1,
@@ -1023,7 +1033,7 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   calendarDetail: {
-    backgroundColor: 'rgba(247,241,229,0.68)',
+    backgroundColor: 'rgba(238,241,223,0.76)',
     borderColor: 'rgba(16,61,43,0.08)',
     borderRadius: 20,
     borderWidth: 1,
@@ -1098,7 +1108,14 @@ const styles = StyleSheet.create({
     lineHeight: 26,
   },
   myBooks: {
-    marginTop: 24,
+    backgroundColor: 'rgba(16,61,43,0.055)',
+    borderColor: 'rgba(16,61,43,0.07)',
+    borderRadius: 28,
+    borderWidth: 1,
+    marginTop: 22,
+    paddingBottom: 18,
+    paddingHorizontal: 16,
+    paddingTop: 18,
   },
   sectionTitleRow: {
     alignItems: 'center',
@@ -1137,7 +1154,7 @@ const styles = StyleSheet.create({
   },
   shelfFilterContent: {
     gap: 8,
-    paddingRight: 20,
+    paddingRight: 16,
     paddingTop: 14,
   },
   shelfFilter: {
@@ -1167,15 +1184,12 @@ const styles = StyleSheet.create({
     paddingTop: 18,
   },
   bookshelfFrame: {
-    marginRight: -20,
+    marginRight: -16,
     position: 'relative',
   },
   shelfEmptyState: {
     alignItems: 'center',
-    borderBottomColor: 'rgba(16,61,43,0.1)',
-    borderBottomWidth: 1,
     justifyContent: 'center',
-    marginRight: 20,
     minHeight: 212,
     paddingTop: 18,
   },
@@ -1186,8 +1200,6 @@ const styles = StyleSheet.create({
   },
   emptyShelf: {
     alignItems: 'center',
-    borderBottomColor: 'rgba(16,61,43,0.1)',
-    borderBottomWidth: 1,
     justifyContent: 'center',
     minHeight: 176,
     paddingHorizontal: 22,
