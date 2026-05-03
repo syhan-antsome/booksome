@@ -896,7 +896,13 @@ export default function ReadingLifeBookScreen() {
                 {visibleNotes.map((note) => (
                   <View key={note.id} style={[styles.noteItem, note.kind === 'photo' ? styles.noteItemPhoto : null]}>
                     <View style={styles.noteHead}>
-                      <Text style={styles.noteKind}>{note.kind === 'photo' ? '사진' : note.quoteText ? '문장' : '글'}</Text>
+                      {note.pageLabel ? (
+                        <View style={styles.notePageBadge}>
+                          <Text style={styles.notePageBadgeText}>{note.pageLabel}쪽</Text>
+                        </View>
+                      ) : (
+                        <View />
+                      )}
                       <Text style={styles.noteVisibility}>
                         {formatNoteDate(note.createdAt)} · {note.visibility === 'public' ? '공개' : '비공개'}
                       </Text>
@@ -905,11 +911,6 @@ export default function ReadingLifeBookScreen() {
                       <Image resizeMode="cover" source={{ uri: note.mediaUrl }} style={styles.noteImage} />
                     ) : null}
                     {note.quoteText ? <Text style={styles.noteQuote}>“{note.quoteText}”</Text> : null}
-                    {note.pageLabel ? (
-                      <View style={styles.notePageBadge}>
-                        <Text style={styles.notePageBadgeText}>{note.pageLabel}쪽</Text>
-                      </View>
-                    ) : null}
                     {note.body ? <Text style={styles.noteBody}>{note.body}</Text> : null}
                   </View>
                 ))}
@@ -1510,11 +1511,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
   },
-  noteKind: {
-    color: '#116653',
-    fontSize: 12,
-    fontWeight: '900',
-  },
   noteVisibility: {
     color: '#9A8D78',
     fontSize: 11,
@@ -1537,7 +1533,6 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
     backgroundColor: 'rgba(216,190,136,0.32)',
     borderRadius: 999,
-    marginTop: 12,
     paddingHorizontal: 10,
     paddingVertical: 5,
   },
