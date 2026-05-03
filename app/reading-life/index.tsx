@@ -25,18 +25,11 @@ import { listReadingLifeBooks, type ReadingLifeBook } from '../../src/services/r
 
 type BookshelfFilter = 'all' | 'reading' | 'want_to_read' | 'finished' | 'paused';
 type CalendarEventType = 'registration' | 'reading';
-type ReadingRecordSection = 'progress' | 'quote' | 'photo';
 
 type CalendarEvent = {
   book: ReadingLifeBook;
   type: CalendarEventType;
 };
-
-const currentBookActions: Array<{ label: string; section: ReadingRecordSection }> = [
-  { label: '기록하기', section: 'progress' },
-  { label: '문장 남기기', section: 'quote' },
-  { label: '사진 남기기', section: 'photo' },
-];
 
 const bookshelfFilters: Array<{ label: string; value: BookshelfFilter }> = [
   { label: '전체', value: 'all' },
@@ -145,20 +138,6 @@ export default function ReadingLifeScreen() {
   );
   const isViewingCurrentMonth = isSameMonth(calendarMonth, new Date());
   const signHeroHeight = Math.round(width * readingLifeSignboardRatio);
-  const openCurrentBookAction = useCallback(
-    (section: ReadingRecordSection) => {
-      if (currentBook) {
-        router.push({
-          pathname: '/reading-life/[id]',
-          params: { id: currentBook.id, section },
-        });
-        return;
-      }
-
-      router.push(session ? '/scan' : '/auth');
-    },
-    [currentBook, session],
-  );
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -222,34 +201,6 @@ export default function ReadingLifeScreen() {
               ) : null}
             </View>
           </Pressable>
-
-          <View style={styles.currentBookActions}>
-            {currentBook ? (
-              currentBookActions.map((action, index) => (
-                <Pressable
-                  key={action.section}
-                  onPress={() => openCurrentBookAction(action.section)}
-                  style={[
-                    styles.currentBookAction,
-                    index === 0 ? styles.currentBookActionPrimary : null,
-                  ]}
-                >
-                  <Text
-                    style={[
-                      styles.currentBookActionText,
-                      index === 0 ? styles.currentBookActionTextPrimary : null,
-                    ]}
-                  >
-                    {action.label}
-                  </Text>
-                </Pressable>
-              ))
-            ) : (
-              <Pressable onPress={() => router.push(session ? '/scan' : '/auth')} style={styles.currentBookEmptyAction}>
-                <Text style={styles.currentBookActionTextPrimary}>책 등록하기</Text>
-              </Pressable>
-            )}
-          </View>
         </View>
 
         {isLoadingBooks ? (
@@ -900,40 +851,6 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     lineHeight: 17,
     marginTop: 9,
-  },
-  currentBookActions: {
-    flexDirection: 'row',
-    gap: 8,
-    marginTop: 16,
-  },
-  currentBookAction: {
-    alignItems: 'center',
-    backgroundColor: 'rgba(16,61,43,0.08)',
-    borderRadius: 18,
-    flex: 1,
-    height: 38,
-    justifyContent: 'center',
-  },
-  currentBookActionPrimary: {
-    backgroundColor: '#103D2B',
-  },
-  currentBookEmptyAction: {
-    alignItems: 'center',
-    backgroundColor: '#103D2B',
-    borderRadius: 19,
-    height: 40,
-    justifyContent: 'center',
-    paddingHorizontal: 18,
-  },
-  currentBookActionText: {
-    color: '#103D2B',
-    fontSize: 12,
-    fontWeight: '900',
-  },
-  currentBookActionTextPrimary: {
-    color: '#F7F1E5',
-    fontSize: 12,
-    fontWeight: '900',
   },
   loadingPanel: {
     alignItems: 'center',
