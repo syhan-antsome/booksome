@@ -1018,7 +1018,7 @@ const styles = StyleSheet.create({
     bottom: 0,
     position: 'absolute',
     top: 0,
-    width: 42,
+    width: 84,
   },
   jogShuttleEdgeShadeLeft: {
     left: 0,
