@@ -343,7 +343,7 @@ export default function ReadingLifeBookScreen() {
               <Text style={styles.scanButtonText}>＋</Text>
             </Pressable>
           }
-          title="책과 나"
+          title="나의 책"
           tone="paper"
         />
 
