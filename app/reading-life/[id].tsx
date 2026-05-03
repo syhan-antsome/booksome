@@ -29,7 +29,6 @@ import {
   deleteReadingLifeBook,
   getReadingLifeBook,
   listReadingLifeNotes,
-  setFeaturedReadingLifeBook,
   type ReadingBookStatus,
   type ReadingLifeBook,
   type ReadingLifeNote,
@@ -69,7 +68,6 @@ export default function ReadingLifeBookScreen() {
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isDeletingBook, setIsDeletingBook] = useState(false);
-  const [isFeaturingBook, setIsFeaturingBook] = useState(false);
   const [isSavingNote, setIsSavingNote] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [composer, setComposer] = useState<ReadingNoteKind>('quote');
@@ -205,22 +203,6 @@ export default function ReadingLifeBookScreen() {
         },
       ],
     );
-  };
-
-  const setFeaturedBook = async () => {
-    if (!session?.user.id || !bookId || !book || book.pinnedAt) return;
-
-    setIsFeaturingBook(true);
-    setErrorMessage(null);
-
-    try {
-      const nextBook = await setFeaturedReadingLifeBook(session.user.id, bookId);
-      setBook(nextBook);
-    } catch (error) {
-      setErrorMessage(getErrorMessage(error, '지금 읽는 책으로 설정하지 못했습니다.'));
-    } finally {
-      setIsFeaturingBook(false);
-    }
   };
 
   const savePageProgress = useCallback((nextCurrentPage?: number) => {
@@ -492,106 +474,79 @@ export default function ReadingLifeBookScreen() {
               </View>
 
               <View style={styles.heroBottom}>
-                <View style={styles.heroBottomActions}>
-                  <Pressable
-                    disabled={isSaving}
-                    onPress={() => saveBook({ visibility: book.visibility === 'public' ? 'private' : 'public' })}
-                    style={styles.visibilityButton}
-                  >
-                    <Text style={styles.visibilityText}>{book.visibility === 'public' ? '공개 기록' : '나만 보기'}</Text>
-                  </Pressable>
-                  <Pressable
-                    disabled={isFeaturingBook || !!book.pinnedAt}
-                    onPress={setFeaturedBook}
-                    style={[styles.featuredButton, book.pinnedAt ? styles.featuredButtonActive : null]}
-                  >
-                    {isFeaturingBook ? (
-                      <ActivityIndicator color="#103D2B" />
-                    ) : (
-                      <Text style={[styles.featuredButtonText, book.pinnedAt ? styles.featuredButtonTextActive : null]}>
-                        {book.pinnedAt ? '지금 읽는 책' : '지금 읽기로 설정'}
-                      </Text>
-                    )}
-                  </Pressable>
-                </View>
+                <Text style={styles.heroBottomPage}>
+                  {totalPageValue ? `${displayCurrentPage} / ${totalPageValue}쪽` : '페이지 미설정'}
+                </Text>
                 <View style={styles.heroBottomProgress}>
                   <Text style={styles.heroBottomValue}>{displayProgressPercent}%</Text>
-                  <Text style={styles.heroBottomPage}>
-                    {totalPageValue ? `${displayCurrentPage} / ${totalPageValue}쪽` : '페이지 미설정'}
-                  </Text>
                 </View>
               </View>
-            </View>
 
-            <View style={styles.progressPanel}>
-              {totalPageValue ? (
-                <View
-                  accessibilityLabel="현재 읽은 페이지 조절"
-                  style={styles.jogShuttleTouch}
-                  {...shuttleResponder.panHandlers}
-                >
-                  <View style={styles.jogShuttle}>
-                    <View style={styles.jogShuttleRidge}>
-                      <Animated.View
-                        style={[
-                          styles.jogShuttleGrooveTrack,
-                          { transform: [{ translateX: shuttleVisualOffset }] },
-                        ]}
-                      >
-                        {shuttleGrooves.map((groove) => (
-                          <View
-                            key={groove}
-                            style={[
-                              styles.jogShuttleGroove,
-                              groove % 2 === 0 ? styles.jogShuttleGrooveDeep : null,
-                            ]}
-                          />
-                        ))}
-                      </Animated.View>
-                      <LinearGradient
-                        colors={['rgba(27,28,25,0.72)', 'rgba(27,28,25,0.22)', 'rgba(27,28,25,0)']}
-                        pointerEvents="none"
-                        start={{ x: 0, y: 0.5 }}
-                        end={{ x: 1, y: 0.5 }}
-                        style={[styles.jogShuttleEdgeShade, styles.jogShuttleEdgeShadeLeft]}
-                      />
-                      <LinearGradient
-                        colors={['rgba(27,28,25,0)', 'rgba(27,28,25,0.22)', 'rgba(27,28,25,0.72)']}
-                        pointerEvents="none"
-                        start={{ x: 0, y: 0.5 }}
-                        end={{ x: 1, y: 0.5 }}
-                        style={[styles.jogShuttleEdgeShade, styles.jogShuttleEdgeShadeRight]}
-                      />
+              <View style={styles.progressPanel}>
+                {totalPageValue ? (
+                  <View
+                    accessibilityLabel="현재 읽은 페이지 조절"
+                    style={styles.jogShuttleTouch}
+                    {...shuttleResponder.panHandlers}
+                  >
+                    <View style={styles.jogShuttle}>
+                      <View style={styles.jogShuttleRidge}>
+                        <Animated.View
+                          style={[
+                            styles.jogShuttleGrooveTrack,
+                            { transform: [{ translateX: shuttleVisualOffset }] },
+                          ]}
+                        >
+                          {shuttleGrooves.map((groove) => (
+                            <View
+                              key={groove}
+                              style={[
+                                styles.jogShuttleGroove,
+                                groove % 2 === 0 ? styles.jogShuttleGrooveDeep : null,
+                              ]}
+                            />
+                          ))}
+                        </Animated.View>
+                        <LinearGradient
+                          colors={['rgba(27,28,25,0.72)', 'rgba(27,28,25,0.22)', 'rgba(27,28,25,0)']}
+                          pointerEvents="none"
+                          start={{ x: 0, y: 0.5 }}
+                          end={{ x: 1, y: 0.5 }}
+                          style={[styles.jogShuttleEdgeShade, styles.jogShuttleEdgeShadeLeft]}
+                        />
+                        <LinearGradient
+                          colors={['rgba(27,28,25,0)', 'rgba(27,28,25,0.22)', 'rgba(27,28,25,0.72)']}
+                          pointerEvents="none"
+                          start={{ x: 0, y: 0.5 }}
+                          end={{ x: 1, y: 0.5 }}
+                          style={[styles.jogShuttleEdgeShade, styles.jogShuttleEdgeShadeRight]}
+                        />
+                      </View>
                     </View>
                   </View>
-                </View>
-              ) : (
-                <View style={styles.pageSetupPanel}>
-                  <View style={styles.pageField}>
-                    <Text style={styles.pageFieldLabel}>마지막</Text>
-                    <TextInput
-                      keyboardType="number-pad"
-                      onChangeText={(value) => setTotalPagesInput(value.replace(/[^0-9]/g, ''))}
-                      placeholder="312"
-                      placeholderTextColor="#A19989"
-                      returnKeyType="done"
-                      style={styles.pageInput}
-                      value={totalPagesInput}
-                    />
+                ) : (
+                  <View style={styles.pageSetupPanel}>
+                    <View style={styles.pageField}>
+                      <Text style={styles.pageFieldLabel}>마지막</Text>
+                      <TextInput
+                        keyboardType="number-pad"
+                        onChangeText={(value) => setTotalPagesInput(value.replace(/[^0-9]/g, ''))}
+                        placeholder="312"
+                        placeholderTextColor="rgba(247,241,229,0.42)"
+                        returnKeyType="done"
+                        style={styles.pageInput}
+                        value={totalPagesInput}
+                      />
+                    </View>
+                    <Pressable disabled={isSaving} onPress={() => savePageProgress(0)} style={styles.pageProgressAction}>
+                      {isSaving ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.pageProgressActionText}>설정</Text>}
+                    </Pressable>
                   </View>
-                  <Pressable disabled={isSaving} onPress={() => savePageProgress(0)} style={styles.pageProgressAction}>
-                    {isSaving ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.pageProgressActionText}>설정</Text>}
-                  </Pressable>
-                </View>
-              )}
+                )}
+              </View>
             </View>
 
             <View style={styles.memoPanel}>
-              <View style={styles.sectionHeader}>
-                <Text style={styles.sectionTitle}>이 책과 나눈 기록</Text>
-                <Text style={styles.noteCount}>{notes.length}</Text>
-              </View>
-
               <View style={styles.composerBubble}>
                 <View style={styles.composerTabs}>
                   <Pressable
@@ -902,75 +857,29 @@ const styles = StyleSheet.create({
   heroBottomProgress: {
     alignItems: 'flex-end',
   },
-  heroBottomActions: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    flexShrink: 1,
-    gap: 8,
-  },
-  visibilityButton: {
-    backgroundColor: 'rgba(247,241,229,0.12)',
-    borderRadius: 999,
-    paddingHorizontal: 13,
-    paddingVertical: 9,
-  },
-  visibilityText: {
-    color: 'rgba(247,241,229,0.86)',
-    fontSize: 12,
-    fontWeight: '900',
-  },
-  featuredButton: {
-    alignItems: 'center',
-    backgroundColor: 'rgba(216,190,136,0.18)',
-    borderColor: 'rgba(216,190,136,0.34)',
-    borderRadius: 999,
-    borderWidth: 1,
-    minHeight: 34,
-    justifyContent: 'center',
-    paddingHorizontal: 13,
-    paddingVertical: 8,
-  },
-  featuredButtonActive: {
-    backgroundColor: '#D8BE88',
-  },
-  featuredButtonText: {
-    color: 'rgba(247,241,229,0.9)',
-    fontSize: 12,
-    fontWeight: '900',
-  },
-  featuredButtonTextActive: {
-    color: '#103D2B',
-  },
   heroBottomValue: {
     color: '#D8BE88',
-    fontSize: 26,
+    fontSize: 32,
     fontWeight: '900',
+    lineHeight: 36,
   },
   heroBottomPage: {
-    color: 'rgba(247,241,229,0.7)',
-    fontSize: 11,
-    fontWeight: '700',
-    marginTop: 1,
-  },
-  progressPanel: {
-    borderBottomColor: 'rgba(16,61,43,0.12)',
-    borderBottomWidth: 1,
-    paddingBottom: 18,
-    paddingTop: 16,
-  },
-  sectionHeader: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  sectionTitle: {
-    color: '#26372B',
-    fontSize: 20,
+    color: 'rgba(247,241,229,0.76)',
+    fontSize: 14,
     fontWeight: '800',
   },
+  progressPanel: {
+    backgroundColor: 'rgba(4,18,13,0.35)',
+    borderColor: 'rgba(247,241,229,0.1)',
+    borderRadius: 22,
+    borderWidth: 1,
+    marginTop: 13,
+    paddingHorizontal: 10,
+    paddingVertical: 9,
+  },
   jogShuttleTouch: {
-    minHeight: 62,
     justifyContent: 'center',
+    minHeight: 60,
   },
   jogShuttle: {
     backgroundColor: '#A7A28F',
@@ -1035,14 +944,14 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   pageFieldLabel: {
-    color: '#7F725E',
+    color: 'rgba(247,241,229,0.66)',
     fontSize: 11,
     fontWeight: '800',
   },
   pageInput: {
-    borderBottomColor: '#103D2B',
+    borderBottomColor: 'rgba(216,190,136,0.78)',
     borderBottomWidth: 2,
-    color: '#14251B',
+    color: '#F7F1E5',
     fontSize: 24,
     fontWeight: '800',
     lineHeight: 30,
@@ -1051,7 +960,7 @@ const styles = StyleSheet.create({
   },
   pageProgressAction: {
     alignItems: 'center',
-    backgroundColor: '#103D2B',
+    backgroundColor: '#D8BE88',
     borderRadius: 17,
     height: 36,
     justifyContent: 'center',
@@ -1059,27 +968,19 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
   },
   pageProgressActionText: {
-    color: '#FFFFFF',
+    color: '#103D2B',
     fontSize: 13,
-    fontWeight: '800',
-  },
-  memoPanel: {
-    marginTop: 18,
-    paddingBottom: 8,
-    paddingTop: 20,
-  },
-  noteCount: {
-    color: '#116653',
-    fontSize: 22,
     fontWeight: '900',
   },
+  memoPanel: {
+    marginTop: 22,
+    paddingBottom: 8,
+  },
   composerBubble: {
-    backgroundColor: 'rgba(247, 241, 229, 0.74)',
-    borderColor: 'rgba(16,61,43,0.1)',
-    borderRadius: 24,
-    borderTopLeftRadius: 8,
+    backgroundColor: 'rgba(247,241,229,0.72)',
+    borderColor: 'rgba(16,61,43,0.08)',
+    borderRadius: 22,
     borderWidth: 1,
-    marginTop: 16,
     padding: 14,
   },
   composerTabs: {
@@ -1196,8 +1097,8 @@ const styles = StyleSheet.create({
     marginTop: 14,
   },
   noteStream: {
-    gap: 12,
-    marginTop: 18,
+    gap: 14,
+    marginTop: 20,
   },
   emptyNotes: {
     color: '#69756D',
@@ -1206,26 +1107,27 @@ const styles = StyleSheet.create({
     lineHeight: 21,
   },
   emptyNotesBubble: {
-    alignSelf: 'flex-start',
-    backgroundColor: 'rgba(247,241,229,0.72)',
-    borderRadius: 22,
-    borderTopLeftRadius: 6,
+    backgroundColor: 'rgba(247,241,229,0.68)',
+    borderColor: 'rgba(16,61,43,0.08)',
+    borderRadius: 20,
+    borderWidth: 1,
     paddingHorizontal: 16,
-    paddingVertical: 13,
+    paddingVertical: 16,
   },
   noteItem: {
-    alignSelf: 'flex-start',
-    backgroundColor: 'rgba(247,241,229,0.86)',
+    backgroundColor: 'rgba(247,241,229,0.92)',
     borderColor: 'rgba(16,61,43,0.08)',
-    borderRadius: 24,
-    borderTopLeftRadius: 7,
+    borderRadius: 22,
     borderWidth: 1,
-    maxWidth: '94%',
-    paddingHorizontal: 16,
-    paddingVertical: 14,
+    paddingHorizontal: 18,
+    paddingVertical: 16,
+    shadowColor: '#213728',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.06,
+    shadowRadius: 18,
   },
   noteItemPhoto: {
-    backgroundColor: 'rgba(232,239,219,0.94)',
+    backgroundColor: 'rgba(238,241,223,0.96)',
   },
   noteHead: {
     alignItems: 'center',
@@ -1243,17 +1145,17 @@ const styles = StyleSheet.create({
     fontWeight: '900',
   },
   noteImage: {
-    borderRadius: 18,
-    height: 210,
-    marginTop: 12,
+    borderRadius: 20,
+    height: 224,
+    marginTop: 14,
     width: '100%',
   },
   noteQuote: {
     color: '#26372B',
-    fontSize: 18,
+    fontSize: 17,
     fontWeight: '800',
-    lineHeight: 26,
-    marginTop: 12,
+    lineHeight: 27,
+    marginTop: 14,
   },
   notePage: {
     color: '#8F6A42',
