@@ -549,14 +549,14 @@ export default function ReadingLifeBookScreen() {
                         ))}
                       </Animated.View>
                       <LinearGradient
-                        colors={['rgba(42,43,38,0.5)', 'rgba(42,43,38,0.08)', 'rgba(42,43,38,0)']}
+                        colors={['rgba(27,28,25,0.72)', 'rgba(27,28,25,0.22)', 'rgba(27,28,25,0)']}
                         pointerEvents="none"
                         start={{ x: 0, y: 0.5 }}
                         end={{ x: 1, y: 0.5 }}
                         style={[styles.jogShuttleEdgeShade, styles.jogShuttleEdgeShadeLeft]}
                       />
                       <LinearGradient
-                        colors={['rgba(42,43,38,0)', 'rgba(42,43,38,0.08)', 'rgba(42,43,38,0.5)']}
+                        colors={['rgba(27,28,25,0)', 'rgba(27,28,25,0.22)', 'rgba(27,28,25,0.72)']}
                         pointerEvents="none"
                         start={{ x: 0, y: 0.5 }}
                         end={{ x: 1, y: 0.5 }}
@@ -1018,7 +1018,7 @@ const styles = StyleSheet.create({
     bottom: 0,
     position: 'absolute',
     top: 0,
-    width: 84,
+    width: 168,
   },
   jogShuttleEdgeShadeLeft: {
     left: 0,
