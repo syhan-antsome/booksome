@@ -568,6 +568,23 @@ export default function ReadingLifeBookScreen() {
     }
   };
 
+  const pageInputField = (
+    <View style={styles.notePageField}>
+      <Text style={styles.notePageFieldLabel}>읽은 위치</Text>
+      <View style={styles.notePageInputRow}>
+        <TextInput
+          keyboardType="number-pad"
+          onChangeText={(value) => setPageLabel(value.replace(/[^0-9]/g, ''))}
+          placeholder={displayCurrentPage > 0 ? String(displayCurrentPage) : '0'}
+          placeholderTextColor="#9A927F"
+          style={styles.notePageInput}
+          value={pageLabel}
+        />
+        <Text style={styles.notePageUnit}>쪽</Text>
+      </View>
+    </View>
+  );
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <ScrollView
@@ -765,14 +782,7 @@ export default function ReadingLifeBookScreen() {
 
                   {composer === 'text' ? (
                     <View style={styles.composerBox}>
-                      <TextInput
-                        keyboardType="number-pad"
-                        onChangeText={(value) => setPageLabel(value.replace(/[^0-9]/g, ''))}
-                        placeholder="페이지 번호"
-                        placeholderTextColor="#9A927F"
-                        style={styles.input}
-                        value={pageLabel}
-                      />
+                      {pageInputField}
                       <TextInput
                         multiline
                         onChangeText={setNoteText}
@@ -827,14 +837,7 @@ export default function ReadingLifeBookScreen() {
                           </>
                         )}
                       </Pressable>
-                      <TextInput
-                        keyboardType="number-pad"
-                        onChangeText={(value) => setPageLabel(value.replace(/[^0-9]/g, ''))}
-                        placeholder="페이지 번호"
-                        placeholderTextColor="#9A927F"
-                        style={styles.input}
-                        value={pageLabel}
-                      />
+                      {pageInputField}
                       <TextInput
                         multiline
                         onChangeText={setPhotoBody}
@@ -1373,6 +1376,39 @@ const styles = StyleSheet.create({
   composerBox: {
     gap: 10,
     marginTop: 14,
+  },
+  notePageField: {
+    backgroundColor: 'rgba(16,61,43,0.06)',
+    borderColor: 'rgba(16,61,43,0.1)',
+    borderRadius: 18,
+    borderWidth: 1,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+  },
+  notePageFieldLabel: {
+    color: '#6D766F',
+    fontSize: 11,
+    fontWeight: '900',
+    marginBottom: 4,
+  },
+  notePageInputRow: {
+    alignItems: 'flex-end',
+    flexDirection: 'row',
+  },
+  notePageInput: {
+    color: '#103D2B',
+    flex: 1,
+    fontSize: 26,
+    fontWeight: '900',
+    lineHeight: 32,
+    padding: 0,
+  },
+  notePageUnit: {
+    color: '#6D766F',
+    fontSize: 14,
+    fontWeight: '900',
+    lineHeight: 23,
+    paddingBottom: 3,
   },
   input: {
     backgroundColor: 'transparent',
