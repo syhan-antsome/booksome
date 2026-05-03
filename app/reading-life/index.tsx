@@ -1277,12 +1277,15 @@ const styles = StyleSheet.create({
   },
   shelfPreview: {
     alignItems: 'center',
-    borderTopColor: 'rgba(16,61,43,0.12)',
-    borderTopWidth: 1,
+    backgroundColor: 'rgba(247,241,229,0.7)',
+    borderColor: 'rgba(16,61,43,0.08)',
+    borderRadius: 22,
+    borderWidth: 1,
     flexDirection: 'row',
     gap: 16,
     marginTop: 16,
-    paddingTop: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
   },
   previewCopy: {
     flex: 1,
