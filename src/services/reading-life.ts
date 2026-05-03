@@ -181,32 +181,7 @@ export async function addBookToReadingLife(
   }
 
   if (existing) {
-    const updateInput: UpdateReadingLifeBookInput = {};
-
-    if (totalPages && existing.total_pages !== totalPages) {
-      const currentPage = Math.min(existing.current_page ?? 0, totalPages);
-      updateInput.currentPage = currentPage;
-      updateInput.progressPercent = calculateReadingProgressPercent(currentPage, totalPages);
-      updateInput.totalPages = totalPages;
-    }
-
-    if (externalCoverUrl && existing.external_cover_url !== externalCoverUrl) {
-      updateInput.externalCoverUrl = externalCoverUrl;
-    }
-
-    if (existing.status !== status) {
-      updateInput.status = status;
-    }
-
-    if (status === 'finished' && totalPages) {
-      updateInput.currentPage = totalPages;
-      updateInput.progressPercent = 100;
-      updateInput.totalPages = totalPages;
-    }
-
-    return Object.keys(updateInput).length > 0
-      ? updateReadingLifeBook(profileId, existing.id, updateInput)
-      : mapReadingBook(existing);
+    throw new Error('이미 내 책장에 등록된 책입니다.');
   }
 
   const currentPage = status === 'finished' ? totalPages ?? 0 : 0;
@@ -236,6 +211,10 @@ export async function addBookToReadingLife(
     .single<ReadingBookRow>();
 
   if (error) {
+    if (isUniqueViolation(error)) {
+      throw new Error('이미 내 책장에 등록된 책입니다.');
+    }
+
     throw error;
   }
 
@@ -396,6 +375,10 @@ function mapReadingNote(row: ReadingNoteRow): ReadingLifeNote {
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
+}
+
+function isUniqueViolation(error: unknown) {
+  return typeof error === 'object' && error !== null && 'code' in error && error.code === '23505';
 }
 
 function normalizeIsbn(value: string) {
