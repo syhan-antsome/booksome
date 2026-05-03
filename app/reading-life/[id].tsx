@@ -1,6 +1,6 @@
 import * as ImagePicker from 'expo-image-picker';
 import { router, useLocalSearchParams } from 'expo-router';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -63,6 +63,8 @@ export default function ReadingLifeBookScreen() {
   const [pageLabel, setPageLabel] = useState('');
   const [currentPageInput, setCurrentPageInput] = useState('');
   const [totalPagesInput, setTotalPagesInput] = useState('');
+  const shuttleRef = useRef<View>(null);
+  const shuttlePageXRef = useRef(0);
   const [shuttleWidth, setShuttleWidth] = useState(0);
   const [photoBody, setPhotoBody] = useState('');
   const [photoAsset, setPhotoAsset] = useState<ImagePicker.ImagePickerAsset | null>(null);
@@ -146,6 +148,12 @@ export default function ReadingLifeBookScreen() {
           ),
         )
       : 0;
+  const measureShuttle = useCallback(() => {
+    shuttleRef.current?.measureInWindow((x, _y, width) => {
+      shuttlePageXRef.current = x;
+      setShuttleWidth(width);
+    });
+  }, []);
 
   const saveBook = async (input: UpdateReadingLifeBookInput) => {
     if (!session?.user.id || !bookId) return;
@@ -245,10 +253,11 @@ export default function ReadingLifeBookScreen() {
     });
   }, [book, currentPageInput, saveBook, totalPagesInput]);
 
-  const getPageFromShuttleLocation = useCallback(
-    (locationX: number) => {
+  const getPageFromShuttlePageX = useCallback(
+    (pageX: number) => {
       if (!totalPageValue || shuttleTrackWidth <= 0) return null;
 
+      const locationX = pageX - shuttlePageXRef.current;
       const progress = Math.min(1, Math.max(0, (locationX - shuttleTrackInset) / shuttleTrackWidth));
       return Math.min(totalPageValue, Math.max(0, Math.round(totalPageValue * progress)));
     },
@@ -256,15 +265,15 @@ export default function ReadingLifeBookScreen() {
   );
 
   const updateDraftPageFromShuttle = useCallback(
-    (locationX: number) => {
-      const nextPage = getPageFromShuttleLocation(locationX);
+    (pageX: number) => {
+      const nextPage = getPageFromShuttlePageX(pageX);
       if (nextPage === null) return null;
 
       setCurrentPageInput(String(nextPage));
       setErrorMessage(null);
       return nextPage;
     },
-    [getPageFromShuttleLocation],
+    [getPageFromShuttlePageX],
   );
 
   const shuttleResponder = useMemo(
@@ -275,18 +284,19 @@ export default function ReadingLifeBookScreen() {
           Math.abs(gestureState.dx) > 4 &&
           Math.abs(gestureState.dx) > Math.abs(gestureState.dy),
         onStartShouldSetPanResponder: () => Boolean(totalPageValue),
-        onPanResponderGrant: (event) => {
-          updateDraftPageFromShuttle(event.nativeEvent.locationX);
+        onPanResponderGrant: (event, gestureState) => {
+          measureShuttle();
+          updateDraftPageFromShuttle(gestureState.x0 || event.nativeEvent.pageX);
         },
-        onPanResponderMove: (event) => {
-          updateDraftPageFromShuttle(event.nativeEvent.locationX);
+        onPanResponderMove: (_event, gestureState) => {
+          updateDraftPageFromShuttle(gestureState.moveX);
         },
-        onPanResponderRelease: (event) => {
-          const nextPage = updateDraftPageFromShuttle(event.nativeEvent.locationX);
+        onPanResponderRelease: (_event, gestureState) => {
+          const nextPage = updateDraftPageFromShuttle(gestureState.moveX);
           if (nextPage !== null) savePageProgress(nextPage);
         },
       }),
-    [savePageProgress, totalPageValue, updateDraftPageFromShuttle],
+    [measureShuttle, savePageProgress, totalPageValue, updateDraftPageFromShuttle],
   );
 
   const saveQuoteNote = async () => {
@@ -476,7 +486,8 @@ export default function ReadingLifeBookScreen() {
               {totalPageValue ? (
                 <View
                   accessibilityLabel="현재 읽은 페이지 조절"
-                  onLayout={(event) => setShuttleWidth(event.nativeEvent.layout.width)}
+                  onLayout={() => requestAnimationFrame(measureShuttle)}
+                  ref={shuttleRef}
                   style={styles.jogShuttleTouch}
                   {...shuttleResponder.panHandlers}
                 >
