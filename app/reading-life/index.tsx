@@ -58,7 +58,11 @@ function parseBookshelfFilter(value?: string): BookshelfFilter | null {
 }
 
 function getReadingStatusForFilter(filter: BookshelfFilter): ReadingBookStatus | null {
-  return filter === 'all' ? null : filter;
+  if (filter === 'reading' || filter === 'want_to_read' || filter === 'paused') {
+    return filter;
+  }
+
+  return null;
 }
 
 function getScanRouteForFilter(filter: BookshelfFilter) {

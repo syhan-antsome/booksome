@@ -41,7 +41,6 @@ import { uploadImageAsset } from '../../src/services/media';
 const statusOptions: Array<{ value: ReadingBookStatus; label: string }> = [
   { value: 'reading', label: '읽는 중' },
   { value: 'want_to_read', label: '읽고 싶음' },
-  { value: 'finished', label: '완독' },
   { value: 'paused', label: '멈춤' },
 ];
 const shuttleGrooves = Array.from({ length: 32 }, (_, index) => index);
@@ -204,15 +203,7 @@ export default function ReadingLifeBookScreen() {
   const changeBookStatus = async (nextStatus: ReadingBookStatus) => {
     if (!book || nextStatus === book.status) return;
 
-    const input: UpdateReadingLifeBookInput = { status: nextStatus };
-
-    if (nextStatus === 'finished' && totalPageValue) {
-      input.currentPage = totalPageValue;
-      input.progressPercent = 100;
-      input.totalPages = totalPageValue;
-    }
-
-    await saveBook(input);
+    await saveBook({ status: nextStatus });
   };
 
   const deleteBook = async () => {

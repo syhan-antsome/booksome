@@ -26,7 +26,6 @@ import { addBookToReadingLife, type ReadingBookStatus } from '../../src/services
 const readingStatusOptions: Array<{ value: ReadingBookStatus; label: string }> = [
   { value: 'reading', label: '읽는 중' },
   { value: 'want_to_read', label: '읽고 싶음' },
-  { value: 'finished', label: '완독' },
   { value: 'paused', label: '멈춤' },
 ];
 
@@ -406,7 +405,7 @@ function parsePositiveInteger(value: string) {
 }
 
 function parseReadingStatus(value?: string): ReadingBookStatus | null {
-  if (value === 'reading' || value === 'want_to_read' || value === 'finished' || value === 'paused') {
+  if (value === 'reading' || value === 'want_to_read' || value === 'paused') {
     return value;
   }
 
