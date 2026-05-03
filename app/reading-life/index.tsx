@@ -123,7 +123,7 @@ export default function ReadingLifeScreen() {
     setShowBookshelfMoreCue((current) => (current === shouldShow ? current : shouldShow));
   }, []);
 
-  const currentBook = books.find((book) => book.pinnedAt) ?? books.find((book) => book.status === 'reading') ?? books[0] ?? null;
+  const currentBook = books.find((book) => book.status === 'reading') ?? books[0] ?? null;
   const filteredBooks = useMemo(() => {
     if (bookshelfFilter === 'all') return books;
     return books.filter((book) => book.status === bookshelfFilter);
@@ -470,7 +470,6 @@ export default function ReadingLifeScreen() {
                           <View
                             style={[
                               styles.shelfCover,
-                              book.pinnedAt ? styles.shelfCoverPinned : null,
                               selectedShelfBook?.id === book.id ? styles.shelfCoverSelected : null,
                             ]}
                           >
@@ -479,11 +478,6 @@ export default function ReadingLifeScreen() {
                             ) : (
                               <Text style={styles.shelfCoverText}>BOOK</Text>
                             )}
-                            {book.pinnedAt ? (
-                              <View style={styles.pinnedFlag}>
-                                <Text style={styles.pinnedFlagText}>지금</Text>
-                              </View>
-                            ) : null}
                           </View>
                           <Text style={styles.shelfTitle} numberOfLines={2}>
                             {book.title}
@@ -580,7 +574,6 @@ function getCurrentBookStatusText(book: ReadingLifeBook) {
 }
 
 function getStatusLabel(book: ReadingLifeBook) {
-  if (book.pinnedAt) return '지금 읽는 책';
   if (book.status === 'reading') return '읽는 중';
   if (book.status === 'want_to_read') return '읽고 싶음';
   if (book.status === 'finished') return '완독';
@@ -1319,10 +1312,6 @@ const styles = StyleSheet.create({
     position: 'relative',
     width: 92,
   },
-  shelfCoverPinned: {
-    borderColor: '#103D2B',
-    borderWidth: 2,
-  },
   shelfCoverSelected: {
     transform: [{ translateY: -5 }],
   },
@@ -1333,20 +1322,6 @@ const styles = StyleSheet.create({
   shelfCoverText: {
     color: '#103D2B',
     fontSize: 12,
-    fontWeight: '900',
-  },
-  pinnedFlag: {
-    backgroundColor: '#103D2B',
-    borderRadius: 999,
-    bottom: 7,
-    left: 7,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    position: 'absolute',
-  },
-  pinnedFlagText: {
-    color: '#F7F1E5',
-    fontSize: 10,
     fontWeight: '900',
   },
   shelfTitle: {

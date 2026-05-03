@@ -388,9 +388,6 @@ function normalizeIsbn(value: string) {
 }
 
 function sortReadingBooksForShelf(a: ReadingLifeBook, b: ReadingLifeBook) {
-  if (a.pinnedAt && !b.pinnedAt) return -1;
-  if (!a.pinnedAt && b.pinnedAt) return 1;
-
   return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
 }
 
