@@ -1,10 +1,11 @@
 import * as ImagePicker from 'expo-image-picker';
 import { router, useLocalSearchParams } from 'expo-router';
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
   Image,
+  PanResponder,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -41,6 +42,9 @@ const statusOptions: Array<{ value: ReadingBookStatus; label: string }> = [
   { value: 'finished', label: '완독' },
   { value: 'paused', label: '잠시 멈춤' },
 ];
+const shuttleGrooves = Array.from({ length: 20 }, (_, index) => index);
+const shuttleTrackInset = 7;
+const shuttleThumbSize = 30;
 
 export default function ReadingLifeBookScreen() {
   const { id, section } = useLocalSearchParams<{ id?: string; section?: string }>();
@@ -59,6 +63,7 @@ export default function ReadingLifeBookScreen() {
   const [pageLabel, setPageLabel] = useState('');
   const [currentPageInput, setCurrentPageInput] = useState('');
   const [totalPagesInput, setTotalPagesInput] = useState('');
+  const [shuttleWidth, setShuttleWidth] = useState(0);
   const [photoBody, setPhotoBody] = useState('');
   const [photoAsset, setPhotoAsset] = useState<ImagePicker.ImagePickerAsset | null>(null);
   const [noteVisibility, setNoteVisibility] = useState<ReadingVisibility>('private');
@@ -124,6 +129,23 @@ export default function ReadingLifeBookScreen() {
   const statusLabel = useMemo(() => {
     return statusOptions.find((option) => option.value === book?.status)?.label ?? '읽는 중';
   }, [book?.status]);
+  const totalPageValue = parsePositiveInteger(totalPagesInput);
+  const currentPageValue = parseNonNegativeInteger(currentPageInput) ?? 0;
+  const displayCurrentPage = totalPageValue ? Math.min(totalPageValue, Math.max(0, currentPageValue)) : book?.currentPage ?? 0;
+  const displayProgressPercent = totalPageValue
+    ? calculateReadingProgressPercent(displayCurrentPage, totalPageValue)
+    : book?.progressPercent ?? 0;
+  const shuttleTrackWidth = Math.max(0, shuttleWidth - shuttleTrackInset * 2);
+  const shuttleThumbOffset =
+    shuttleTrackWidth > 0
+      ? Math.max(
+          0,
+          Math.min(
+            shuttleTrackWidth - shuttleThumbSize,
+            (displayProgressPercent / 100) * shuttleTrackWidth - shuttleThumbSize / 2,
+          ),
+        )
+      : 0;
 
   const saveBook = async (input: UpdateReadingLifeBookInput) => {
     if (!session?.user.id || !bookId) return;
@@ -190,10 +212,11 @@ export default function ReadingLifeBookScreen() {
     }
   };
 
-  const savePageProgress = () => {
+  const savePageProgress = useCallback((nextCurrentPage?: number) => {
     if (!book) return;
 
-    const currentPage = parseNonNegativeInteger(currentPageInput);
+    const currentPage =
+      typeof nextCurrentPage === 'number' ? nextCurrentPage : parseNonNegativeInteger(currentPageInput);
     const totalPages = parsePositiveInteger(totalPagesInput);
 
     if (totalPages === null) {
@@ -220,7 +243,51 @@ export default function ReadingLifeBookScreen() {
       status: nextStatus,
       totalPages,
     });
-  };
+  }, [book, currentPageInput, saveBook, totalPagesInput]);
+
+  const getPageFromShuttleLocation = useCallback(
+    (locationX: number) => {
+      if (!totalPageValue || shuttleTrackWidth <= 0) return null;
+
+      const progress = Math.min(1, Math.max(0, (locationX - shuttleTrackInset) / shuttleTrackWidth));
+      return Math.min(totalPageValue, Math.max(0, Math.round(totalPageValue * progress)));
+    },
+    [shuttleTrackWidth, totalPageValue],
+  );
+
+  const updateDraftPageFromShuttle = useCallback(
+    (locationX: number) => {
+      const nextPage = getPageFromShuttleLocation(locationX);
+      if (nextPage === null) return null;
+
+      setCurrentPageInput(String(nextPage));
+      setErrorMessage(null);
+      return nextPage;
+    },
+    [getPageFromShuttleLocation],
+  );
+
+  const shuttleResponder = useMemo(
+    () =>
+      PanResponder.create({
+        onMoveShouldSetPanResponder: (_event, gestureState) =>
+          Boolean(totalPageValue) &&
+          Math.abs(gestureState.dx) > 4 &&
+          Math.abs(gestureState.dx) > Math.abs(gestureState.dy),
+        onStartShouldSetPanResponder: () => Boolean(totalPageValue),
+        onPanResponderGrant: (event) => {
+          updateDraftPageFromShuttle(event.nativeEvent.locationX);
+        },
+        onPanResponderMove: (event) => {
+          updateDraftPageFromShuttle(event.nativeEvent.locationX);
+        },
+        onPanResponderRelease: (event) => {
+          const nextPage = updateDraftPageFromShuttle(event.nativeEvent.locationX);
+          if (nextPage !== null) savePageProgress(nextPage);
+        },
+      }),
+    [savePageProgress, totalPageValue, updateDraftPageFromShuttle],
+  );
 
   const saveQuoteNote = async () => {
     if (!session?.user.id || !bookId || !book) return;
@@ -397,45 +464,56 @@ export default function ReadingLifeBookScreen() {
                   </Pressable>
                 </View>
                 <View style={styles.heroBottomProgress}>
-                  <Text style={styles.heroBottomValue}>{book.progressPercent}%</Text>
+                  <Text style={styles.heroBottomValue}>{displayProgressPercent}%</Text>
                   <Text style={styles.heroBottomPage}>
-                    {book.totalPages ? `${book.currentPage} / ${book.totalPages}쪽` : '페이지 미설정'}
+                    {totalPageValue ? `${displayCurrentPage} / ${totalPageValue}쪽` : '페이지 미설정'}
                   </Text>
                 </View>
               </View>
             </View>
 
             <View style={styles.progressPanel}>
-              <View style={styles.pageProgressPanel}>
-                <View style={styles.pageField}>
-                  <Text style={styles.pageFieldLabel}>현재</Text>
-                  <TextInput
-                    keyboardType="number-pad"
-                    onChangeText={(value) => setCurrentPageInput(value.replace(/[^0-9]/g, ''))}
-                    placeholder="0"
-                    placeholderTextColor="#A19989"
-                    returnKeyType="done"
-                    style={styles.pageInput}
-                    value={currentPageInput}
-                  />
+              {totalPageValue ? (
+                <View
+                  accessibilityLabel="현재 읽은 페이지 조절"
+                  onLayout={(event) => setShuttleWidth(event.nativeEvent.layout.width)}
+                  style={styles.jogShuttleTouch}
+                  {...shuttleResponder.panHandlers}
+                >
+                  <View style={styles.jogShuttle}>
+                    <View style={styles.jogShuttleRidge}>
+                      {shuttleGrooves.map((groove) => (
+                        <View
+                          key={groove}
+                          style={[
+                            styles.jogShuttleGroove,
+                            groove % 2 === 0 ? styles.jogShuttleGrooveDeep : null,
+                          ]}
+                        />
+                      ))}
+                      <View style={[styles.jogShuttleThumb, { left: shuttleThumbOffset }]} />
+                    </View>
+                  </View>
                 </View>
-                <Text style={styles.pageSlash}>/</Text>
-                <View style={styles.pageField}>
-                  <Text style={styles.pageFieldLabel}>마지막</Text>
-                  <TextInput
-                    keyboardType="number-pad"
-                    onChangeText={(value) => setTotalPagesInput(value.replace(/[^0-9]/g, ''))}
-                    placeholder="312"
-                    placeholderTextColor="#A19989"
-                    returnKeyType="done"
-                    style={styles.pageInput}
-                    value={totalPagesInput}
-                  />
+              ) : (
+                <View style={styles.pageSetupPanel}>
+                  <View style={styles.pageField}>
+                    <Text style={styles.pageFieldLabel}>마지막</Text>
+                    <TextInput
+                      keyboardType="number-pad"
+                      onChangeText={(value) => setTotalPagesInput(value.replace(/[^0-9]/g, ''))}
+                      placeholder="312"
+                      placeholderTextColor="#A19989"
+                      returnKeyType="done"
+                      style={styles.pageInput}
+                      value={totalPagesInput}
+                    />
+                  </View>
+                  <Pressable disabled={isSaving} onPress={() => savePageProgress(0)} style={styles.pageProgressAction}>
+                    {isSaving ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.pageProgressActionText}>설정</Text>}
+                  </Pressable>
                 </View>
-                <Pressable disabled={isSaving} onPress={savePageProgress} style={styles.pageProgressAction}>
-                  {isSaving ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.pageProgressActionText}>저장</Text>}
-                </Pressable>
-              </View>
+              )}
             </View>
 
             <View style={styles.memoPanel}>
@@ -807,8 +885,8 @@ const styles = StyleSheet.create({
   progressPanel: {
     borderBottomColor: 'rgba(16,61,43,0.12)',
     borderBottomWidth: 1,
-    paddingBottom: 16,
-    paddingTop: 18,
+    paddingBottom: 18,
+    paddingTop: 16,
   },
   sectionHeader: {
     alignItems: 'center',
@@ -820,10 +898,59 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: '800',
   },
-  pageProgressPanel: {
+  jogShuttleTouch: {
+    minHeight: 62,
+    justifyContent: 'center',
+  },
+  jogShuttle: {
+    backgroundColor: '#A7A28F',
+    borderColor: '#4C5048',
+    borderRadius: 3,
+    borderWidth: 2,
+    height: 52,
+    justifyContent: 'center',
+    padding: 5,
+    shadowColor: '#14251B',
+    shadowOffset: { width: 0, height: 5 },
+    shadowOpacity: 0.12,
+    shadowRadius: 8,
+  },
+  jogShuttleRidge: {
+    backgroundColor: '#D0CCB9',
+    borderColor: '#5C6057',
+    borderRadius: 2,
+    borderWidth: 1,
+    flexDirection: 'row',
+    height: 36,
+    overflow: 'hidden',
+    position: 'relative',
+  },
+  jogShuttleGroove: {
+    backgroundColor: '#A8A693',
+    borderLeftColor: 'rgba(255,255,255,0.42)',
+    borderLeftWidth: 1,
+    borderRightColor: 'rgba(55,57,50,0.42)',
+    borderRightWidth: 1,
+    flex: 1,
+    marginVertical: 3,
+  },
+  jogShuttleGrooveDeep: {
+    backgroundColor: '#858679',
+  },
+  jogShuttleThumb: {
+    backgroundColor: 'rgba(16,61,43,0.5)',
+    borderColor: 'rgba(247,241,229,0.5)',
+    borderRadius: 3,
+    borderWidth: 1,
+    bottom: 3,
+    position: 'absolute',
+    top: 3,
+    width: shuttleThumbSize,
+  },
+  pageSetupPanel: {
     alignItems: 'flex-end',
     flexDirection: 'row',
-    gap: 10,
+    gap: 12,
   },
   pageField: {
     flex: 1,
@@ -842,12 +969,6 @@ const styles = StyleSheet.create({
     lineHeight: 30,
     paddingBottom: 4,
     paddingTop: 2,
-  },
-  pageSlash: {
-    color: '#B4A98F',
-    fontSize: 21,
-    fontWeight: '800',
-    paddingBottom: 7,
   },
   pageProgressAction: {
     alignItems: 'center',
