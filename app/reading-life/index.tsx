@@ -327,11 +327,14 @@ export default function ReadingLifeScreen() {
                   <Text style={styles.calendarDetailClose}>×</Text>
                 </Pressable>
               </View>
-              {selectedCalendarEvents.map((event) => (
+              {selectedCalendarEvents.map((event, index) => (
                 <Pressable
                   key={`${event.type}-${event.book.id}`}
                   onPress={() => router.push(`/reading-life/${event.book.id}`)}
-                  style={styles.calendarEventItem}
+                  style={[
+                    styles.calendarEventItem,
+                    index === selectedCalendarEvents.length - 1 ? styles.calendarEventItemLast : null,
+                  ]}
                 >
                   <View
                     style={[
@@ -1050,6 +1053,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 12,
     paddingVertical: 12,
+  },
+  calendarEventItemLast: {
+    borderBottomWidth: 0,
   },
   calendarEventMark: {
     borderRadius: 5,
