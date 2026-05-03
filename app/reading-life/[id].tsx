@@ -905,7 +905,11 @@ export default function ReadingLifeBookScreen() {
                       <Image resizeMode="cover" source={{ uri: note.mediaUrl }} style={styles.noteImage} />
                     ) : null}
                     {note.quoteText ? <Text style={styles.noteQuote}>“{note.quoteText}”</Text> : null}
-                    {note.pageLabel ? <Text style={styles.notePage}>{note.pageLabel}</Text> : null}
+                    {note.pageLabel ? (
+                      <View style={styles.notePageBadge}>
+                        <Text style={styles.notePageBadgeText}>{note.pageLabel}쪽</Text>
+                      </View>
+                    ) : null}
                     {note.body ? <Text style={styles.noteBody}>{note.body}</Text> : null}
                   </View>
                 ))}
@@ -1529,11 +1533,18 @@ const styles = StyleSheet.create({
     lineHeight: 27,
     marginTop: 14,
   },
-  notePage: {
-    color: '#8F6A42',
-    fontSize: 12,
+  notePageBadge: {
+    alignSelf: 'flex-start',
+    backgroundColor: 'rgba(216,190,136,0.32)',
+    borderRadius: 999,
+    marginTop: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+  },
+  notePageBadgeText: {
+    color: '#6F5530',
+    fontSize: 11,
     fontWeight: '900',
-    marginTop: 8,
   },
   noteBody: {
     color: '#5B675F',
