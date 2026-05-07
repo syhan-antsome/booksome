@@ -1,7 +1,7 @@
 import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
-import { router } from 'expo-router';
-import { useMemo, useState } from 'react';
+import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -23,6 +23,7 @@ import { ScreenHeader } from '../../src/components/screen-header';
 import { useAuth } from '../../src/providers/auth-provider';
 import { createMarketListing, type MarketListingType } from '../../src/services/market';
 import { uploadImageAsset } from '../../src/services/media';
+import { listReadingLifeBooks, type ReadingLifeBook } from '../../src/services/reading-life';
 
 type DraftLocation = {
   areaLabel: string;
@@ -32,9 +33,21 @@ type DraftLocation = {
 
 export default function NewMarketItemScreen() {
   const { session } = useAuth();
+  const params = useLocalSearchParams<{
+    author?: string;
+    coverUrl?: string;
+    isbn?: string;
+    source?: string;
+    title?: string;
+  }>();
   const [type, setType] = useState<MarketListingType>('offer');
   const [title, setTitle] = useState('');
   const [author, setAuthor] = useState('');
+  const [sourceIsbn, setSourceIsbn] = useState<string | null>(null);
+  const [sourceCoverUrl, setSourceCoverUrl] = useState<string | null>(null);
+  const [selectedReadingBookId, setSelectedReadingBookId] = useState<string | null>(null);
+  const [readingBooks, setReadingBooks] = useState<ReadingLifeBook[]>([]);
+  const [isLoadingReadingBooks, setIsLoadingReadingBooks] = useState(false);
   const [priceInput, setPriceInput] = useState('');
   const [conditionLabel, setConditionLabel] = useState('');
   const [description, setDescription] = useState('');
@@ -44,12 +57,74 @@ export default function NewMarketItemScreen() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const priceValue = useMemo(() => parsePrice(priceInput), [priceInput]);
+  const photoPreviewUri = photoAsset?.uri ?? sourceCoverUrl;
   const canSubmit =
     Boolean(session?.user.id) &&
     Boolean(title.trim()) &&
     Boolean(draftLocation) &&
     (type === 'wanted' || priceValue !== null) &&
     !isSubmitting;
+
+  useEffect(() => {
+    const scannedTitle = getStringParam(params.title);
+    const scannedAuthor = getStringParam(params.author);
+    const scannedIsbn = normalizeIsbn(getStringParam(params.isbn) ?? '');
+    const scannedCoverUrl = getStringParam(params.coverUrl);
+
+    if (!scannedTitle && !scannedAuthor && !scannedIsbn && !scannedCoverUrl) return;
+
+    if (scannedTitle) setTitle(scannedTitle);
+    if (scannedAuthor) setAuthor(scannedAuthor);
+    if (scannedIsbn) setSourceIsbn(scannedIsbn);
+    if (scannedCoverUrl) setSourceCoverUrl(scannedCoverUrl);
+    setPhotoAsset(null);
+    setSelectedReadingBookId(null);
+  }, [params.author, params.coverUrl, params.isbn, params.title]);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (!session?.user.id) {
+        setReadingBooks([]);
+        return undefined;
+      }
+
+      let isMounted = true;
+
+      setIsLoadingReadingBooks(true);
+
+      listReadingLifeBooks(session.user.id)
+        .then((books) => {
+          if (isMounted) setReadingBooks(books);
+        })
+        .catch((error) => {
+          if (isMounted) setErrorMessage(getErrorMessage(error, '내 책장을 불러오지 못했습니다.'));
+        })
+        .finally(() => {
+          if (isMounted) setIsLoadingReadingBooks(false);
+        });
+
+      return () => {
+        isMounted = false;
+      };
+    }, [session?.user.id]),
+  );
+
+  const applyReadingBook = (book: ReadingLifeBook) => {
+    setSelectedReadingBookId(book.id);
+    setTitle(book.title);
+    setAuthor(book.author);
+    setSourceIsbn(book.isbn13);
+    setSourceCoverUrl(book.externalCoverUrl);
+    setPhotoAsset(null);
+    setErrorMessage(null);
+  };
+
+  const scanMarketBook = () => {
+    router.push({
+      pathname: '/scan',
+      params: { context: 'market-listing' },
+    });
+  };
 
   const requestLocation = async () => {
     setIsRequestingLocation(true);
@@ -163,13 +238,14 @@ export default function NewMarketItemScreen() {
         type,
         title,
         author,
+        isbn13: sourceIsbn,
         conditionLabel,
         description,
         price: priceValue,
         areaLabel: draftLocation.areaLabel,
         latitude: draftLocation.latitude,
         longitude: draftLocation.longitude,
-        imageUrl: uploaded?.mediaUrl ?? null,
+        imageUrl: uploaded?.mediaUrl ?? sourceCoverUrl ?? null,
         mediaAssetId: uploaded?.id ?? null,
       });
 
@@ -224,9 +300,62 @@ export default function NewMarketItemScreen() {
                 </Pressable>
               </View>
 
+              <View style={styles.sourceSection}>
+                <View style={styles.sourceHeader}>
+                  <View>
+                    <Text style={styles.sourceKicker}>책 정보</Text>
+                    <Text style={styles.sourceTitle}>내 책장에서 고르거나 ISBN을 스캔하세요</Text>
+                  </View>
+                  <Pressable onPress={scanMarketBook} style={styles.scanButton}>
+                    <Text style={styles.scanButtonText}>스캔</Text>
+                  </Pressable>
+                </View>
+
+                {isLoadingReadingBooks ? (
+                  <View style={styles.sourceLoading}>
+                    <ActivityIndicator color="#103D2B" />
+                    <Text style={styles.sourceLoadingText}>내 책장을 불러오는 중입니다</Text>
+                  </View>
+                ) : null}
+
+                {readingBooks.length > 0 ? (
+                  <ScrollView
+                    contentContainerStyle={styles.shelfPickerContent}
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                  >
+                    {readingBooks.map((book) => (
+                      <Pressable
+                        key={book.id}
+                        onPress={() => applyReadingBook(book)}
+                        style={styles.shelfPickItem}
+                      >
+                        <View
+                          style={[
+                            styles.shelfPickCover,
+                            selectedReadingBookId === book.id ? styles.shelfPickCoverActive : null,
+                          ]}
+                        >
+                          {book.externalCoverUrl ? (
+                            <Image resizeMode="cover" source={{ uri: book.externalCoverUrl }} style={styles.shelfPickImage} />
+                          ) : (
+                            <Text style={styles.shelfPickFallback}>BOOK</Text>
+                          )}
+                        </View>
+                        <Text numberOfLines={2} style={styles.shelfPickTitle}>
+                          {book.title}
+                        </Text>
+                      </Pressable>
+                    ))}
+                  </ScrollView>
+                ) : !isLoadingReadingBooks ? (
+                  <Text style={styles.sourceEmpty}>내 책장에 책이 없으면 ISBN 스캔으로 시작할 수 있습니다.</Text>
+                ) : null}
+              </View>
+
               <Pressable onPress={choosePhoto} style={styles.photoBlock}>
-                {photoAsset ? (
-                  <Image resizeMode="cover" source={{ uri: photoAsset.uri }} style={styles.photoImage} />
+                {photoPreviewUri ? (
+                  <Image resizeMode="cover" source={{ uri: photoPreviewUri }} style={styles.photoImage} />
                 ) : (
                   <View style={styles.photoEmpty}>
                     <Text style={styles.photoMark}>＋</Text>
@@ -234,6 +363,10 @@ export default function NewMarketItemScreen() {
                   </View>
                 )}
               </Pressable>
+
+              {sourceIsbn ? (
+                <Text style={styles.sourceIsbn}>ISBN {sourceIsbn}</Text>
+              ) : null}
 
               <View style={styles.form}>
                 <TextInput
@@ -335,6 +468,15 @@ function parsePrice(value: string) {
   return Number.isSafeInteger(parsedValue) && parsedValue >= 0 ? parsedValue : null;
 }
 
+function getStringParam(value?: string | string[]) {
+  return Array.isArray(value) ? value[0] : value;
+}
+
+function normalizeIsbn(value: string) {
+  const isbn = value.replace(/[^0-9X]/gi, '').toUpperCase();
+  return isbn || null;
+}
+
 function getErrorMessage(error: unknown, fallback: string) {
   if (error instanceof Error && error.message) {
     return error.message;
@@ -387,6 +529,100 @@ const styles = StyleSheet.create({
   modeTextActive: {
     color: '#103D2B',
   },
+  sourceSection: {
+    borderBottomColor: 'rgba(143,106,66,0.16)',
+    borderBottomWidth: 1,
+    paddingBottom: 18,
+    paddingTop: 22,
+  },
+  sourceHeader: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 14,
+    justifyContent: 'space-between',
+  },
+  sourceKicker: {
+    color: '#8F6A42',
+    fontSize: 11,
+    fontWeight: '900',
+  },
+  sourceTitle: {
+    color: '#14251B',
+    fontSize: 16,
+    fontWeight: '900',
+    lineHeight: 22,
+    marginTop: 4,
+    maxWidth: 230,
+  },
+  scanButton: {
+    alignItems: 'center',
+    backgroundColor: '#103D2B',
+    borderRadius: 18,
+    justifyContent: 'center',
+    minHeight: 42,
+    paddingHorizontal: 16,
+  },
+  scanButtonText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '900',
+  },
+  sourceLoading: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 16,
+  },
+  sourceLoadingText: {
+    color: '#526154',
+    fontSize: 13,
+    fontWeight: '800',
+  },
+  shelfPickerContent: {
+    gap: 14,
+    paddingRight: 20,
+    paddingTop: 18,
+  },
+  shelfPickItem: {
+    width: 76,
+  },
+  shelfPickCover: {
+    alignItems: 'center',
+    backgroundColor: '#D8BE88',
+    borderColor: 'transparent',
+    borderRadius: 16,
+    borderWidth: 3,
+    height: 104,
+    justifyContent: 'center',
+    overflow: 'hidden',
+    width: 72,
+  },
+  shelfPickCoverActive: {
+    borderColor: '#103D2B',
+  },
+  shelfPickImage: {
+    height: '100%',
+    width: '100%',
+  },
+  shelfPickFallback: {
+    color: '#103D2B',
+    fontSize: 10,
+    fontWeight: '900',
+  },
+  shelfPickTitle: {
+    color: '#4E5A50',
+    fontSize: 11,
+    fontWeight: '800',
+    lineHeight: 15,
+    marginTop: 8,
+  },
+  sourceEmpty: {
+    color: '#667167',
+    fontSize: 13,
+    fontWeight: '700',
+    lineHeight: 19,
+    marginTop: 16,
+  },
   photoBlock: {
     backgroundColor: '#D8BE88',
     borderRadius: 30,
@@ -413,6 +649,12 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '900',
     marginTop: 4,
+  },
+  sourceIsbn: {
+    color: '#8F6A42',
+    fontSize: 11,
+    fontWeight: '900',
+    marginTop: 10,
   },
   form: {
     marginTop: 18,

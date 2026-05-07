@@ -53,6 +53,7 @@ export default function ScanResultScreen() {
   const rawIsbn = Array.isArray(params.isbn) ? params.isbn[0] : params.isbn;
   const normalizedIsbn = useMemo(() => normalizeIsbn(rawIsbn ?? ''), [rawIsbn]);
   const isRoomContext = params.context === 'create-room';
+  const isMarketContext = params.context === 'market-listing';
   const selectedBook = bookResults[0] ?? null;
   const selectedBookIsbn = useMemo(
     () => normalizeIsbn(selectedBook?.isbn || normalizedIsbn),
@@ -67,7 +68,7 @@ export default function ScanResultScreen() {
     !isCheckingDuplicate &&
     !isAddingToReadingLife &&
     !duplicateBook &&
-    (isRoomContext || totalPagesValue !== null);
+    (isRoomContext || isMarketContext || totalPagesValue !== null);
 
   useEffect(() => {
     let isMounted = true;
@@ -108,7 +109,7 @@ export default function ScanResultScreen() {
   useEffect(() => {
     let isMounted = true;
 
-    if (!session?.user.id || isRoomContext || !selectedBookIsbn) {
+    if (!session?.user.id || isRoomContext || isMarketContext || !selectedBookIsbn) {
       setDuplicateBook(null);
       setIsCheckingDuplicate(false);
       return;
@@ -132,14 +133,15 @@ export default function ScanResultScreen() {
     return () => {
       isMounted = false;
     };
-  }, [isRoomContext, selectedBookIsbn, session?.user.id]);
+  }, [isMarketContext, isRoomContext, selectedBookIsbn, session?.user.id]);
 
   const returnToScanner = () => {
     router.replace({
       pathname: '/scan',
       params: {
         ...(isRoomContext ? { context: 'create-room' } : {}),
-        ...(!isRoomContext ? { status: readingStatus } : {}),
+        ...(isMarketContext ? { context: 'market-listing' } : {}),
+        ...(!isRoomContext && !isMarketContext ? { status: readingStatus } : {}),
       },
     });
   };
@@ -148,7 +150,9 @@ export default function ScanResultScreen() {
     router.replace(
       isRoomContext
         ? '/create-room'
-        : {
+        : isMarketContext
+          ? '/market/new'
+          : {
             pathname: '/reading-life',
             params: { filter: readingStatus },
           },
@@ -162,6 +166,20 @@ export default function ScanResultScreen() {
       router.replace({
         pathname: '/create-room',
         params: { isbn13: selectedBook.isbn || normalizedIsbn },
+      });
+      return;
+    }
+
+    if (isMarketContext) {
+      router.replace({
+        pathname: '/market/new',
+        params: {
+          author: selectedBook.author,
+          coverUrl: selectedBook.imageUrl ?? '',
+          isbn: selectedBook.isbn || normalizedIsbn,
+          source: 'scan',
+          title: selectedBook.title,
+        },
       });
       return;
     }
@@ -290,7 +308,7 @@ export default function ScanResultScreen() {
               </Pressable>
             }
             eyebrow="ISBN Result"
-            subtitle={isRoomContext ? '도서 정보를 확인하고 북룸으로 가져갑니다.' : '도서 정보를 확인하고 마지막 페이지를 입력합니다.'}
+            subtitle={getResultSubtitle(isRoomContext, isMarketContext)}
             title="스캔 결과"
             tone="paper"
           />
@@ -319,11 +337,11 @@ export default function ScanResultScreen() {
               {selectedBook ? (
                 <View style={styles.bookPanel}>
                   <Pressable
-                    disabled={isRoomContext}
+                    disabled={isRoomContext || isMarketContext}
                     onPress={chooseCoverSource}
                     style={({ pressed }) => [
                       styles.coverWrap,
-                      !isRoomContext ? styles.coverWrapEditable : null,
+                      !isRoomContext && !isMarketContext ? styles.coverWrapEditable : null,
                       pressed ? styles.coverWrapPressed : null,
                     ]}
                   >
@@ -332,7 +350,7 @@ export default function ScanResultScreen() {
                     ) : (
                       <Text style={styles.coverFallback}>BOOK</Text>
                     )}
-                    {!isRoomContext ? (
+                    {!isRoomContext && !isMarketContext ? (
                       <View style={styles.coverEditBadge}>
                         <Text style={styles.coverEditBadgeText}>{customCoverAsset ? '변경됨' : '표지 변경'}</Text>
                       </View>
@@ -355,14 +373,14 @@ export default function ScanResultScreen() {
                 </View>
               ) : null}
 
-              {selectedBook && !isRoomContext && isCheckingDuplicate ? (
+              {selectedBook && !isRoomContext && !isMarketContext && isCheckingDuplicate ? (
                 <View style={styles.duplicatePanel}>
                   <ActivityIndicator color="#116653" />
                   <Text style={styles.duplicateText}>내 책장에 이미 있는 책인지 확인하고 있습니다.</Text>
                 </View>
               ) : null}
 
-              {selectedBook && !isRoomContext && duplicateBook ? (
+              {selectedBook && !isRoomContext && !isMarketContext && duplicateBook ? (
                 <View style={styles.duplicatePanel}>
                   <Text style={styles.duplicateTitle}>이미 내 책장에 있는 책입니다</Text>
                   <Text numberOfLines={2} style={styles.duplicateText}>
@@ -377,7 +395,7 @@ export default function ScanResultScreen() {
                 </View>
               ) : null}
 
-              {selectedBook && !isRoomContext && !isCheckingDuplicate && !duplicateBook ? (
+              {selectedBook && !isRoomContext && !isMarketContext && !isCheckingDuplicate && !duplicateBook ? (
                 <View style={styles.statusPanel}>
                   <Text style={styles.statusLabel}>내 책장 위치</Text>
                   <View style={styles.statusOptions}>
@@ -404,7 +422,7 @@ export default function ScanResultScreen() {
                 </View>
               ) : null}
 
-              {selectedBook && !isRoomContext && !isCheckingDuplicate && !duplicateBook ? (
+              {selectedBook && !isRoomContext && !isMarketContext && !isCheckingDuplicate && !duplicateBook ? (
                 <View style={styles.pagePanel}>
                   <Text style={styles.pageLabel}>마지막 페이지</Text>
                   <TextInput
@@ -440,14 +458,16 @@ export default function ScanResultScreen() {
                     <ActivityIndicator color="#FFFFFF" />
                   ) : (
                     <Text style={styles.primaryButtonText}>
-                      {isRoomContext ? '북룸 책으로 사용' : '내 책장에 등록'}
+                      {isRoomContext ? '북룸 책으로 사용' : isMarketContext ? '책가게에 사용' : '내 책장에 등록'}
                     </Text>
                   )}
                 </Pressable>
               </View>
 
               <Pressable onPress={cancelRegistration} style={styles.cancelButton}>
-                <Text style={styles.cancelButtonText}>{isRoomContext ? '북룸 책 설정 취소' : '등록 취소'}</Text>
+                <Text style={styles.cancelButtonText}>
+                  {isRoomContext ? '북룸 책 설정 취소' : isMarketContext ? '책가게 등록 취소' : '등록 취소'}
+                </Text>
               </Pressable>
             </>
           ) : null}
@@ -475,6 +495,12 @@ function parseReadingStatus(value?: string): ReadingBookStatus | null {
   }
 
   return null;
+}
+
+function getResultSubtitle(isRoomContext: boolean, isMarketContext: boolean) {
+  if (isRoomContext) return '도서 정보를 확인하고 북룸으로 가져갑니다.';
+  if (isMarketContext) return '도서 정보를 확인하고 책가게 등록에 사용합니다.';
+  return '도서 정보를 확인하고 마지막 페이지를 입력합니다.';
 }
 
 function getErrorMessage(error: unknown, fallback: string) {

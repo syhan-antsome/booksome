@@ -18,6 +18,7 @@ export default function ScanScreen() {
   const [isMovingToResult, setIsMovingToResult] = useState(false);
   const isGranted = permission?.granted;
   const isRoomContext = params.context === 'create-room';
+  const isMarketContext = params.context === 'market-listing';
   const readingStatus = parseReadingStatus(Array.isArray(params.status) ? params.status[0] : params.status);
 
   const handleBarcodeScanned = (result: BarcodeScanningResult) => {
@@ -32,7 +33,8 @@ export default function ScanScreen() {
         params: {
           isbn,
           ...(isRoomContext ? { context: 'create-room' } : {}),
-          ...(!isRoomContext && readingStatus ? { status: readingStatus } : {}),
+          ...(isMarketContext ? { context: 'market-listing' } : {}),
+          ...(!isRoomContext && !isMarketContext && readingStatus ? { status: readingStatus } : {}),
         },
       });
       return;
@@ -52,7 +54,7 @@ export default function ScanScreen() {
       <View style={styles.content}>
         <ScreenHeader
           eyebrow="ISBN Scanner"
-          subtitle={isRoomContext ? '바코드로 북룸의 책을 설정합니다.' : '스캔한 책을 나의 독서생활에 담습니다.'}
+          subtitle={getScanSubtitle(isRoomContext, isMarketContext)}
           title="책 스캔"
           tone="ink"
         />
@@ -116,6 +118,8 @@ export default function ScanScreen() {
             <Text style={styles.tipCopy}>
               {isRoomContext
                 ? '스캔된 ISBN은 북룸 생성 화면의 책 정보에 임시로 적용됩니다.'
+                : isMarketContext
+                  ? '스캔된 책 정보는 책가게 등록 화면에 자동으로 채워집니다.'
                 : '스캔된 책은 나의 독서생활에 저장되고, 이후 진행률과 메모를 이어서 붙일 수 있습니다.'}
             </Text>
           </View>
@@ -135,6 +139,12 @@ function parseReadingStatus(value?: string): ReadingBookStatus | null {
   }
 
   return null;
+}
+
+function getScanSubtitle(isRoomContext: boolean, isMarketContext: boolean) {
+  if (isRoomContext) return '바코드로 북룸의 책을 설정합니다.';
+  if (isMarketContext) return '바코드로 책가게 등록 정보를 채웁니다.';
+  return '스캔한 책을 나의 독서생활에 담습니다.';
 }
 
 const styles = StyleSheet.create({
