@@ -36,6 +36,7 @@ export function NaverMapPicker({ initialArea, visible, onClose, onSelect }: Nave
 
     return `${naverMapsBaseUrl}/naver-map-picker.html?${params.toString()}`;
   }, [initialArea]);
+  const serviceUrlHint = useMemo(() => getNaverServiceUrlHint(naverMapsBaseUrl), []);
 
   const handleMessage = (event: WebViewMessageEvent) => {
     try {
@@ -72,25 +73,35 @@ export function NaverMapPicker({ initialArea, visible, onClose, onSelect }: Nave
         </View>
 
         {naverMapsClientId ? (
-          <WebView
-            javaScriptEnabled
-            onMessage={handleMessage}
-            originWhitelist={['*']}
-            renderLoading={() => (
-              <View style={styles.loading}>
-                <ActivityIndicator color="#103D2B" />
-                <Text style={styles.loadingText}>지도를 여는 중입니다</Text>
-              </View>
-            )}
-            onError={(event) => {
-              setMapError('지도 페이지를 불러오지 못했습니다.');
-              console.warn('[NaverMapPicker] WebView load error', event.nativeEvent);
-            }}
-            onLoadStart={() => setMapError(null)}
-            source={{ uri: mapUri }}
-            startInLoadingState
-            style={styles.webView}
-          />
+          <>
+            <View style={styles.debugPanel}>
+              <Text numberOfLines={1} style={styles.debugText}>WebView {mapUri}</Text>
+              <Text numberOfLines={1} style={styles.debugText}>Naver Console {serviceUrlHint}</Text>
+            </View>
+            <WebView
+              javaScriptEnabled
+              onHttpError={(event) => {
+                setMapError(`지도 페이지 HTTP 오류: ${event.nativeEvent.statusCode}`);
+                console.warn('[NaverMapPicker] WebView HTTP error', event.nativeEvent);
+              }}
+              onMessage={handleMessage}
+              originWhitelist={['*']}
+              renderLoading={() => (
+                <View style={styles.loading}>
+                  <ActivityIndicator color="#103D2B" />
+                  <Text style={styles.loadingText}>지도를 여는 중입니다</Text>
+                </View>
+              )}
+              onError={(event) => {
+                setMapError('지도 페이지를 불러오지 못했습니다.');
+                console.warn('[NaverMapPicker] WebView load error', event.nativeEvent);
+              }}
+              onLoadStart={() => setMapError(null)}
+              source={{ uri: mapUri }}
+              startInLoadingState
+              style={styles.webView}
+            />
+          </>
         ) : (
           <View style={styles.missingKeyPanel}>
             <Text style={styles.missingTitle}>네이버 지도 키가 필요합니다</Text>
@@ -134,6 +145,17 @@ function getExpoHostUri() {
   );
 }
 
+function getNaverServiceUrlHint(baseUrl: string | null) {
+  if (!baseUrl) return '';
+
+  try {
+    const url = new URL(baseUrl);
+    return `${url.protocol}//${url.hostname}`;
+  } catch {
+    return baseUrl.replace(/:\d+$/, '');
+  }
+}
+
 const styles = StyleSheet.create({
   safeArea: {
     backgroundColor: '#F6EEE1',
@@ -174,6 +196,19 @@ const styles = StyleSheet.create({
   webView: {
     backgroundColor: '#F6EEE1',
     flex: 1,
+  },
+  debugPanel: {
+    backgroundColor: 'rgba(16,61,43,0.08)',
+    borderTopColor: 'rgba(16,61,43,0.1)',
+    borderTopWidth: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+  },
+  debugText: {
+    color: '#526154',
+    fontSize: 10,
+    fontWeight: '800',
+    lineHeight: 14,
   },
   errorToast: {
     backgroundColor: '#A43D20',
