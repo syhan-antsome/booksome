@@ -267,11 +267,13 @@ export default function MarketScreen() {
                     )}
                   </View>
                   <View style={styles.itemCopy}>
-                    <Text style={styles.itemArea}>{item.areaLabel}</Text>
                     <Text style={styles.itemTitle} numberOfLines={1}>
                       {item.title}
                     </Text>
                     <Text style={styles.itemPrice}>{formatListingPrice(item)}</Text>
+                    <Text numberOfLines={1} style={styles.itemArea}>
+                      거래 지역 · {item.areaLabel}
+                    </Text>
                   </View>
                   <Text style={styles.itemArrow}>›</Text>
                 </Pressable>
@@ -577,15 +579,15 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   itemArea: {
-    color: '#8F6A42',
-    fontSize: 12,
-    fontWeight: '900',
+    color: '#667167',
+    fontSize: 13,
+    fontWeight: '800',
+    marginTop: 7,
   },
   itemTitle: {
     color: '#14251B',
     fontSize: 17,
     fontWeight: '900',
-    marginTop: 5,
   },
   itemPrice: {
     color: '#103D2B',

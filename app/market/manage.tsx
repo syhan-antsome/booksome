@@ -212,7 +212,10 @@ export default function MarketManageScreen() {
                           {listing.title}
                         </Text>
                         <Text numberOfLines={1} style={styles.rowMeta}>
-                          {formatListingPrice(listing)} · {listing.areaLabel}
+                          {formatListingPrice(listing)}
+                        </Text>
+                        <Text numberOfLines={1} style={styles.rowLocation}>
+                          거래 지역 · {listing.areaLabel}
                         </Text>
                       </View>
                     </Pressable>
@@ -433,6 +436,12 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '700',
     marginTop: 6,
+  },
+  rowLocation: {
+    color: '#8F6A42',
+    fontSize: 12,
+    fontWeight: '900',
+    marginTop: 5,
   },
   rowTime: {
     color: '#8F6A42',

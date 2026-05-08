@@ -117,10 +117,13 @@ export default function MarketDetailScreen() {
             </View>
 
             <View style={styles.titleBlock}>
-              <Text style={styles.areaText}>{listing.areaLabel}</Text>
               <Text style={styles.title}>{listing.title}</Text>
               {listing.author ? <Text style={styles.author}>{listing.author}</Text> : null}
               <Text style={styles.price}>{formatListingPrice(listing)}</Text>
+              <View style={styles.locationBlock}>
+                <Text style={styles.locationLabel}>거래 지역</Text>
+                <Text style={styles.locationValue}>{listing.areaLabel}</Text>
+              </View>
             </View>
 
             <View style={styles.metaLine}>
@@ -252,11 +255,6 @@ const styles = StyleSheet.create({
     paddingBottom: 20,
     paddingTop: 22,
   },
-  areaText: {
-    color: '#8F6A42',
-    fontSize: 12,
-    fontWeight: '900',
-  },
   title: {
     color: '#14251B',
     fontSize: 28,
@@ -275,6 +273,24 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: '900',
     marginTop: 14,
+  },
+  locationBlock: {
+    borderTopColor: 'rgba(143,106,66,0.16)',
+    borderTopWidth: 1,
+    marginTop: 20,
+    paddingTop: 14,
+  },
+  locationLabel: {
+    color: '#8F6A42',
+    fontSize: 11,
+    fontWeight: '900',
+  },
+  locationValue: {
+    color: '#103D2B',
+    fontSize: 17,
+    fontWeight: '900',
+    lineHeight: 23,
+    marginTop: 5,
   },
   metaLine: {
     flexDirection: 'row',
