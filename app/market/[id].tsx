@@ -13,6 +13,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AuthRequired } from '../../src/components/auth-required';
 import { BottomNavigation } from '../../src/components/bottom-navigation';
+import { NaverMapPreview } from '../../src/components/naver-map-preview';
 import { ScreenHeader } from '../../src/components/screen-header';
 import { useAuth } from '../../src/providers/auth-provider';
 import {
@@ -123,6 +124,8 @@ export default function MarketDetailScreen() {
               <View style={styles.locationBlock}>
                 <Text style={styles.locationLabel}>거래 지역</Text>
                 <Text style={styles.locationValue}>{listing.areaLabel}</Text>
+                <NaverMapPreview areaLabel={listing.areaLabel} />
+                <Text style={styles.locationHint}>좌표는 저장하지 않고, 거래 지역 텍스트로 대략 위치만 보여줍니다.</Text>
               </View>
             </View>
 
@@ -291,6 +294,13 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     lineHeight: 23,
     marginTop: 5,
+  },
+  locationHint: {
+    color: '#667167',
+    fontSize: 12,
+    fontWeight: '700',
+    lineHeight: 18,
+    marginTop: 10,
   },
   metaLine: {
     flexDirection: 'row',

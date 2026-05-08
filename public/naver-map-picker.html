@@ -215,27 +215,52 @@
         .join(" ");
     }
 
-    function updateSelectedArea() {
+    function labelFromReverseGeocodeResponse(response) {
+      var results = response && response.v2 && response.v2.results ? response.v2.results : [];
+      var regionLabel = regionNameFromResult(results[0]);
+      var address = response && response.v2 && response.v2.address ? response.v2.address : {};
+      var addressText = address.roadAddress || address.jibunAddress || "";
+
+      return {
+        area: addressText || regionLabel || "선택한 지역",
+        detail: addressText && regionLabel ? regionLabel : addressText
+      };
+    }
+
+    function reverseGeocodeCenter(onComplete) {
       if (!map || !window.naver || !naver.maps) return;
 
       lastCenter = map.getCenter();
 
       if (!naver.maps.Service || !naver.maps.Service.reverseGeocode) {
-        setArea(formatFallbackArea(), "지역명 확인 없이 지도 중심을 선택합니다.");
+        onComplete(formatFallbackArea(), "지역명 확인 없이 지도 중심을 선택합니다.");
         return;
       }
 
       naver.maps.Service.reverseGeocode({ location: lastCenter }, function(status, response) {
         if (status !== naver.maps.Service.Status.OK || !response || !response.v2) {
-          setArea(formatFallbackArea(), "지역명을 확인하지 못했습니다. 지도 중심을 선택할 수 있습니다.");
+          onComplete(formatFallbackArea(), "지역명을 확인하지 못했습니다. 지도 중심을 선택할 수 있습니다.");
           return;
         }
 
-        var results = response.v2.results || [];
-        var regionLabel = regionNameFromResult(results[0]);
-        var address = response.v2.address || {};
-        var addressText = address.roadAddress || address.jibunAddress || "";
-        setArea(regionLabel || addressText || "선택한 지역", addressText);
+        var label = labelFromReverseGeocodeResponse(response);
+        onComplete(label.area, label.detail);
+      });
+    }
+
+    function updateSelectedArea() {
+      if (!map || !window.naver || !naver.maps) return;
+
+      reverseGeocodeCenter(setArea);
+    }
+
+    function selectCurrentArea() {
+      reverseGeocodeCenter(function(area, detail) {
+        setArea(area, detail);
+        postMessageToApp({
+          type: "select",
+          areaLabel: area || detail || formatFallbackArea()
+        });
       });
     }
 
@@ -285,11 +310,7 @@
         if (event.key === "Enter") searchAddress();
       });
       document.getElementById("selectButton").addEventListener("click", function() {
-        if (!selectedArea) updateSelectedArea();
-        postMessageToApp({
-          type: "select",
-          areaLabel: selectedArea || selectedAddress || formatFallbackArea()
-        });
+        selectCurrentArea();
       });
 
       setTimeout(function() {
