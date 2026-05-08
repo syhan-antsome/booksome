@@ -1,5 +1,4 @@
 import * as ImagePicker from 'expo-image-picker';
-import * as Location from 'expo-location';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
@@ -25,12 +24,6 @@ import { createMarketListing, type MarketListingType } from '../../src/services/
 import { uploadImageAsset } from '../../src/services/media';
 import { listReadingLifeBooks, type ReadingLifeBook } from '../../src/services/reading-life';
 
-type DraftLocation = {
-  areaLabel: string;
-  latitude: number;
-  longitude: number;
-};
-
 export default function NewMarketItemScreen() {
   const { session } = useAuth();
   const params = useLocalSearchParams<{
@@ -51,8 +44,7 @@ export default function NewMarketItemScreen() {
   const [priceInput, setPriceInput] = useState('');
   const [conditionLabel, setConditionLabel] = useState('');
   const [description, setDescription] = useState('');
-  const [draftLocation, setDraftLocation] = useState<DraftLocation | null>(null);
-  const [isRequestingLocation, setIsRequestingLocation] = useState(false);
+  const [areaLabel, setAreaLabel] = useState('');
   const [photoAsset, setPhotoAsset] = useState<ImagePicker.ImagePickerAsset | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -61,7 +53,7 @@ export default function NewMarketItemScreen() {
   const canSubmit =
     Boolean(session?.user.id) &&
     Boolean(title.trim()) &&
-    Boolean(draftLocation) &&
+    Boolean(areaLabel.trim()) &&
     (type === 'wanted' || priceValue !== null) &&
     !isSubmitting;
 
@@ -126,35 +118,6 @@ export default function NewMarketItemScreen() {
     });
   };
 
-  const requestLocation = async () => {
-    setIsRequestingLocation(true);
-    setErrorMessage(null);
-
-    try {
-      const permission = await Location.requestForegroundPermissionsAsync();
-
-      if (!permission.granted) {
-        setErrorMessage('책가게 등록에는 거래 가능한 동네 위치가 필요합니다.');
-        return;
-      }
-
-      const position = await Location.getCurrentPositionAsync({
-        accuracy: Location.Accuracy.Balanced,
-      });
-      const areaLabel = await resolveAreaLabel(position.coords.latitude, position.coords.longitude);
-
-      setDraftLocation({
-        areaLabel,
-        latitude: position.coords.latitude,
-        longitude: position.coords.longitude,
-      });
-    } catch (error) {
-      setErrorMessage(getErrorMessage(error, '현재 위치를 확인하지 못했습니다.'));
-    } finally {
-      setIsRequestingLocation(false);
-    }
-  };
-
   const choosePhoto = () => {
     Alert.alert('책 사진', '책 상태가 보이는 사진을 등록해주세요.', [
       { text: '앨범에서 선택', onPress: pickPhotoFromLibrary },
@@ -204,10 +167,17 @@ export default function NewMarketItemScreen() {
   };
 
   const submit = async () => {
-    if (!session?.user.id || !draftLocation) return;
+    if (!session?.user.id) return;
 
     if (!title.trim()) {
       setErrorMessage('책 제목을 입력해주세요.');
+      return;
+    }
+
+    const cleanAreaLabel = areaLabel.trim();
+
+    if (!cleanAreaLabel) {
+      setErrorMessage('거래할 지역이나 만날 장소를 입력해주세요.');
       return;
     }
 
@@ -242,9 +212,7 @@ export default function NewMarketItemScreen() {
         conditionLabel,
         description,
         price: priceValue,
-        areaLabel: draftLocation.areaLabel,
-        latitude: draftLocation.latitude,
-        longitude: draftLocation.longitude,
+        areaLabel: cleanAreaLabel,
         imageUrl: uploaded?.mediaUrl ?? sourceCoverUrl ?? null,
         mediaAssetId: uploaded?.id ?? null,
       });
@@ -414,19 +382,19 @@ export default function NewMarketItemScreen() {
 
               <View style={styles.locationPanel}>
                 <View style={styles.locationCopy}>
-                  <Text style={styles.locationLabel}>거래 동네</Text>
-                  <Text style={styles.locationTitle}>{draftLocation?.areaLabel ?? '위치 확인 필요'}</Text>
+                  <Text style={styles.locationLabel}>거래 지역</Text>
+                  <TextInput
+                    onChangeText={setAreaLabel}
+                    placeholder="예: 연남동, 마포구청역, 판교역 근처"
+                    placeholderTextColor="#8D8A78"
+                    returnKeyType="done"
+                    style={styles.locationInput}
+                    value={areaLabel}
+                  />
+                  <Text style={styles.locationHint}>정확한 주소나 좌표는 저장하지 않아도 됩니다.</Text>
                 </View>
-                <Pressable
-                  disabled={isRequestingLocation}
-                  onPress={requestLocation}
-                  style={styles.locationButton}
-                >
-                  {isRequestingLocation ? (
-                    <ActivityIndicator color="#FFFFFF" />
-                  ) : (
-                    <Text style={styles.locationButtonText}>위치</Text>
-                  )}
+                <Pressable onPress={() => Alert.alert('지도에서 고르기', '네이버 지도 연동 후 이곳에서 지역을 고를 수 있게 만들 예정입니다.')} style={styles.locationButton}>
+                  <Text style={styles.locationButtonText}>지도</Text>
                 </Pressable>
               </View>
 
@@ -450,16 +418,6 @@ export default function NewMarketItemScreen() {
       <BottomNavigation active="market" />
     </SafeAreaView>
   );
-}
-
-async function resolveAreaLabel(latitude: number, longitude: number) {
-  try {
-    const [place] = await Location.reverseGeocodeAsync({ latitude, longitude });
-    const parts = [place?.city, place?.district, place?.subregion].filter(Boolean);
-    return parts.slice(0, 2).join(' ') || '내 주변';
-  } catch {
-    return '내 주변';
-  }
 }
 
 function parsePrice(value: string) {
@@ -695,6 +653,21 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '900',
     marginTop: 5,
+  },
+  locationInput: {
+    color: '#103D2B',
+    fontSize: 17,
+    fontWeight: '900',
+    marginTop: 3,
+    minHeight: 38,
+    paddingVertical: 0,
+  },
+  locationHint: {
+    color: '#667167',
+    fontSize: 12,
+    fontWeight: '700',
+    lineHeight: 18,
+    marginTop: 4,
   },
   locationButton: {
     alignItems: 'center',

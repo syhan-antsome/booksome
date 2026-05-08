@@ -24,8 +24,6 @@ create table if not exists public.market_listings (
   condition_label text,
   price integer,
   area_label text not null,
-  latitude double precision,
-  longitude double precision,
   image_url text,
   media_asset_id uuid references public.media_assets(id) on delete set null,
   status public.market_listing_status not null default 'available',
@@ -61,9 +59,6 @@ on public.market_listings(status, created_at desc);
 
 create index if not exists market_listings_seller_id_created_at_idx
 on public.market_listings(seller_id, created_at desc);
-
-create index if not exists market_listings_location_idx
-on public.market_listings(latitude, longitude);
 
 create index if not exists market_threads_participants_idx
 on public.market_threads(buyer_id, seller_id, updated_at desc);

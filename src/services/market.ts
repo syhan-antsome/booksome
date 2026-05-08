@@ -15,8 +15,6 @@ export type MarketListing = {
   conditionLabel: string | null;
   price: number | null;
   areaLabel: string;
-  latitude: number | null;
-  longitude: number | null;
   imageUrl: string | null;
   mediaAssetId: string | null;
   status: MarketListingStatus;
@@ -41,6 +39,12 @@ export type MarketMessage = {
   createdAt: string;
 };
 
+export type MarketThreadSummary = {
+  thread: MarketThread;
+  listing: MarketListing | null;
+  latestMessage: MarketMessage | null;
+};
+
 export type CreateMarketListingInput = {
   sellerId: string;
   type: MarketListingType;
@@ -51,8 +55,6 @@ export type CreateMarketListingInput = {
   conditionLabel?: string | null;
   price?: number | null;
   areaLabel: string;
-  latitude?: number | null;
-  longitude?: number | null;
   imageUrl?: string | null;
   mediaAssetId?: string | null;
 };
@@ -68,8 +70,6 @@ type MarketListingRow = {
   condition_label: string | null;
   price: number | null;
   area_label: string;
-  latitude: number | null;
-  longitude: number | null;
   image_url: string | null;
   media_asset_id: string | null;
   status: MarketListingStatus;
@@ -95,7 +95,7 @@ type MarketMessageRow = {
 };
 
 const marketListingSelect =
-  'id, seller_id, type, title, author, isbn13, description, condition_label, price, area_label, latitude, longitude, image_url, media_asset_id, status, created_at, updated_at';
+  'id, seller_id, type, title, author, isbn13, description, condition_label, price, area_label, image_url, media_asset_id, status, created_at, updated_at';
 const marketThreadSelect = 'id, listing_id, buyer_id, seller_id, created_at, updated_at';
 const marketMessageSelect = 'id, thread_id, sender_id, body, created_at';
 
@@ -124,6 +124,21 @@ export async function listMarketListings(filter: MarketListingFilter = 'all') {
   return (data ?? []).map(mapMarketListing);
 }
 
+export async function listMyMarketListings(profileId: string) {
+  const { data, error } = await supabase
+    .from('market_listings')
+    .select(marketListingSelect)
+    .eq('seller_id', profileId)
+    .order('updated_at', { ascending: false })
+    .returns<MarketListingRow[]>();
+
+  if (error) {
+    throw error;
+  }
+
+  return (data ?? []).map(mapMarketListing);
+}
+
 export async function getMarketListing(listingId: string) {
   const { data, error } = await supabase
     .from('market_listings')
@@ -138,6 +153,29 @@ export async function getMarketListing(listingId: string) {
   return data ? mapMarketListing(data) : null;
 }
 
+export async function updateMarketListingStatus(
+  profileId: string,
+  listingId: string,
+  status: MarketListingStatus,
+) {
+  const { data, error } = await supabase
+    .from('market_listings')
+    .update({
+      status,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', listingId)
+    .eq('seller_id', profileId)
+    .select(marketListingSelect)
+    .single<MarketListingRow>();
+
+  if (error) {
+    throw error;
+  }
+
+  return mapMarketListing(data);
+}
+
 export async function createMarketListing(input: CreateMarketListingInput) {
   const payload = {
     seller_id: input.sellerId,
@@ -149,8 +187,6 @@ export async function createMarketListing(input: CreateMarketListingInput) {
     condition_label: input.conditionLabel?.trim() || null,
     price: input.type === 'offer' ? Math.max(0, Math.round(input.price ?? 0)) : null,
     area_label: input.areaLabel.trim(),
-    latitude: input.latitude ?? null,
-    longitude: input.longitude ?? null,
     image_url: input.imageUrl ?? null,
     media_asset_id: input.mediaAssetId ?? null,
   };
@@ -216,6 +252,35 @@ export async function getMarketThread(profileId: string, threadId: string) {
   return data ? mapMarketThread(data) : null;
 }
 
+export async function listMarketThreadSummaries(profileId: string): Promise<MarketThreadSummary[]> {
+  const { data, error } = await supabase
+    .from('market_threads')
+    .select(marketThreadSelect)
+    .or(`buyer_id.eq.${profileId},seller_id.eq.${profileId}`)
+    .order('updated_at', { ascending: false })
+    .returns<MarketThreadRow[]>();
+
+  if (error) {
+    throw error;
+  }
+
+  const threads = (data ?? []).map(mapMarketThread);
+  const listingIds = unique(threads.map((thread) => thread.listingId));
+  const threadIds = unique(threads.map((thread) => thread.id));
+  const [listings, latestMessages] = await Promise.all([
+    getListingsByIds(listingIds),
+    getLatestMessagesByThreadIds(threadIds),
+  ]);
+  const listingsById = new Map(listings.map((listing) => [listing.id, listing]));
+  const messagesByThreadId = new Map(latestMessages.map((message) => [message.threadId, message]));
+
+  return threads.map((thread) => ({
+    thread,
+    listing: listingsById.get(thread.listingId) ?? null,
+    latestMessage: messagesByThreadId.get(thread.id) ?? null,
+  }));
+}
+
 export async function listMarketMessages(threadId: string) {
   const { data, error } = await supabase
     .from('market_messages')
@@ -275,6 +340,48 @@ async function getMarketThreadForListing(profileId: string, listingId: string) {
   return data ? mapMarketThread(data) : null;
 }
 
+async function getListingsByIds(listingIds: string[]) {
+  if (listingIds.length === 0) return [];
+
+  const { data, error } = await supabase
+    .from('market_listings')
+    .select(marketListingSelect)
+    .in('id', listingIds)
+    .returns<MarketListingRow[]>();
+
+  if (error) {
+    throw error;
+  }
+
+  return (data ?? []).map(mapMarketListing);
+}
+
+async function getLatestMessagesByThreadIds(threadIds: string[]) {
+  if (threadIds.length === 0) return [];
+
+  const { data, error } = await supabase
+    .from('market_messages')
+    .select(marketMessageSelect)
+    .in('thread_id', threadIds)
+    .order('created_at', { ascending: false })
+    .returns<MarketMessageRow[]>();
+
+  if (error) {
+    throw error;
+  }
+
+  const latestMessages = new Map<string, MarketMessage>();
+
+  for (const row of data ?? []) {
+    const message = mapMarketMessage(row);
+    if (!latestMessages.has(message.threadId)) {
+      latestMessages.set(message.threadId, message);
+    }
+  }
+
+  return Array.from(latestMessages.values());
+}
+
 function mapMarketListing(row: MarketListingRow): MarketListing {
   return {
     id: row.id,
@@ -287,8 +394,6 @@ function mapMarketListing(row: MarketListingRow): MarketListing {
     conditionLabel: row.condition_label,
     price: row.price,
     areaLabel: row.area_label,
-    latitude: row.latitude,
-    longitude: row.longitude,
     imageUrl: row.image_url,
     mediaAssetId: row.media_asset_id,
     status: row.status,
@@ -325,4 +430,8 @@ function normalizeIsbn(value: string) {
 
 function isUniqueViolation(error: unknown) {
   return typeof error === 'object' && error !== null && 'code' in error && error.code === '23505';
+}
+
+function unique(values: string[]) {
+  return Array.from(new Set(values));
 }

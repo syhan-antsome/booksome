@@ -1,7 +1,7 @@
-import * as Location from 'expo-location';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router, useFocusEffect } from 'expo-router';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Image,
@@ -9,6 +9,7 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   View,
   useWindowDimensions,
   type ImageSourcePropType,
@@ -25,12 +26,6 @@ import {
   type MarketListingFilter,
 } from '../../src/services/market';
 
-type MarketLocation = {
-  latitude: number;
-  longitude: number;
-  areaLabel: string;
-};
-
 const marketFilters: Array<{ label: string; value: MarketListingFilter }> = [
   { label: '전체', value: 'all' },
   { label: '판매', value: 'sale' },
@@ -38,6 +33,7 @@ const marketFilters: Array<{ label: string; value: MarketListingFilter }> = [
   { label: '찾아요', value: 'wanted' },
 ];
 
+const activityAreaStorageKey = 'booksome.market.activityArea';
 const bookstoreSignboardSource: ImageSourcePropType =
   typeof bookstoreSignboardImage === 'string' ? { uri: bookstoreSignboardImage } : bookstoreSignboardImage;
 const bookstoreSignboardRatio = 803 / 1400;
@@ -46,13 +42,28 @@ export default function MarketScreen() {
   const { session } = useAuth();
   const { width } = useWindowDimensions();
   const [filter, setFilter] = useState<MarketListingFilter>('all');
-  const [marketLocation, setMarketLocation] = useState<MarketLocation | null>(null);
-  const [isRequestingLocation, setIsRequestingLocation] = useState(false);
-  const [locationError, setLocationError] = useState<string | null>(null);
+  const [activityArea, setActivityArea] = useState('');
+  const [activityAreaInput, setActivityAreaInput] = useState('');
   const [listings, setListings] = useState<MarketListing[]>([]);
   const [isLoadingListings, setIsLoadingListings] = useState(false);
   const [listingError, setListingError] = useState<string | null>(null);
   const bookstoreHeroHeight = Math.round(width * bookstoreSignboardRatio);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    AsyncStorage.getItem(activityAreaStorageKey)
+      .then((savedArea) => {
+        if (!isMounted || !savedArea) return;
+        setActivityArea(savedArea);
+        setActivityAreaInput(savedArea);
+      })
+      .catch(() => undefined);
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   useFocusEffect(
     useCallback(() => {
@@ -83,41 +94,36 @@ export default function MarketScreen() {
     }, [filter, session?.user.id]),
   );
 
-  const sortedListings = useMemo(() => {
-    if (!marketLocation) return listings;
+  const visibleListings = useMemo(() => {
+    const areaTokens = activityArea
+      .trim()
+      .toLowerCase()
+      .split(/\s+/)
+      .filter(Boolean);
 
-    return [...listings].sort((left, right) => {
-      return getDistanceKm(marketLocation, left) - getDistanceKm(marketLocation, right);
+    if (areaTokens.length === 0) return listings;
+
+    return listings.filter((item) => {
+      const area = item.areaLabel.toLowerCase();
+      return areaTokens.every((token) => area.includes(token));
     });
-  }, [listings, marketLocation]);
+  }, [activityArea, listings]);
 
-  const requestMarketLocation = async () => {
-    setIsRequestingLocation(true);
-    setLocationError(null);
+  const applyActivityArea = () => {
+    const nextArea = activityAreaInput.trim();
+    setActivityArea(nextArea);
 
-    try {
-      const permission = await Location.requestForegroundPermissionsAsync();
-
-      if (!permission.granted) {
-        setLocationError('책가게는 가까운 사람과 만나기 위해 위치 권한이 필요합니다.');
-        return;
-      }
-
-      const position = await Location.getCurrentPositionAsync({
-        accuracy: Location.Accuracy.Balanced,
-      });
-      const areaLabel = await resolveAreaLabel(position.coords.latitude, position.coords.longitude);
-
-      setMarketLocation({
-        areaLabel,
-        latitude: position.coords.latitude,
-        longitude: position.coords.longitude,
-      });
-    } catch (error) {
-      setLocationError(getErrorMessage(error, '현재 위치를 확인하지 못했습니다.'));
-    } finally {
-      setIsRequestingLocation(false);
+    if (nextArea) {
+      void AsyncStorage.setItem(activityAreaStorageKey, nextArea);
+    } else {
+      void AsyncStorage.removeItem(activityAreaStorageKey);
     }
+  };
+
+  const clearActivityArea = () => {
+    setActivityArea('');
+    setActivityAreaInput('');
+    void AsyncStorage.removeItem(activityAreaStorageKey);
   };
 
   const openNewListing = () => {
@@ -127,6 +133,15 @@ export default function MarketScreen() {
     }
 
     router.push('/market/new');
+  };
+
+  const openMyBookstore = () => {
+    if (!session) {
+      router.push('/auth');
+      return;
+    }
+
+    router.push('/market/manage');
   };
 
   return (
@@ -142,6 +157,9 @@ export default function MarketScreen() {
           />
 
           <View style={styles.bookstoreHeroTop}>
+            <Pressable accessibilityLabel="내 책가게" onPress={openMyBookstore} style={styles.bookstoreHeroLink}>
+              <Text style={styles.bookstoreHeroLinkText}>내책</Text>
+            </Pressable>
             <Pressable accessibilityLabel="책가게 등록" onPress={openNewListing} style={styles.bookstoreHeroAction}>
               <Text style={styles.bookstoreHeroActionText}>＋</Text>
             </Pressable>
@@ -166,28 +184,31 @@ export default function MarketScreen() {
           <>
             <View style={styles.locationPanel}>
               <View style={styles.locationCopy}>
-                <Text style={styles.locationLabel}>내 동네</Text>
-                <Text style={styles.locationTitle}>
-                  {marketLocation ? marketLocation.areaLabel : '위치를 확인해주세요'}
-                </Text>
+                <Text style={styles.locationLabel}>활동 지역</Text>
+                <TextInput
+                  onChangeText={setActivityAreaInput}
+                  onSubmitEditing={applyActivityArea}
+                  placeholder="예: 서울 마포구, 연남동, 판교역"
+                  placeholderTextColor="#8D8A78"
+                  returnKeyType="done"
+                  style={styles.locationInput}
+                  value={activityAreaInput}
+                />
                 <Text style={styles.locationHint}>
-                  책가게는 가까운 사람과 직접 약속하는 방식으로 운영됩니다.
+                  GPS 없이 직접 정한 지역명으로 책을 살펴봅니다.
                 </Text>
               </View>
-              <Pressable
-                disabled={isRequestingLocation}
-                onPress={requestMarketLocation}
-                style={styles.locationButton}
-              >
-                {isRequestingLocation ? (
-                  <ActivityIndicator color="#FFFFFF" />
-                ) : (
-                  <Text style={styles.locationButtonText}>위치</Text>
-                )}
-              </Pressable>
+              <View style={styles.locationActions}>
+                <Pressable onPress={applyActivityArea} style={styles.locationButton}>
+                  <Text style={styles.locationButtonText}>적용</Text>
+                </Pressable>
+                {activityArea ? (
+                  <Pressable onPress={clearActivityArea} style={styles.locationGhostButton}>
+                    <Text style={styles.locationGhostText}>전체</Text>
+                  </Pressable>
+                ) : null}
+              </View>
             </View>
-
-            {locationError ? <Text style={styles.errorText}>{locationError}</Text> : null}
 
             <ScrollView
               contentContainerStyle={styles.filterRow}
@@ -208,28 +229,28 @@ export default function MarketScreen() {
             </ScrollView>
 
             <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>근처 책가게</Text>
-              <Text style={styles.sectionMeta}>{sortedListings.length}권</Text>
+              <Text style={styles.sectionTitle}>{activityArea ? `${activityArea} 책가게` : '책가게'}</Text>
+              <Text style={styles.sectionMeta}>{visibleListings.length}권</Text>
             </View>
 
             {isLoadingListings ? (
               <View style={styles.loadingPanel}>
                 <ActivityIndicator color="#103D2B" />
-                <Text style={styles.loadingText}>근처 책을 살펴보는 중입니다</Text>
+                <Text style={styles.loadingText}>책가게 책을 살펴보는 중입니다</Text>
               </View>
             ) : null}
 
             {listingError ? <Text style={styles.errorText}>{listingError}</Text> : null}
 
-            {!isLoadingListings && sortedListings.length === 0 ? (
+            {!isLoadingListings && visibleListings.length === 0 ? (
               <View style={styles.emptyPanel}>
-                <Text style={styles.emptyTitle}>아직 가까운 책이 없습니다</Text>
-                <Text style={styles.emptyCopy}>첫 책을 올리면 이 동네의 책가게가 시작됩니다.</Text>
+                <Text style={styles.emptyTitle}>{activityArea ? '이 지역에는 아직 책이 없습니다' : '아직 올라온 책이 없습니다'}</Text>
+                <Text style={styles.emptyCopy}>첫 책을 올리면 북썸 책가게가 조용히 문을 엽니다.</Text>
               </View>
             ) : null}
 
             <View style={styles.itemList}>
-              {sortedListings.map((item) => (
+              {visibleListings.map((item) => (
                 <Pressable
                   key={item.id}
                   onPress={() => router.push(`/market/${item.id}`)}
@@ -246,12 +267,7 @@ export default function MarketScreen() {
                     )}
                   </View>
                   <View style={styles.itemCopy}>
-                    <Text style={styles.itemArea}>
-                      {item.areaLabel}
-                      {marketLocation && item.latitude && item.longitude
-                        ? ` · ${formatDistance(getDistanceKm(marketLocation, item))}`
-                        : ''}
-                    </Text>
+                    <Text style={styles.itemArea}>{item.areaLabel}</Text>
                     <Text style={styles.itemTitle} numberOfLines={1}>
                       {item.title}
                     </Text>
@@ -269,45 +285,10 @@ export default function MarketScreen() {
   );
 }
 
-async function resolveAreaLabel(latitude: number, longitude: number) {
-  try {
-    const [place] = await Location.reverseGeocodeAsync({ latitude, longitude });
-    const parts = [place?.city, place?.district, place?.subregion].filter(Boolean);
-    return parts.slice(0, 2).join(' ') || '내 주변';
-  } catch {
-    return '내 주변';
-  }
-}
-
 function formatListingPrice(item: MarketListing) {
   if (item.type === 'wanted') return '찾아요';
   if (item.price === 0) return '나눔';
   return `${(item.price ?? 0).toLocaleString('ko-KR')}원`;
-}
-
-function getDistanceKm(origin: MarketLocation, item: MarketListing) {
-  if (!item.latitude || !item.longitude) return Number.POSITIVE_INFINITY;
-
-  const earthRadiusKm = 6371;
-  const latDelta = toRadians(item.latitude - origin.latitude);
-  const lonDelta = toRadians(item.longitude - origin.longitude);
-  const originLat = toRadians(origin.latitude);
-  const itemLat = toRadians(item.latitude);
-  const haversine =
-    Math.sin(latDelta / 2) ** 2 +
-    Math.cos(originLat) * Math.cos(itemLat) * Math.sin(lonDelta / 2) ** 2;
-
-  return earthRadiusKm * 2 * Math.atan2(Math.sqrt(haversine), Math.sqrt(1 - haversine));
-}
-
-function toRadians(value: number) {
-  return (value * Math.PI) / 180;
-}
-
-function formatDistance(distanceKm: number) {
-  if (!Number.isFinite(distanceKm)) return '';
-  if (distanceKm < 1) return `${Math.max(1, Math.round(distanceKm * 1000))}m`;
-  return `${distanceKm.toFixed(distanceKm < 10 ? 1 : 0)}km`;
 }
 
 function getErrorMessage(error: unknown, fallback: string) {
@@ -354,6 +335,7 @@ const styles = StyleSheet.create({
   bookstoreHeroTop: {
     alignItems: 'center',
     flexDirection: 'row',
+    gap: 10,
     justifyContent: 'flex-end',
     left: 0,
     paddingHorizontal: 20,
@@ -362,6 +344,19 @@ const styles = StyleSheet.create({
     right: 0,
     top: 0,
     zIndex: 3,
+  },
+  bookstoreHeroLink: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(247, 241, 229, 0.92)',
+    borderRadius: 18,
+    height: 38,
+    justifyContent: 'center',
+    paddingHorizontal: 14,
+  },
+  bookstoreHeroLinkText: {
+    color: '#103D2B',
+    fontSize: 13,
+    fontWeight: '900',
   },
   bookstoreHeroAction: {
     alignItems: 'center',
@@ -414,6 +409,14 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '900',
   },
+  locationInput: {
+    color: '#103D2B',
+    fontSize: 18,
+    fontWeight: '900',
+    marginTop: 2,
+    minHeight: 34,
+    paddingVertical: 0,
+  },
   locationTitle: {
     color: '#103D2B',
     fontSize: 19,
@@ -435,9 +438,27 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     width: 58,
   },
+  locationActions: {
+    alignItems: 'center',
+    gap: 8,
+  },
   locationButtonText: {
     color: '#FFFFFF',
     fontSize: 13,
+    fontWeight: '900',
+  },
+  locationGhostButton: {
+    alignItems: 'center',
+    borderColor: 'rgba(16,61,43,0.16)',
+    borderRadius: 15,
+    borderWidth: 1,
+    minHeight: 30,
+    justifyContent: 'center',
+    paddingHorizontal: 11,
+  },
+  locationGhostText: {
+    color: '#103D2B',
+    fontSize: 12,
     fontWeight: '900',
   },
   filterRow: {
