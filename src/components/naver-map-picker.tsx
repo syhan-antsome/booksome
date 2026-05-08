@@ -1,5 +1,5 @@
 import Constants from 'expo-constants';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Modal,
@@ -22,6 +22,7 @@ const naverMapsClientId = process.env.EXPO_PUBLIC_NAVER_MAPS_CLIENT_ID;
 const naverMapsBaseUrl = getNaverMapsBaseUrl();
 
 export function NaverMapPicker({ initialArea, visible, onClose, onSelect }: NaverMapPickerProps) {
+  const [mapError, setMapError] = useState<string | null>(null);
   const mapUri = useMemo(() => {
     if (!naverMapsClientId || !naverMapsBaseUrl) return '';
 
@@ -38,10 +39,19 @@ export function NaverMapPicker({ initialArea, visible, onClose, onSelect }: Nave
 
   const handleMessage = (event: WebViewMessageEvent) => {
     try {
-      const payload = JSON.parse(event.nativeEvent.data) as { type?: string; areaLabel?: string };
+      const payload = JSON.parse(event.nativeEvent.data) as {
+        type?: string;
+        areaLabel?: string;
+        message?: string;
+      };
 
       if (payload.type === 'select' && payload.areaLabel) {
         onSelect(payload.areaLabel);
+      }
+
+      if (payload.type === 'error' && payload.message) {
+        setMapError(payload.message);
+        console.warn(`[NaverMapPicker] ${payload.message}`);
       }
     } catch {
       // Ignore non-JSON messages from the embedded map.
@@ -72,6 +82,11 @@ export function NaverMapPicker({ initialArea, visible, onClose, onSelect }: Nave
                 <Text style={styles.loadingText}>지도를 여는 중입니다</Text>
               </View>
             )}
+            onError={(event) => {
+              setMapError('지도 페이지를 불러오지 못했습니다.');
+              console.warn('[NaverMapPicker] WebView load error', event.nativeEvent);
+            }}
+            onLoadStart={() => setMapError(null)}
             source={{ uri: mapUri }}
             startInLoadingState
             style={styles.webView}
@@ -84,6 +99,11 @@ export function NaverMapPicker({ initialArea, visible, onClose, onSelect }: Nave
             </Text>
           </View>
         )}
+        {mapError ? (
+          <View style={styles.errorToast}>
+            <Text style={styles.errorToastText}>{mapError}</Text>
+          </View>
+        ) : null}
       </SafeAreaView>
     </Modal>
   );
@@ -154,6 +174,23 @@ const styles = StyleSheet.create({
   webView: {
     backgroundColor: '#F6EEE1',
     flex: 1,
+  },
+  errorToast: {
+    backgroundColor: '#A43D20',
+    borderRadius: 18,
+    left: 18,
+    paddingHorizontal: 14,
+    paddingVertical: 11,
+    position: 'absolute',
+    right: 18,
+    top: 86,
+    zIndex: 9,
+  },
+  errorToastText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '900',
+    lineHeight: 18,
   },
   loading: {
     alignItems: 'center',

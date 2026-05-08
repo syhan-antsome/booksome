@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
   <style>
-    html, body, #map { height: 100%; margin: 0; padding: 0; }
+    html, body, #map { height: 100%; margin: 0; padding: 0; width: 100%; }
     body {
       background: #f6eee1;
       color: #14251b;
@@ -12,6 +12,13 @@
       overflow: hidden;
     }
     #map { position: absolute; inset: 0; }
+    .map-wrap {
+      bottom: 0;
+      left: 0;
+      position: absolute;
+      right: 0;
+      top: 0;
+    }
     .search {
       align-items: center;
       background: rgba(255, 252, 244, 0.94);
@@ -129,7 +136,7 @@
   </style>
 </head>
 <body>
-  <div id="map"></div>
+  <div id="map" class="map-wrap"></div>
   <div class="search">
     <input id="query" placeholder="동네, 역, 장소 검색" />
     <button id="searchButton">검색</button>
@@ -150,6 +157,20 @@
     var selectedArea = "";
     var selectedAddress = "";
     var map = null;
+    var lastCenter = null;
+
+    window.onerror = function(message, source, lineno, colno) {
+      var detail = [message, lineno ? "line " + lineno : ""].filter(Boolean).join(" ");
+      showError("지도 오류: " + detail);
+      postMessageToApp({ type: "error", message: detail });
+      return true;
+    };
+
+    window.onunhandledrejection = function(event) {
+      var message = event && event.reason && event.reason.message ? event.reason.message : "알 수 없는 지도 오류";
+      showError("지도 오류: " + message);
+      postMessageToApp({ type: "error", message: message });
+    };
 
     document.getElementById("query").value = initialArea;
 
@@ -157,6 +178,9 @@
       var toast = document.getElementById("toast");
       toast.textContent = message;
       toast.style.display = "block";
+      setTimeout(function() {
+        toast.style.display = "none";
+      }, 3600);
     }
 
     function hideError() {
@@ -172,6 +196,17 @@
         : "가운데 핀 기준으로 지역명만 앱에 저장합니다.";
     }
 
+    function postMessageToApp(payload) {
+      if (window.ReactNativeWebView && window.ReactNativeWebView.postMessage) {
+        window.ReactNativeWebView.postMessage(JSON.stringify(payload));
+      }
+    }
+
+    function formatFallbackArea() {
+      if (!lastCenter) return "선택한 지역";
+      return "지도 선택 위치";
+    }
+
     function regionNameFromResult(result) {
       if (!result || !result.region) return "";
       var region = result.region;
@@ -181,11 +216,18 @@
     }
 
     function updateSelectedArea() {
-      if (!map || !naver || !naver.maps || !naver.maps.Service) return;
+      if (!map || !window.naver || !naver.maps) return;
 
-      naver.maps.Service.reverseGeocode({ location: map.getCenter() }, function(status, response) {
+      lastCenter = map.getCenter();
+
+      if (!naver.maps.Service || !naver.maps.Service.reverseGeocode) {
+        setArea(formatFallbackArea(), "지역명 확인 없이 지도 중심을 선택합니다.");
+        return;
+      }
+
+      naver.maps.Service.reverseGeocode({ location: lastCenter }, function(status, response) {
         if (status !== naver.maps.Service.Status.OK || !response || !response.v2) {
-          setArea("", "");
+          setArea(formatFallbackArea(), "지역명을 확인하지 못했습니다. 지도 중심을 선택할 수 있습니다.");
           return;
         }
 
@@ -199,7 +241,7 @@
 
     function searchAddress() {
       var query = document.getElementById("query").value.trim();
-      if (!query || !map || !naver || !naver.maps || !naver.maps.Service) return;
+      if (!query || !map || !window.naver || !naver.maps || !naver.maps.Service || !naver.maps.Service.geocode) return;
 
       naver.maps.Service.geocode({ address: query }, function(status, response) {
         if (status !== naver.maps.Service.Status.OK) {
@@ -235,6 +277,8 @@
         scaleControl: false
       });
 
+      lastCenter = map.getCenter();
+
       naver.maps.Event.addListener(map, "idle", updateSelectedArea);
       document.getElementById("searchButton").addEventListener("click", searchAddress);
       document.getElementById("query").addEventListener("keydown", function(event) {
@@ -242,10 +286,10 @@
       });
       document.getElementById("selectButton").addEventListener("click", function() {
         if (!selectedArea) updateSelectedArea();
-        window.ReactNativeWebView && window.ReactNativeWebView.postMessage(JSON.stringify({
+        postMessageToApp({
           type: "select",
-          areaLabel: selectedArea || selectedAddress || "선택한 지역"
-        }));
+          areaLabel: selectedArea || selectedAddress || formatFallbackArea()
+        });
       });
 
       setTimeout(function() {
@@ -264,6 +308,7 @@
       script.src = "https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=" + encodeURIComponent(clientId) + "&submodules=geocoder&callback=initMap";
       script.onerror = function() {
         showError("네이버 지도 인증 또는 로딩에 실패했습니다.");
+        postMessageToApp({ type: "error", message: "네이버 지도 인증 또는 로딩에 실패했습니다." });
       };
       document.head.appendChild(script);
     }
