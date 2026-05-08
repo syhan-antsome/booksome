@@ -222,6 +222,17 @@ export default function MarketManageScreen() {
                       horizontal
                       showsHorizontalScrollIndicator={false}
                     >
+                      <Pressable
+                        onPress={() =>
+                          router.push({
+                            pathname: '/market/new',
+                            params: { editId: listing.id },
+                          })
+                        }
+                        style={styles.statusAction}
+                      >
+                        <Text style={styles.statusActionText}>수정</Text>
+                      </Pressable>
                       {listing.status !== 'available' ? (
                         <Pressable
                           disabled={isUpdatingId === listing.id}

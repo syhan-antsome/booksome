@@ -135,17 +135,34 @@ export default function MarketDetailScreen() {
               </View>
             ) : null}
 
-            <Pressable
-              disabled={isMine || isOpeningThread}
-              onPress={openInquiry}
-              style={[styles.inquiryButton, isMine ? styles.inquiryButtonDisabled : null]}
-            >
-              {isOpeningThread ? (
-                <ActivityIndicator color="#FFFFFF" />
-              ) : (
-                <Text style={styles.inquiryText}>{isMine ? '내가 올린 책입니다' : '문의하기'}</Text>
-              )}
-            </Pressable>
+            {isMine ? (
+              <View style={styles.ownerActions}>
+                <Pressable
+                  onPress={() =>
+                    router.push({
+                      pathname: '/market/new',
+                      params: { editId: listing.id },
+                    })
+                  }
+                  style={styles.editButton}
+                >
+                  <Text style={styles.editButtonText}>수정하기</Text>
+                </Pressable>
+                <Text style={styles.ownerHint}>거래 지역, 가격, 책 사진을 다시 정리할 수 있습니다.</Text>
+              </View>
+            ) : (
+              <Pressable
+                disabled={isOpeningThread}
+                onPress={openInquiry}
+                style={styles.inquiryButton}
+              >
+                {isOpeningThread ? (
+                  <ActivityIndicator color="#FFFFFF" />
+                ) : (
+                  <Text style={styles.inquiryText}>문의하기</Text>
+                )}
+              </Pressable>
+            )}
           </>
         ) : null}
       </ScrollView>
@@ -287,12 +304,32 @@ const styles = StyleSheet.create({
     marginTop: 24,
     minHeight: 56,
   },
-  inquiryButtonDisabled: {
-    opacity: 0.44,
-  },
   inquiryText: {
     color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '900',
+  },
+  ownerActions: {
+    marginTop: 24,
+  },
+  editButton: {
+    alignItems: 'center',
+    backgroundColor: '#103D2B',
+    borderRadius: 22,
+    justifyContent: 'center',
+    minHeight: 56,
+  },
+  editButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '900',
+  },
+  ownerHint: {
+    color: '#667167',
+    fontSize: 13,
+    fontWeight: '700',
+    lineHeight: 19,
+    marginTop: 10,
+    textAlign: 'center',
   },
 });

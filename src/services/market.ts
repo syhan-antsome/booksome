@@ -59,6 +59,21 @@ export type CreateMarketListingInput = {
   mediaAssetId?: string | null;
 };
 
+export type UpdateMarketListingInput = {
+  sellerId: string;
+  listingId: string;
+  type: MarketListingType;
+  title: string;
+  author?: string | null;
+  isbn13?: string | null;
+  description?: string | null;
+  conditionLabel?: string | null;
+  price?: number | null;
+  areaLabel: string;
+  imageUrl?: string | null;
+  mediaAssetId?: string | null;
+};
+
 type MarketListingRow = {
   id: string;
   seller_id: string;
@@ -194,6 +209,36 @@ export async function createMarketListing(input: CreateMarketListingInput) {
   const { data, error } = await supabase
     .from('market_listings')
     .insert(payload)
+    .select(marketListingSelect)
+    .single<MarketListingRow>();
+
+  if (error) {
+    throw error;
+  }
+
+  return mapMarketListing(data);
+}
+
+export async function updateMarketListing(input: UpdateMarketListingInput) {
+  const payload = {
+    type: input.type,
+    title: input.title.trim(),
+    author: input.author?.trim() || null,
+    isbn13: normalizeIsbn(input.isbn13 ?? ''),
+    description: input.description?.trim() || null,
+    condition_label: input.conditionLabel?.trim() || null,
+    price: input.type === 'offer' ? Math.max(0, Math.round(input.price ?? 0)) : null,
+    area_label: input.areaLabel.trim(),
+    image_url: input.imageUrl ?? null,
+    media_asset_id: input.mediaAssetId ?? null,
+    updated_at: new Date().toISOString(),
+  };
+
+  const { data, error } = await supabase
+    .from('market_listings')
+    .update(payload)
+    .eq('id', input.listingId)
+    .eq('seller_id', input.sellerId)
     .select(marketListingSelect)
     .single<MarketListingRow>();
 

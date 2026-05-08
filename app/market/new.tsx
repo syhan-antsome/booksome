@@ -21,7 +21,12 @@ import { BottomNavigation } from '../../src/components/bottom-navigation';
 import { NaverMapPicker } from '../../src/components/naver-map-picker';
 import { ScreenHeader } from '../../src/components/screen-header';
 import { useAuth } from '../../src/providers/auth-provider';
-import { createMarketListing, type MarketListingType } from '../../src/services/market';
+import {
+  createMarketListing,
+  getMarketListing,
+  updateMarketListing,
+  type MarketListingType,
+} from '../../src/services/market';
 import { uploadImageAsset } from '../../src/services/media';
 import { listReadingLifeBooks, type ReadingLifeBook } from '../../src/services/reading-life';
 
@@ -30,10 +35,12 @@ export default function NewMarketItemScreen() {
   const params = useLocalSearchParams<{
     author?: string;
     coverUrl?: string;
+    editId?: string;
     isbn?: string;
     source?: string;
     title?: string;
   }>();
+  const editId = getStringParam(params.editId);
   const [type, setType] = useState<MarketListingType>('offer');
   const [title, setTitle] = useState('');
   const [author, setAuthor] = useState('');
@@ -48,8 +55,11 @@ export default function NewMarketItemScreen() {
   const [areaLabel, setAreaLabel] = useState('');
   const [isMapPickerVisible, setIsMapPickerVisible] = useState(false);
   const [photoAsset, setPhotoAsset] = useState<ImagePicker.ImagePickerAsset | null>(null);
+  const [mediaAssetId, setMediaAssetId] = useState<string | null>(null);
+  const [isLoadingEditListing, setIsLoadingEditListing] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const isEditMode = Boolean(editId);
   const priceValue = useMemo(() => parsePrice(priceInput), [priceInput]);
   const photoPreviewUri = photoAsset?.uri ?? sourceCoverUrl;
   const canSubmit =
@@ -57,7 +67,8 @@ export default function NewMarketItemScreen() {
     Boolean(title.trim()) &&
     Boolean(areaLabel.trim()) &&
     (type === 'wanted' || priceValue !== null) &&
-    !isSubmitting;
+    !isSubmitting &&
+    !isLoadingEditListing;
 
   useEffect(() => {
     const scannedTitle = getStringParam(params.title);
@@ -74,6 +85,53 @@ export default function NewMarketItemScreen() {
     setPhotoAsset(null);
     setSelectedReadingBookId(null);
   }, [params.author, params.coverUrl, params.isbn, params.title]);
+
+  useEffect(() => {
+    if (!editId || !session?.user.id) return;
+
+    let isMounted = true;
+
+    setIsLoadingEditListing(true);
+    setErrorMessage(null);
+
+    getMarketListing(editId)
+      .then((listing) => {
+        if (!isMounted) return;
+
+        if (!listing) {
+          setErrorMessage('수정할 책을 찾지 못했습니다.');
+          return;
+        }
+
+        if (listing.sellerId !== session.user.id) {
+          setErrorMessage('내가 올린 책만 수정할 수 있습니다.');
+          return;
+        }
+
+        setType(listing.type);
+        setTitle(listing.title);
+        setAuthor(listing.author ?? '');
+        setSourceIsbn(listing.isbn13);
+        setSourceCoverUrl(listing.imageUrl);
+        setSelectedReadingBookId(null);
+        setPriceInput(listing.type === 'offer' && listing.price !== null ? String(listing.price) : '');
+        setConditionLabel(listing.conditionLabel ?? '');
+        setDescription(listing.description ?? '');
+        setAreaLabel(listing.areaLabel);
+        setPhotoAsset(null);
+        setMediaAssetId(listing.mediaAssetId);
+      })
+      .catch((error) => {
+        if (isMounted) setErrorMessage(getErrorMessage(error, '수정할 책을 불러오지 못했습니다.'));
+      })
+      .finally(() => {
+        if (isMounted) setIsLoadingEditListing(false);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [editId, session?.user.id]);
 
   useFocusEffect(
     useCallback(() => {
@@ -205,23 +263,40 @@ export default function NewMarketItemScreen() {
           })
         : null;
 
-      const listing = await createMarketListing({
-        sellerId: session.user.id,
-        type,
-        title,
-        author,
-        isbn13: sourceIsbn,
-        conditionLabel,
-        description,
-        price: priceValue,
-        areaLabel: cleanAreaLabel,
-        imageUrl: uploaded?.mediaUrl ?? sourceCoverUrl ?? null,
-        mediaAssetId: uploaded?.id ?? null,
-      });
+      const imageUrl = uploaded?.mediaUrl ?? sourceCoverUrl ?? null;
+      const nextMediaAssetId = uploaded?.id ?? mediaAssetId ?? null;
+      const listing = editId
+        ? await updateMarketListing({
+            sellerId: session.user.id,
+            listingId: editId,
+            type,
+            title,
+            author,
+            isbn13: sourceIsbn,
+            conditionLabel,
+            description,
+            price: priceValue,
+            areaLabel: cleanAreaLabel,
+            imageUrl,
+            mediaAssetId: nextMediaAssetId,
+          })
+        : await createMarketListing({
+            sellerId: session.user.id,
+            type,
+            title,
+            author,
+            isbn13: sourceIsbn,
+            conditionLabel,
+            description,
+            price: priceValue,
+            areaLabel: cleanAreaLabel,
+            imageUrl,
+            mediaAssetId: nextMediaAssetId,
+          });
 
       router.replace(`/market/${listing.id}`);
     } catch (error) {
-      setErrorMessage(getErrorMessage(error, '책가게에 등록하지 못했습니다.'));
+      setErrorMessage(getErrorMessage(error, isEditMode ? '판매글을 수정하지 못했습니다.' : '책가게에 등록하지 못했습니다.'));
     } finally {
       setIsSubmitting(false);
     }
@@ -241,8 +316,8 @@ export default function NewMarketItemScreen() {
         >
           <ScreenHeader
             eyebrow="BookSome Bookstore"
-            subtitle="가까운 독자에게 책을 건넵니다."
-            title="책가게 등록"
+            subtitle={isEditMode ? '책 정보와 거래 지역을 다시 정리합니다.' : '가까운 독자에게 책을 건넵니다.'}
+            title={isEditMode ? '책가게 수정' : '책가게 등록'}
             tone="clay"
           />
 
@@ -255,6 +330,13 @@ export default function NewMarketItemScreen() {
 
           {session ? (
             <>
+              {isLoadingEditListing ? (
+                <View style={styles.editLoading}>
+                  <ActivityIndicator color="#103D2B" />
+                  <Text style={styles.editLoadingText}>판매글을 불러오는 중입니다</Text>
+                </View>
+              ) : null}
+
               <View style={styles.modeSwitch}>
                 <Pressable
                   onPress={() => setType('offer')}
@@ -410,7 +492,9 @@ export default function NewMarketItemScreen() {
                 {isSubmitting ? (
                   <ActivityIndicator color="#FFFFFF" />
                 ) : (
-                  <Text style={styles.submitText}>{type === 'wanted' ? '찾아요 올리기' : '책 내놓기'}</Text>
+                  <Text style={styles.submitText}>
+                    {isEditMode ? '수정 저장하기' : type === 'wanted' ? '찾아요 올리기' : '책 내놓기'}
+                  </Text>
                 )}
               </Pressable>
             </>
@@ -480,6 +564,17 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 8,
     marginTop: 4,
+  },
+  editLoading: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 10,
+    paddingVertical: 16,
+  },
+  editLoadingText: {
+    color: '#526154',
+    fontSize: 13,
+    fontWeight: '800',
   },
   modeButton: {
     borderBottomColor: 'transparent',
