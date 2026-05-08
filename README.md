@@ -55,7 +55,7 @@ EXPO_PUBLIC_NAVER_MAPS_BASE_URL=http://localhost
 EXPO_PUBLIC_AUTH_REDIRECT_URL=http://localhost:8082/auth/update-password
 ```
 
-For the Bookstore map picker, register the same host as the WebView page in Naver Cloud Maps. Naver Maps Web Service URLs should use only the host and protocol, without port numbers or paths. For local browser development, use `http://localhost`, not `http://localhost:8082`. For Expo Go on a physical device, use the LAN host shown by Expo, such as `http://192.168.0.10`, not `http://192.168.0.10:8082`.
+For the Bookstore map picker, configure the Naver Cloud Platform **Maps** service, not **AI.NAVER API - MAP**. Enable Web Dynamic Map and Geocoding, then register the same host as the WebView page in the Maps Web Service URL list. Naver Maps Web Service URLs should use only the host and protocol, without port numbers or paths. For local browser development, use `http://localhost`, not `http://localhost:8082`. For Expo Go on a physical device, use the LAN host shown by Expo, such as `http://192.168.0.10`, not `http://192.168.0.10:8082`.
 
 Then run the SQL files in Supabase SQL Editor in this order:
 
