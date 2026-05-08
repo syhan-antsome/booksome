@@ -18,6 +18,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AuthRequired } from '../../src/components/auth-required';
 import { BottomNavigation } from '../../src/components/bottom-navigation';
+import { NaverMapPicker } from '../../src/components/naver-map-picker';
 import { ScreenHeader } from '../../src/components/screen-header';
 import { useAuth } from '../../src/providers/auth-provider';
 import { createMarketListing, type MarketListingType } from '../../src/services/market';
@@ -45,6 +46,7 @@ export default function NewMarketItemScreen() {
   const [conditionLabel, setConditionLabel] = useState('');
   const [description, setDescription] = useState('');
   const [areaLabel, setAreaLabel] = useState('');
+  const [isMapPickerVisible, setIsMapPickerVisible] = useState(false);
   const [photoAsset, setPhotoAsset] = useState<ImagePicker.ImagePickerAsset | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -393,7 +395,7 @@ export default function NewMarketItemScreen() {
                   />
                   <Text style={styles.locationHint}>정확한 주소나 좌표는 저장하지 않아도 됩니다.</Text>
                 </View>
-                <Pressable onPress={() => Alert.alert('지도에서 고르기', '네이버 지도 연동 후 이곳에서 지역을 고를 수 있게 만들 예정입니다.')} style={styles.locationButton}>
+                <Pressable onPress={() => setIsMapPickerVisible(true)} style={styles.locationButton}>
                   <Text style={styles.locationButtonText}>지도</Text>
                 </Pressable>
               </View>
@@ -415,6 +417,15 @@ export default function NewMarketItemScreen() {
           ) : null}
         </ScrollView>
       </KeyboardAvoidingView>
+      <NaverMapPicker
+        initialArea={areaLabel}
+        onClose={() => setIsMapPickerVisible(false)}
+        onSelect={(nextAreaLabel) => {
+          setAreaLabel(nextAreaLabel);
+          setIsMapPickerVisible(false);
+        }}
+        visible={isMapPickerVisible}
+      />
       <BottomNavigation active="market" />
     </SafeAreaView>
   );

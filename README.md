@@ -50,7 +50,11 @@ Create `.env` from `.env.example` and set:
 EXPO_PUBLIC_SUPABASE_URL=
 EXPO_PUBLIC_SUPABASE_ANON_KEY=
 EXPO_PUBLIC_MEDIA_API_URL=
+EXPO_PUBLIC_NAVER_MAPS_CLIENT_ID=
+EXPO_PUBLIC_NAVER_MAPS_BASE_URL=https://booksome.app
 ```
+
+For the Bookstore map picker, register the same `EXPO_PUBLIC_NAVER_MAPS_BASE_URL` as a Web Service URL in Naver Cloud Maps.
 
 Then run the SQL files in Supabase SQL Editor in this order:
 
