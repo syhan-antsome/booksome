@@ -52,6 +52,7 @@ EXPO_PUBLIC_SUPABASE_ANON_KEY=
 EXPO_PUBLIC_MEDIA_API_URL=
 EXPO_PUBLIC_NAVER_MAPS_CLIENT_ID=
 EXPO_PUBLIC_NAVER_MAPS_BASE_URL=https://booksome.app
+EXPO_PUBLIC_AUTH_REDIRECT_URL=http://localhost:8082/auth/update-password
 ```
 
 For the Bookstore map picker, register the same `EXPO_PUBLIC_NAVER_MAPS_BASE_URL` as a Web Service URL in Naver Cloud Maps.

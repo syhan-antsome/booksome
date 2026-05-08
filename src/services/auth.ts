@@ -42,6 +42,50 @@ export async function signUpWithEmail(input: {
   return data;
 }
 
+export async function requestPasswordReset(email: string) {
+  const { data, error } = await supabase.auth.resetPasswordForEmail(email, {
+    redirectTo: getPasswordRecoveryRedirectUrl(),
+  });
+
+  if (error) throw error;
+  return data;
+}
+
+export async function updatePassword(password: string) {
+  const { data, error } = await supabase.auth.updateUser({ password });
+
+  if (error) throw error;
+  return data;
+}
+
+export async function setRecoverySessionFromCurrentUrl() {
+  const hash = typeof window !== 'undefined' ? window.location.hash.replace(/^#/, '') : '';
+  const params = new URLSearchParams(hash);
+  const errorDescription = params.get('error_description');
+
+  if (errorDescription) {
+    throw new Error(decodeURIComponent(errorDescription.replace(/\+/g, ' ')));
+  }
+
+  const accessToken = params.get('access_token');
+  const refreshToken = params.get('refresh_token');
+
+  if (!accessToken || !refreshToken) {
+    const { data, error } = await supabase.auth.getSession();
+    if (error) throw error;
+
+    return data.session;
+  }
+
+  const { data, error } = await supabase.auth.setSession({
+    access_token: accessToken,
+    refresh_token: refreshToken,
+  });
+
+  if (error) throw error;
+  return data.session;
+}
+
 export async function signOut() {
   const { error } = await supabase.auth.signOut();
   if (error) throw error;
@@ -93,4 +137,16 @@ export async function ensureProfile(user: User) {
 export async function bootstrapProfile(session: Session | null) {
   if (!session?.user) return null;
   return ensureProfile(session.user);
+}
+
+function getPasswordRecoveryRedirectUrl() {
+  if (process.env.EXPO_PUBLIC_AUTH_REDIRECT_URL) {
+    return process.env.EXPO_PUBLIC_AUTH_REDIRECT_URL;
+  }
+
+  if (typeof window !== 'undefined' && window.location?.origin) {
+    return `${window.location.origin}/auth/update-password`;
+  }
+
+  return 'http://localhost:8082/auth/update-password';
 }

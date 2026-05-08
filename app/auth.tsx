@@ -21,7 +21,7 @@ import sseomdiReadingImage from '../assets/sseomdi-reading.png';
 import { BackButton } from '../src/components/back-button';
 import { BottomNavigation } from '../src/components/bottom-navigation';
 import { useAuth } from '../src/providers/auth-provider';
-import { signInWithEmail, signUpWithEmail } from '../src/services/auth';
+import { requestPasswordReset, signInWithEmail, signUpWithEmail } from '../src/services/auth';
 
 function toImageSource(image: string | number): ImageSourcePropType {
   return typeof image === 'string' ? { uri: image } : image;
@@ -38,6 +38,7 @@ export default function AuthScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSendingReset, setIsSendingReset] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
 
   const title = useMemo(
@@ -83,6 +84,28 @@ export default function AuthScreen() {
       setFeedback(message);
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const sendPasswordReset = async () => {
+    const cleanEmail = email.trim();
+
+    if (!cleanEmail) {
+      setFeedback('비밀번호를 재설정할 이메일을 먼저 입력해주세요.');
+      return;
+    }
+
+    setIsSendingReset(true);
+    setFeedback(null);
+
+    try {
+      await requestPasswordReset(cleanEmail);
+      setFeedback('비밀번호 재설정 메일을 보냈습니다. 메일의 링크를 열어 새 비밀번호를 입력해주세요.');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : '재설정 메일을 보내지 못했습니다.';
+      setFeedback(message);
+    } finally {
+      setIsSendingReset(false);
     }
   };
 
@@ -177,6 +200,16 @@ export default function AuthScreen() {
                   </Text>
                 )}
               </Pressable>
+
+              {mode === 'sign-in' ? (
+                <Pressable disabled={isSendingReset} onPress={sendPasswordReset} style={styles.resetButton}>
+                  {isSendingReset ? (
+                    <ActivityIndicator color="#103D2B" />
+                  ) : (
+                    <Text style={styles.resetText}>비밀번호 재설정 메일 받기</Text>
+                  )}
+                </Pressable>
+              ) : null}
 
               {feedback ? <Text style={styles.feedback}>{feedback}</Text> : null}
               {session ? (
@@ -330,6 +363,16 @@ const styles = StyleSheet.create({
   submitText: {
     color: '#FFFFFF',
     fontSize: 16,
+    fontWeight: '900',
+  },
+  resetButton: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 42,
+  },
+  resetText: {
+    color: '#103D2B',
+    fontSize: 14,
     fontWeight: '900',
   },
   feedback: {
