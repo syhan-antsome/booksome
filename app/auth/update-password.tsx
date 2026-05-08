@@ -78,10 +78,15 @@ export default function UpdatePasswordScreen() {
   return (
     <SafeAreaView style={styles.safeArea}>
       <KeyboardAvoidingView
-        behavior={Platform.select({ ios: 'padding', android: undefined })}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 18}
         style={styles.keyboard}
       >
-        <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+        <ScrollView
+          contentContainerStyle={styles.content}
+          keyboardDismissMode="on-drag"
+          keyboardShouldPersistTaps="handled"
+        >
           <View style={styles.topBar}>
             <BackButton />
             <Text style={styles.brand}>BookSome</Text>
@@ -161,7 +166,7 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     maxWidth: 430,
     padding: 20,
-    paddingBottom: 108,
+    paddingBottom: 188,
     width: '100%',
   },
   topBar: {

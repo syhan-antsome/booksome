@@ -112,12 +112,14 @@ export default function AuthScreen() {
   return (
     <SafeAreaView style={styles.safeArea}>
       <KeyboardAvoidingView
-        behavior={Platform.select({ ios: 'padding', android: undefined })}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 18}
         style={styles.keyboard}
       >
         <ScrollView
           contentContainerStyle={styles.content}
           keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
           showsVerticalScrollIndicator={false}
         >
           <View style={[styles.hero, { height: heroHeight }]}>
@@ -239,7 +241,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#F7F1E5',
     flexGrow: 1,
     maxWidth: 430,
-    paddingBottom: 108,
+    paddingBottom: 188,
     width: '100%',
   },
   hero: {
