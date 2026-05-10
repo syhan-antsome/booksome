@@ -158,6 +158,7 @@
     var selectedAddress = "";
     var map = null;
     var lastCenter = null;
+    var lastReverseGeocodeError = "";
 
     window.onerror = function(message, source, lineno, colno) {
       var detail = [message, lineno ? "line " + lineno : ""].filter(Boolean).join(" ");
@@ -175,6 +176,7 @@
     document.getElementById("query").value = initialArea;
 
     function showError(message) {
+      lastReverseGeocodeError = message || "";
       var toast = document.getElementById("toast");
       toast.textContent = message;
       toast.style.display = "block";
@@ -185,6 +187,12 @@
 
     function hideError() {
       document.getElementById("toast").style.display = "none";
+    }
+
+    function reportReverseGeocodeError(message, detail) {
+      var nextMessage = [message, detail].filter(Boolean).join(" ");
+      showError(nextMessage);
+      postMessageToApp({ type: "error", message: nextMessage });
     }
 
     function cleanAreaLabel(value) {
@@ -241,6 +249,7 @@
       lastCenter = map.getCenter();
 
       if (!naver.maps.Service || !naver.maps.Service.reverseGeocode) {
+        reportReverseGeocodeError("역지오코딩 API를 사용할 수 없습니다.", "submodules=geocoder 로딩 또는 Maps 권한을 확인해주세요.");
         onComplete(formatFallbackArea(), "지역명 확인 없이 지도 중심을 선택합니다.");
         return;
       }
@@ -254,11 +263,24 @@
         ].join(",")
       }, function(status, response) {
         if (status !== naver.maps.Service.Status.OK || !response || !response.v2) {
+          reportReverseGeocodeError(
+            "역지오코딩 결과가 실패했습니다.",
+            "status=" + status + " response=" + JSON.stringify(response || {})
+          );
           onComplete(formatFallbackArea(), "지역명을 확인하지 못했습니다. 지도 중심을 선택할 수 있습니다.");
           return;
         }
 
         var label = labelFromReverseGeocodeResponse(response);
+        if (!cleanAreaLabel(label.area)) {
+          reportReverseGeocodeError(
+            "역지오코딩 결과에 주소/지역명이 없습니다.",
+            "response=" + JSON.stringify(response || {})
+          );
+        } else {
+          lastReverseGeocodeError = "";
+          hideError();
+        }
         onComplete(label.area, label.detail);
       });
     }
@@ -275,7 +297,10 @@
 
         if (!nextArea) {
           setArea("", detail);
-          showError("지역명을 확인하지 못했습니다. 검색어를 입력하거나 지도를 조금 움직여 다시 선택해주세요.");
+          showError(
+            lastReverseGeocodeError ||
+              "지역명을 확인하지 못했습니다. 검색어를 입력하거나 지도를 조금 움직여 다시 선택해주세요."
+          );
           return;
         }
 

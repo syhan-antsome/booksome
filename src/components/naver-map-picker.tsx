@@ -59,7 +59,7 @@ export function NaverMapPicker({ initialArea, visible, onClose, onSelect }: Nave
       }
 
       if (payload.type === 'error' && payload.message) {
-        setMapError(payload.message);
+        setMapError(`지도 개발 오류: ${payload.message}`);
         console.warn(`[NaverMapPicker] ${payload.message}`);
       }
     } catch {
@@ -195,10 +195,10 @@ const styles = StyleSheet.create({
   },
   errorToast: {
     backgroundColor: '#A43D20',
-    borderRadius: 18,
+    borderRadius: 20,
     left: 18,
     paddingHorizontal: 14,
-    paddingVertical: 11,
+    paddingVertical: 13,
     position: 'absolute',
     right: 18,
     top: 86,
@@ -208,7 +208,7 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 13,
     fontWeight: '900',
-    lineHeight: 18,
+    lineHeight: 19,
   },
   loading: {
     alignItems: 'center',
