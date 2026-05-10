@@ -476,6 +476,11 @@ export default function NewMarketItemScreen() {
                     value={areaLabel}
                   />
                   <Text style={styles.locationHint}>정확한 주소나 좌표는 저장하지 않아도 됩니다.</Text>
+                  {areaLabel.trim() ? (
+                    <Text numberOfLines={2} style={styles.locationPreview}>
+                      판매책 정보에 표시: {areaLabel.trim()}
+                    </Text>
+                  ) : null}
                 </View>
                 <Pressable onPress={() => setIsMapPickerVisible(true)} style={styles.locationButton}>
                   <Text style={styles.locationButtonText}>지도</Text>
@@ -774,6 +779,13 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     lineHeight: 18,
     marginTop: 4,
+  },
+  locationPreview: {
+    color: '#103D2B',
+    fontSize: 13,
+    fontWeight: '900',
+    lineHeight: 18,
+    marginTop: 9,
   },
   locationButton: {
     alignItems: 'center',

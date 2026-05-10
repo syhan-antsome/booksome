@@ -120,13 +120,11 @@ export default function MarketDetailScreen() {
             <View style={styles.titleBlock}>
               <Text style={styles.title}>{listing.title}</Text>
               {listing.author ? <Text style={styles.author}>{listing.author}</Text> : null}
-              <Text style={styles.price}>{formatListingPrice(listing)}</Text>
-              <View style={styles.locationBlock}>
+              <View style={styles.locationSummary}>
                 <Text style={styles.locationLabel}>거래 지역</Text>
                 <Text style={styles.locationValue}>{listing.areaLabel}</Text>
-                <NaverMapPreview areaLabel={listing.areaLabel} />
-                <Text style={styles.locationHint}>좌표는 저장하지 않고, 거래 지역 텍스트로 대략 위치만 보여줍니다.</Text>
               </View>
+              <Text style={styles.price}>{formatListingPrice(listing)}</Text>
             </View>
 
             <View style={styles.metaLine}>
@@ -140,6 +138,12 @@ export default function MarketDetailScreen() {
                 <Text style={styles.description}>{listing.description}</Text>
               </View>
             ) : null}
+
+            <View style={styles.locationMapBlock}>
+              <Text style={styles.locationMapTitle}>지도에서 대략 보기</Text>
+              <NaverMapPreview areaLabel={listing.areaLabel} />
+              <Text style={styles.locationHint}>좌표는 저장하지 않고, 거래 지역 텍스트로 대략 위치만 보여줍니다.</Text>
+            </View>
 
             {isMine ? (
               <View style={styles.ownerActions}>
@@ -277,11 +281,8 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     marginTop: 14,
   },
-  locationBlock: {
-    borderTopColor: 'rgba(143,106,66,0.16)',
-    borderTopWidth: 1,
-    marginTop: 20,
-    paddingTop: 14,
+  locationSummary: {
+    marginTop: 18,
   },
   locationLabel: {
     color: '#8F6A42',
@@ -290,10 +291,20 @@ const styles = StyleSheet.create({
   },
   locationValue: {
     color: '#103D2B',
+    fontSize: 20,
+    fontWeight: '900',
+    lineHeight: 27,
+    marginTop: 4,
+  },
+  locationMapBlock: {
+    borderTopColor: 'rgba(143,106,66,0.16)',
+    borderTopWidth: 1,
+    paddingTop: 18,
+  },
+  locationMapTitle: {
+    color: '#14251B',
     fontSize: 17,
     fontWeight: '900',
-    lineHeight: 23,
-    marginTop: 5,
   },
   locationHint: {
     color: '#667167',
