@@ -15,6 +15,7 @@ type NaverMapPreviewProps = {
 
 const naverMapsClientId = process.env.EXPO_PUBLIC_NAVER_MAPS_CLIENT_ID;
 const naverMapsBaseUrl = getNaverMapsBaseUrl();
+const mapPreviewAssetVersion = '20260510-area-label';
 
 export function NaverMapPreview({ areaLabel }: NaverMapPreviewProps) {
   const [mapError, setMapError] = useState<string | null>(null);
@@ -24,6 +25,7 @@ export function NaverMapPreview({ areaLabel }: NaverMapPreviewProps) {
     const params = new URLSearchParams({
       clientId: naverMapsClientId,
       area: areaLabel.trim(),
+      v: mapPreviewAssetVersion,
     });
 
     return `${naverMapsBaseUrl}/naver-map-preview.html?${params.toString()}`;

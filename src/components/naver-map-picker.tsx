@@ -20,6 +20,7 @@ type NaverMapPickerProps = {
 
 const naverMapsClientId = process.env.EXPO_PUBLIC_NAVER_MAPS_CLIENT_ID;
 const naverMapsBaseUrl = getNaverMapsBaseUrl();
+const mapPickerAssetVersion = '20260510-area-label';
 
 export function NaverMapPicker({ initialArea, visible, onClose, onSelect }: NaverMapPickerProps) {
   const [mapError, setMapError] = useState<string | null>(null);
@@ -28,6 +29,7 @@ export function NaverMapPicker({ initialArea, visible, onClose, onSelect }: Nave
 
     const params = new URLSearchParams({
       clientId: naverMapsClientId,
+      v: mapPickerAssetVersion,
     });
 
     if (initialArea) {
@@ -46,7 +48,14 @@ export function NaverMapPicker({ initialArea, visible, onClose, onSelect }: Nave
       };
 
       if (payload.type === 'select' && payload.areaLabel) {
-        onSelect(payload.areaLabel);
+        const areaLabel = cleanAreaLabel(payload.areaLabel);
+
+        if (!areaLabel) {
+          setMapError('지역명을 확인하지 못했습니다. 검색어를 입력하거나 지도를 조금 움직여 다시 선택해주세요.');
+          return;
+        }
+
+        onSelect(areaLabel);
       }
 
       if (payload.type === 'error' && payload.message) {
@@ -136,6 +145,11 @@ function getExpoHostUri() {
     constants.manifest?.debuggerHost ??
     null
   );
+}
+
+function cleanAreaLabel(value: string) {
+  const label = value.trim();
+  return label && label !== '선택한 지역' && label !== '지도 선택 위치' ? label : '';
 }
 
 const styles = StyleSheet.create({

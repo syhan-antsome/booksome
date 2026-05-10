@@ -62,10 +62,11 @@ export default function NewMarketItemScreen() {
   const isEditMode = Boolean(editId);
   const priceValue = useMemo(() => parsePrice(priceInput), [priceInput]);
   const photoPreviewUri = photoAsset?.uri ?? sourceCoverUrl;
+  const cleanAreaLabel = getCleanAreaLabel(areaLabel);
   const canSubmit =
     Boolean(session?.user.id) &&
     Boolean(title.trim()) &&
-    Boolean(areaLabel.trim()) &&
+    Boolean(cleanAreaLabel) &&
     (type === 'wanted' || priceValue !== null) &&
     !isSubmitting &&
     !isLoadingEditListing;
@@ -234,10 +235,8 @@ export default function NewMarketItemScreen() {
       return;
     }
 
-    const cleanAreaLabel = areaLabel.trim();
-
     if (!cleanAreaLabel) {
-      setErrorMessage('거래할 지역이나 만날 장소를 입력해주세요.');
+      setErrorMessage('거래할 지역이나 만날 장소를 다시 선택해주세요.');
       return;
     }
 
@@ -476,9 +475,9 @@ export default function NewMarketItemScreen() {
                     value={areaLabel}
                   />
                   <Text style={styles.locationHint}>정확한 주소나 좌표는 저장하지 않아도 됩니다.</Text>
-                  {areaLabel.trim() ? (
+                  {cleanAreaLabel ? (
                     <Text numberOfLines={2} style={styles.locationPreview}>
-                      판매책 정보에 표시: {areaLabel.trim()}
+                      판매책 정보에 표시: {cleanAreaLabel}
                     </Text>
                   ) : null}
                 </View>
@@ -533,6 +532,11 @@ function getStringParam(value?: string | string[]) {
 function normalizeIsbn(value: string) {
   const isbn = value.replace(/[^0-9X]/gi, '').toUpperCase();
   return isbn || null;
+}
+
+function getCleanAreaLabel(value: string) {
+  const label = value.trim();
+  return label && label !== '선택한 지역' && label !== '지도 선택 위치' ? label : '';
 }
 
 function getErrorMessage(error: unknown, fallback: string) {

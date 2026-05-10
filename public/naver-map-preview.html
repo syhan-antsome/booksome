@@ -139,7 +139,7 @@
         return;
       }
 
-      naver.maps.Service.geocode({ address: area }, function(status, response) {
+      naver.maps.Service.geocode({ query: area }, function(status, response) {
         var addresses = response && response.v2 && response.v2.addresses ? response.v2.addresses : [];
 
         if (status !== naver.maps.Service.Status.OK || !addresses.length) {

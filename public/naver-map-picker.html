@@ -187,8 +187,14 @@
       document.getElementById("toast").style.display = "none";
     }
 
+    function cleanAreaLabel(value) {
+      var label = (value || "").trim();
+      if (!label || label === "선택한 지역" || label === "지도 선택 위치") return "";
+      return label;
+    }
+
     function setArea(area, address) {
-      selectedArea = area || "";
+      selectedArea = cleanAreaLabel(area);
       selectedAddress = address || "";
       document.getElementById("area").textContent = selectedArea || "지역을 확인하지 못했습니다";
       document.getElementById("hint").textContent = selectedAddress
@@ -203,8 +209,10 @@
     }
 
     function formatFallbackArea() {
-      if (!lastCenter) return "선택한 지역";
-      return "지도 선택 위치";
+      var query = document.getElementById("query").value.trim();
+      if (cleanAreaLabel(query)) return query;
+      if (cleanAreaLabel(initialArea)) return initialArea;
+      return "";
     }
 
     function regionNameFromResult(result) {
@@ -222,7 +230,7 @@
       var addressText = address.roadAddress || address.jibunAddress || "";
 
       return {
-        area: addressText || regionLabel || "선택한 지역",
+        area: cleanAreaLabel(addressText || regionLabel),
         detail: addressText && regionLabel ? regionLabel : addressText
       };
     }
@@ -237,7 +245,14 @@
         return;
       }
 
-      naver.maps.Service.reverseGeocode({ location: lastCenter }, function(status, response) {
+      naver.maps.Service.reverseGeocode({
+        coords: lastCenter,
+        orders: [
+          naver.maps.Service.OrderType.ROAD_ADDR,
+          naver.maps.Service.OrderType.ADDR,
+          naver.maps.Service.OrderType.LEGAL_CODE
+        ].join(",")
+      }, function(status, response) {
         if (status !== naver.maps.Service.Status.OK || !response || !response.v2) {
           onComplete(formatFallbackArea(), "지역명을 확인하지 못했습니다. 지도 중심을 선택할 수 있습니다.");
           return;
@@ -256,10 +271,18 @@
 
     function selectCurrentArea() {
       reverseGeocodeCenter(function(area, detail) {
-        setArea(area, detail);
+        var nextArea = cleanAreaLabel(area || detail || formatFallbackArea());
+
+        if (!nextArea) {
+          setArea("", detail);
+          showError("지역명을 확인하지 못했습니다. 검색어를 입력하거나 지도를 조금 움직여 다시 선택해주세요.");
+          return;
+        }
+
+        setArea(nextArea, detail);
         postMessageToApp({
           type: "select",
-          areaLabel: area || detail || formatFallbackArea()
+          areaLabel: nextArea
         });
       });
     }
@@ -268,7 +291,7 @@
       var query = document.getElementById("query").value.trim();
       if (!query || !map || !window.naver || !naver.maps || !naver.maps.Service || !naver.maps.Service.geocode) return;
 
-      naver.maps.Service.geocode({ address: query }, function(status, response) {
+      naver.maps.Service.geocode({ query: query }, function(status, response) {
         if (status !== naver.maps.Service.Status.OK) {
           showError("검색 결과를 찾지 못했습니다.");
           return;
