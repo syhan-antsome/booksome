@@ -254,18 +254,23 @@
         return;
       }
 
+      var coords = lastCenter.lng() + "," + lastCenter.lat();
+      var orders = [
+        naver.maps.Service.OrderType.ROAD_ADDR,
+        naver.maps.Service.OrderType.ADDR,
+        naver.maps.Service.OrderType.LEGAL_CODE
+      ].join(",");
+
       naver.maps.Service.reverseGeocode({
-        coords: lastCenter,
-        orders: [
-          naver.maps.Service.OrderType.ROAD_ADDR,
-          naver.maps.Service.OrderType.ADDR,
-          naver.maps.Service.OrderType.LEGAL_CODE
-        ].join(",")
+        coords: coords,
+        sourcecrs: naver.maps.Service.CoordinatesType.LATLNG,
+        targetcrs: naver.maps.Service.CoordinatesType.LATLNG,
+        orders: orders
       }, function(status, response) {
         if (status !== naver.maps.Service.Status.OK || !response || !response.v2) {
           reportReverseGeocodeError(
             "역지오코딩 결과가 실패했습니다.",
-            "status=" + status + " response=" + JSON.stringify(response || {})
+            "status=" + status + " coords=" + coords + " orders=" + orders + " response=" + JSON.stringify(response || {})
           );
           onComplete(formatFallbackArea(), "지역명을 확인하지 못했습니다. 지도 중심을 선택할 수 있습니다.");
           return;
