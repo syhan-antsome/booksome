@@ -1,7 +1,8 @@
 import { supabase } from '../lib/supabase';
 import type { BookSearchItem } from './books';
 
-export type ReadingBookStatus = 'want_to_read' | 'reading' | 'finished' | 'paused';
+export type ReadingBookStatus = 'want_to_read' | 'reading' | 'finished';
+type ReadingBookStatusRow = ReadingBookStatus | 'paused';
 
 export type ReadingLifeBook = {
   id: string;
@@ -84,7 +85,7 @@ type ReadingBookRow = {
   published_date: string | null;
   description: string | null;
   external_cover_url: string | null;
-  status: ReadingBookStatus;
+  status: ReadingBookStatusRow;
   progress_percent: number;
   current_page: number;
   total_pages: number | null;
@@ -383,7 +384,7 @@ function mapReadingBook(row: ReadingBookRow): ReadingLifeBook {
     publishedDate: row.published_date,
     description: row.description,
     externalCoverUrl: row.external_cover_url,
-    status: row.status,
+    status: normalizeReadingBookStatus(row.status),
     progressPercent: row.progress_percent,
     currentPage: row.current_page ?? 0,
     totalPages: row.total_pages,
@@ -392,6 +393,10 @@ function mapReadingBook(row: ReadingBookRow): ReadingLifeBook {
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
+}
+
+function normalizeReadingBookStatus(status: ReadingBookStatusRow): ReadingBookStatus {
+  return status === 'paused' ? 'reading' : status;
 }
 
 function mapReadingNote(row: ReadingNoteRow): ReadingLifeNote {

@@ -24,7 +24,7 @@ import { getRandomReadingLifeQuote } from '../../src/data/reading-life-quotes';
 import { useAuth } from '../../src/providers/auth-provider';
 import { listReadingLifeBooks, type ReadingBookStatus, type ReadingLifeBook } from '../../src/services/reading-life';
 
-type BookshelfFilter = 'all' | 'reading' | 'want_to_read' | 'finished' | 'paused';
+type BookshelfFilter = 'all' | 'reading' | 'want_to_read' | 'finished';
 type CalendarEventType = 'registration' | 'reading';
 
 type CalendarEvent = {
@@ -37,7 +37,6 @@ const bookshelfFilters: Array<{ label: string; value: BookshelfFilter }> = [
   { label: '읽는 중', value: 'reading' },
   { label: '읽고 싶음', value: 'want_to_read' },
   { label: '완독', value: 'finished' },
-  { label: '멈춤', value: 'paused' },
 ];
 
 const weekdayLabels = ['일', '월', '화', '수', '목', '금', '토'];
@@ -46,7 +45,6 @@ const bookshelfEmptyMessages: Record<BookshelfFilter, string> = {
   reading: '읽는 중인 책이 없습니다.',
   want_to_read: '읽고 싶은 책이 없습니다.',
   finished: '완독한 책이 없습니다.',
-  paused: '잠시 쉬는 책이 없습니다.',
 };
 
 const readingLifeSignboardSource: ImageSourcePropType =
@@ -59,7 +57,7 @@ function parseBookshelfFilter(value?: string): BookshelfFilter | null {
 }
 
 function getReadingStatusForFilter(filter: BookshelfFilter): ReadingBookStatus | null {
-  if (filter === 'reading' || filter === 'want_to_read' || filter === 'paused') {
+  if (filter === 'reading' || filter === 'want_to_read') {
     return filter;
   }
 
@@ -593,7 +591,6 @@ function getCurrentBookHint(book: ReadingLifeBook) {
 function getCurrentBookStatusText(book: ReadingLifeBook) {
   if (book.status === 'want_to_read') return '곧 읽을 책';
   if (book.status === 'finished') return '완독한 책';
-  if (book.status === 'paused') return '잠시 쉬는 책';
 
   return '이어 읽는 중';
 }

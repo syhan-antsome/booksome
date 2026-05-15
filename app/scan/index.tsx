@@ -134,7 +134,7 @@ function normalizeIsbn(value: string) {
 }
 
 function parseReadingStatus(value?: string): ReadingBookStatus | null {
-  if (value === 'reading' || value === 'want_to_read' || value === 'paused') {
+  if (value === 'reading' || value === 'want_to_read') {
     return value;
   }
 

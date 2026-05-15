@@ -31,7 +31,6 @@ import {
 const readingStatusOptions: Array<{ value: ReadingBookStatus; label: string }> = [
   { value: 'reading', label: '읽는 중' },
   { value: 'want_to_read', label: '읽고 싶음' },
-  { value: 'paused', label: '멈춤' },
 ];
 
 export default function ScanResultScreen() {
@@ -490,7 +489,7 @@ function parsePositiveInteger(value: string) {
 }
 
 function parseReadingStatus(value?: string): ReadingBookStatus | null {
-  if (value === 'reading' || value === 'want_to_read' || value === 'paused') {
+  if (value === 'reading' || value === 'want_to_read') {
     return value;
   }
 

@@ -28,7 +28,7 @@ exception
 end $$;
 
 do $$ begin
-  create type public.reading_book_status as enum ('want_to_read', 'reading', 'finished', 'paused');
+  create type public.reading_book_status as enum ('want_to_read', 'reading', 'finished');
 exception
   when duplicate_object then null;
 end $$;
