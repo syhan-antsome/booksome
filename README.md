@@ -111,3 +111,32 @@ GET /v1/media/:objectPath
 ```
 
 The current Worker is suitable for development. Before a public beta, upload endpoints should verify the Supabase access token from the app.
+
+## Cloudflare Pages
+
+The Expo web build can be deployed to Cloudflare Pages. This is used as the stable password reset landing page for Supabase Auth.
+
+```sh
+npm run deploy:pages
+```
+
+The Pages deploy includes the Expo web app and static files from `public/`. `public/_redirects` sends app routes such as `/auth/update-password` back to `index.html`, so password reset links can be opened directly from email.
+
+`npm run deploy:pages` builds with Pages-specific public env values:
+
+```text
+EXPO_PUBLIC_AUTH_REDIRECT_URL=https://booksome-app.pages.dev/auth/update-password
+EXPO_PUBLIC_NAVER_MAPS_BASE_URL=https://booksome-app.pages.dev
+```
+
+After deployment, set the Supabase Auth redirect URL and the app env value to the Pages URL:
+
+```text
+https://booksome-app.pages.dev/auth/update-password
+```
+
+If a custom domain is connected later, use:
+
+```text
+https://booksome.app/auth/update-password
+```

@@ -148,5 +148,5 @@ function getPasswordRecoveryRedirectUrl() {
     return `${window.location.origin}/auth/update-password`;
   }
 
-  return 'http://localhost:8082/auth/update-password';
+  return 'https://booksome-app.pages.dev/auth/update-password';
 }
