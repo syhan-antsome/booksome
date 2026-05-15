@@ -318,11 +318,24 @@ export default function ReadingLifeScreen() {
                           <Pressable
                             key={book.id}
                             onPress={() => setSelectedShelfBookId(book.id)}
-                            style={[
-                              styles.shelfBook,
-                              selectedShelfBook?.id === book.id ? styles.shelfBookSelected : null,
-                            ]}
+                            style={styles.shelfBook}
                           >
+                            {selectedShelfBook?.id === book.id ? (
+                              <>
+                                <LinearGradient
+                                  colors={[
+                                    'rgba(255,211,118,0.58)',
+                                    'rgba(255,232,172,0.24)',
+                                    'rgba(255,248,218,0)',
+                                  ]}
+                                  end={{ x: 0.5, y: 0 }}
+                                  pointerEvents="none"
+                                  start={{ x: 0.5, y: 1 }}
+                                  style={styles.shelfSpotlight}
+                                />
+                                <View pointerEvents="none" style={styles.shelfSpotlightBase} />
+                              </>
+                            ) : null}
                             <View style={styles.shelfProgressGaugeSlot}>
                               {shouldShowShelfProgress(book) ? (
                                 <View style={styles.shelfProgressGauge}>
@@ -334,10 +347,7 @@ export default function ReadingLifeScreen() {
                               ) : null}
                             </View>
                             <View
-                              style={[
-                                styles.shelfCover,
-                                selectedShelfBook?.id === book.id ? styles.shelfCoverSelected : null,
-                              ]}
+                              style={styles.shelfCover}
                             >
                               {book.externalCoverUrl ? (
                                 <Image resizeMode="cover" source={{ uri: book.externalCoverUrl }} style={styles.shelfCoverImage} />
@@ -1335,10 +1345,30 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 5,
     paddingVertical: 6,
+    position: 'relative',
     width: 104,
   },
-  shelfBookSelected: {
-    transform: [{ translateY: -2 }],
+  shelfSpotlight: {
+    bottom: 34,
+    height: 172,
+    left: -7,
+    position: 'absolute',
+    right: -7,
+    zIndex: 0,
+  },
+  shelfSpotlightBase: {
+    backgroundColor: 'rgba(255,202,91,0.42)',
+    borderRadius: 999,
+    bottom: 45,
+    height: 13,
+    left: 18,
+    position: 'absolute',
+    right: 18,
+    shadowColor: '#E7A934',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.58,
+    shadowRadius: 10,
+    zIndex: 1,
   },
   shelfCover: {
     alignItems: 'center',
@@ -1355,10 +1385,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.12,
     shadowRadius: 10,
     width: 92,
-  },
-  shelfCoverSelected: {
-    borderColor: 'rgba(84,62,34,0.18)',
-    transform: [{ translateY: -5 }],
+    zIndex: 2,
   },
   shelfCoverImage: {
     height: '100%',
@@ -1374,6 +1401,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginBottom: 5,
     width: 92,
+    zIndex: 3,
   },
   shelfProgressGauge: {
     alignItems: 'center',
@@ -1431,9 +1459,10 @@ const styles = StyleSheet.create({
     height: 3,
     marginTop: 7,
     width: 42,
+    zIndex: 3,
   },
   shelfSelectionMarkActive: {
-    backgroundColor: 'rgba(176,74,64,0.78)',
+    backgroundColor: 'rgba(255,210,111,0.82)',
   },
   shelfTitle: {
     color: '#26372B',
@@ -1442,6 +1471,7 @@ const styles = StyleSheet.create({
     lineHeight: 18,
     marginTop: 7,
     width: 92,
+    zIndex: 3,
   },
   shelfPreview: {
     alignItems: 'center',
