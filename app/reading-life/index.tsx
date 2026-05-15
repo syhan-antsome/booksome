@@ -584,7 +584,7 @@ function getCurrentBookStatusText(book: ReadingLifeBook) {
 }
 
 function shouldShowShelfProgress(book: ReadingLifeBook) {
-  return book.status === 'reading' && Boolean(book.totalPages);
+  return Boolean(book.totalPages) && book.progressPercent > 0;
 }
 
 function formatCalendarMonth(date: Date) {
@@ -1359,15 +1359,25 @@ const styles = StyleSheet.create({
     fontWeight: '900',
   },
   shelfCoverProgressTrack: {
-    backgroundColor: 'rgba(247,241,229,0.58)',
-    height: 5,
-    left: 0,
+    backgroundColor: 'rgba(247,241,229,0.84)',
+    borderColor: 'rgba(16,61,43,0.16)',
+    borderRadius: 999,
+    borderWidth: 1,
+    height: 8,
+    left: 7,
+    overflow: 'hidden',
     position: 'absolute',
-    right: 0,
-    top: 0,
+    right: 7,
+    shadowColor: '#102519',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.14,
+    shadowRadius: 4,
+    top: 7,
+    zIndex: 4,
   },
   shelfCoverProgressFill: {
     backgroundColor: '#0C5A42',
+    borderRadius: 999,
     height: '100%',
   },
   shelfFinishedStamp: {
