@@ -298,87 +298,89 @@ export default function ReadingLifeScreen() {
                   <View pointerEvents="none" style={styles.bookshelfRail} />
                   <View pointerEvents="none" style={styles.bookshelfRailShadow} />
                   {filteredBooks.length > 0 ? (
-                    <ScrollView
-                      key={bookshelfFilter}
-                      contentContainerStyle={styles.bookshelfContent}
-                      horizontal
-                      onContentSizeChange={(contentWidth) => updateBookshelfMoreCue({ contentWidth })}
-                      onLayout={(event) =>
-                        updateBookshelfMoreCue({ viewportWidth: event.nativeEvent.layout.width })
-                      }
-                      onScroll={(event) =>
-                        updateBookshelfMoreCue({ offsetX: Math.max(0, event.nativeEvent.contentOffset.x) })
-                      }
-                      scrollEventThrottle={16}
-                      showsHorizontalScrollIndicator={false}
-                      style={styles.bookshelfScroll}
-                    >
-                      {filteredBooks.map((book) => (
-                        <Pressable
-                          key={book.id}
-                          onPress={() => setSelectedShelfBookId(book.id)}
-                          style={[
-                            styles.shelfBook,
-                            selectedShelfBook?.id === book.id ? styles.shelfBookSelected : null,
-                          ]}
-                        >
-                          <View style={styles.shelfProgressGaugeSlot}>
-                            {shouldShowShelfProgress(book) ? (
-                              <View style={styles.shelfProgressGauge}>
-                                <View style={styles.shelfProgressGaugeTrack}>
-                                  <View style={[styles.shelfProgressGaugeFill, { width: `${book.progressPercent}%` }]} />
-                                </View>
-                                <Text style={styles.shelfProgressGaugeText}>{book.progressPercent}%</Text>
-                              </View>
-                            ) : null}
-                          </View>
-                          <View
+                    <View style={styles.bookshelfScrollerArea}>
+                      <ScrollView
+                        key={bookshelfFilter}
+                        contentContainerStyle={styles.bookshelfContent}
+                        horizontal
+                        onContentSizeChange={(contentWidth) => updateBookshelfMoreCue({ contentWidth })}
+                        onLayout={(event) =>
+                          updateBookshelfMoreCue({ viewportWidth: event.nativeEvent.layout.width })
+                        }
+                        onScroll={(event) =>
+                          updateBookshelfMoreCue({ offsetX: Math.max(0, event.nativeEvent.contentOffset.x) })
+                        }
+                        scrollEventThrottle={16}
+                        showsHorizontalScrollIndicator={false}
+                        style={styles.bookshelfScroll}
+                      >
+                        {filteredBooks.map((book) => (
+                          <Pressable
+                            key={book.id}
+                            onPress={() => setSelectedShelfBookId(book.id)}
                             style={[
-                              styles.shelfCover,
-                              selectedShelfBook?.id === book.id ? styles.shelfCoverSelected : null,
+                              styles.shelfBook,
+                              selectedShelfBook?.id === book.id ? styles.shelfBookSelected : null,
                             ]}
                           >
-                            {book.externalCoverUrl ? (
-                              <Image resizeMode="cover" source={{ uri: book.externalCoverUrl }} style={styles.shelfCoverImage} />
-                            ) : (
-                              <Text style={styles.shelfCoverText}>BOOK</Text>
-                            )}
-                            {book.status === 'finished' ? (
-                              <View style={styles.shelfFinishedStamp}>
-                                <Text style={styles.shelfFinishedStampText}>완독</Text>
-                              </View>
-                            ) : null}
+                            <View style={styles.shelfProgressGaugeSlot}>
+                              {shouldShowShelfProgress(book) ? (
+                                <View style={styles.shelfProgressGauge}>
+                                  <View style={styles.shelfProgressGaugeTrack}>
+                                    <View style={[styles.shelfProgressGaugeFill, { width: `${book.progressPercent}%` }]} />
+                                  </View>
+                                  <Text style={styles.shelfProgressGaugeText}>{book.progressPercent}%</Text>
+                                </View>
+                              ) : null}
+                            </View>
+                            <View
+                              style={[
+                                styles.shelfCover,
+                                selectedShelfBook?.id === book.id ? styles.shelfCoverSelected : null,
+                              ]}
+                            >
+                              {book.externalCoverUrl ? (
+                                <Image resizeMode="cover" source={{ uri: book.externalCoverUrl }} style={styles.shelfCoverImage} />
+                              ) : (
+                                <Text style={styles.shelfCoverText}>BOOK</Text>
+                              )}
+                              {book.status === 'finished' ? (
+                                <View style={styles.shelfFinishedStamp}>
+                                  <Text style={styles.shelfFinishedStampText}>완독</Text>
+                                </View>
+                              ) : null}
+                            </View>
+                            <View
+                              style={[
+                                styles.shelfSelectionMark,
+                                selectedShelfBook?.id === book.id ? styles.shelfSelectionMarkActive : null,
+                              ]}
+                            />
+                            <Text style={styles.shelfTitle} numberOfLines={2}>
+                              {book.title}
+                            </Text>
+                          </Pressable>
+                        ))}
+                      </ScrollView>
+                      {filteredBooks.length > 3 && showBookshelfMoreCue ? (
+                        <LinearGradient
+                          colors={['rgba(231,238,219,0)', 'rgba(231,238,219,0.96)']}
+                          end={{ x: 1, y: 0.5 }}
+                          pointerEvents="none"
+                          start={{ x: 0, y: 0.5 }}
+                          style={styles.bookshelfMoreFade}
+                        >
+                          <View style={styles.bookshelfMoreCue}>
+                            <Text style={styles.bookshelfMoreArrow}>›</Text>
                           </View>
-                          <View
-                            style={[
-                              styles.shelfSelectionMark,
-                              selectedShelfBook?.id === book.id ? styles.shelfSelectionMarkActive : null,
-                            ]}
-                          />
-                          <Text style={styles.shelfTitle} numberOfLines={2}>
-                            {book.title}
-                          </Text>
-                        </Pressable>
-                      ))}
-                    </ScrollView>
+                        </LinearGradient>
+                      ) : null}
+                    </View>
                   ) : (
                     <View style={styles.shelfEmptyState}>
                       <Text style={styles.shelfEmptyText}>{bookshelfEmptyMessage}</Text>
                     </View>
                   )}
-                  {filteredBooks.length > 3 && showBookshelfMoreCue ? (
-                    <LinearGradient
-                      colors={['rgba(231,238,219,0)', 'rgba(231,238,219,0.96)']}
-                      end={{ x: 1, y: 0.5 }}
-                      pointerEvents="none"
-                      start={{ x: 0, y: 0.5 }}
-                      style={styles.bookshelfMoreFade}
-                    >
-                      <View style={styles.bookshelfMoreCue}>
-                        <Text style={styles.bookshelfMoreArrow}>›</Text>
-                      </View>
-                    </LinearGradient>
-                  ) : null}
                   {selectedShelfBook ? (
                     <View style={styles.shelfPreview}>
                       <View style={styles.previewCopy}>
@@ -1269,6 +1271,10 @@ const styles = StyleSheet.create({
     position: 'absolute',
     right: 0,
     top: 163,
+  },
+  bookshelfScrollerArea: {
+    position: 'relative',
+    zIndex: 2,
   },
   bookshelfScroll: {
     position: 'relative',
