@@ -395,7 +395,7 @@ export default function ReadingLifeScreen() {
                         onPress={() => router.push(`/reading-life/${selectedShelfBook.id}`)}
                         style={styles.previewButton}
                       >
-                        <Text style={styles.previewButtonText}>상세보기</Text>
+                        <Text style={styles.previewButtonText}>열기 ›</Text>
                       </Pressable>
                     </View>
                   ) : null}
@@ -1439,45 +1439,42 @@ const styles = StyleSheet.create({
   },
   shelfPreview: {
     alignItems: 'center',
-    backgroundColor: 'rgba(238,241,223,0.54)',
-    borderTopColor: 'rgba(112,82,45,0.28)',
-    borderTopWidth: 1,
+    backgroundColor: 'transparent',
     flexDirection: 'row',
-    gap: 16,
-    marginHorizontal: 20,
-    marginTop: -2,
-    paddingBottom: 16,
+    gap: 12,
+    marginHorizontal: 12,
+    marginTop: 4,
+    paddingBottom: 14,
     paddingHorizontal: 0,
-    paddingTop: 14,
+    paddingTop: 8,
     position: 'relative',
     zIndex: 2,
   },
   previewCopy: {
+    borderLeftColor: 'rgba(176,74,64,0.78)',
+    borderLeftWidth: 3,
     flex: 1,
     minWidth: 0,
+    paddingLeft: 10,
   },
   previewTitle: {
     color: '#26372B',
-    fontSize: 17,
+    fontSize: 15,
     fontWeight: '800',
-    lineHeight: 22,
-    marginTop: 4,
+    lineHeight: 20,
   },
   previewMeta: {
     color: '#72806E',
     fontSize: 12,
     fontWeight: '700',
     lineHeight: 17,
-    marginTop: 6,
+    marginTop: 3,
   },
   previewButton: {
     alignItems: 'center',
-    borderBottomColor: '#103D2B',
-    borderBottomWidth: 1,
     justifyContent: 'center',
-    paddingBottom: 3,
-    paddingHorizontal: 2,
-    paddingTop: 3,
+    minHeight: 34,
+    paddingHorizontal: 0,
   },
   previewButtonText: {
     color: '#103D2B',
