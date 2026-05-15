@@ -246,6 +246,144 @@ export default function ReadingLifeScreen() {
 
         {loadError ? <Text style={styles.errorText}>{loadError}</Text> : null}
 
+        {session ? (
+          <View style={styles.myBooks}>
+            <View style={styles.sectionTitleRow}>
+              <View style={styles.shelfTitleGroup}>
+                <Text style={styles.sectionTitle}>내 책장</Text>
+                <Text style={styles.sectionCount}>{filteredBooks.length} / {books.length}권</Text>
+              </View>
+              <Pressable
+                accessibilityLabel="책 등록"
+                onPress={() => router.push(getScanRouteForFilter(bookshelfFilter))}
+                style={styles.shelfAddButton}
+              >
+                <Text style={styles.shelfAddButtonText}>＋</Text>
+              </Pressable>
+            </View>
+
+            {books.length > 0 ? (
+              <>
+                <ScrollView
+                  contentContainerStyle={styles.shelfFilterContent}
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                >
+                  {bookshelfFilters.map((filter) => (
+                    <Pressable
+                      key={filter.value}
+                      onPress={() => {
+                        setBookshelfFilter(filter.value);
+                        setSelectedShelfBookId(null);
+                      }}
+                      style={[styles.shelfFilter, bookshelfFilter === filter.value ? styles.shelfFilterActive : null]}
+                    >
+                      <Text
+                        style={[
+                          styles.shelfFilterText,
+                          bookshelfFilter === filter.value ? styles.shelfFilterTextActive : null,
+                        ]}
+                      >
+                        {filter.label}
+                      </Text>
+                    </Pressable>
+                  ))}
+                </ScrollView>
+                <View style={styles.bookshelfFrame}>
+                  {filteredBooks.length > 0 ? (
+                    <ScrollView
+                      key={bookshelfFilter}
+                      contentContainerStyle={styles.bookshelfContent}
+                      horizontal
+                      onContentSizeChange={(contentWidth) => updateBookshelfMoreCue({ contentWidth })}
+                      onLayout={(event) =>
+                        updateBookshelfMoreCue({ viewportWidth: event.nativeEvent.layout.width })
+                      }
+                      onScroll={(event) =>
+                        updateBookshelfMoreCue({ offsetX: Math.max(0, event.nativeEvent.contentOffset.x) })
+                      }
+                      scrollEventThrottle={16}
+                      showsHorizontalScrollIndicator={false}
+                    >
+                      {filteredBooks.map((book) => (
+                        <Pressable
+                          key={book.id}
+                          onPress={() => setSelectedShelfBookId(book.id)}
+                          style={styles.shelfBook}
+                        >
+                          <View
+                            style={[
+                              styles.shelfCover,
+                              selectedShelfBook?.id === book.id ? styles.shelfCoverSelected : null,
+                            ]}
+                          >
+                            {book.externalCoverUrl ? (
+                              <Image resizeMode="cover" source={{ uri: book.externalCoverUrl }} style={styles.shelfCoverImage} />
+                            ) : (
+                              <Text style={styles.shelfCoverText}>BOOK</Text>
+                            )}
+                          </View>
+                          <Text style={styles.shelfTitle} numberOfLines={2}>
+                            {book.title}
+                          </Text>
+                          <Text style={styles.shelfMeta} numberOfLines={1}>
+                            {getShelfBookMeta(book)}
+                          </Text>
+                          {shouldShowShelfProgress(book) ? (
+                            <View style={styles.shelfProgressTrack}>
+                              <View style={[styles.shelfProgressFill, { width: `${book.progressPercent}%` }]} />
+                            </View>
+                          ) : null}
+                        </Pressable>
+                      ))}
+                    </ScrollView>
+                  ) : (
+                    <View style={styles.shelfEmptyState}>
+                      <Text style={styles.shelfEmptyText}>{bookshelfEmptyMessage}</Text>
+                    </View>
+                  )}
+                  {filteredBooks.length > 3 && showBookshelfMoreCue ? (
+                    <LinearGradient
+                      colors={['rgba(231,238,219,0)', 'rgba(231,238,219,0.96)']}
+                      end={{ x: 1, y: 0.5 }}
+                      pointerEvents="none"
+                      start={{ x: 0, y: 0.5 }}
+                      style={styles.bookshelfMoreFade}
+                    >
+                      <View style={styles.bookshelfMoreCue}>
+                        <Text style={styles.bookshelfMoreArrow}>›</Text>
+                      </View>
+                    </LinearGradient>
+                  ) : null}
+                </View>
+                {selectedShelfBook ? (
+                  <View style={styles.shelfPreview}>
+                    <View style={styles.previewCopy}>
+                      <Text style={styles.previewState}>{getStatusLabel(selectedShelfBook)}</Text>
+                      <Text style={styles.previewTitle} numberOfLines={2}>
+                        {selectedShelfBook.title}
+                      </Text>
+                      <Text style={styles.previewMeta} numberOfLines={1}>
+                        {getCurrentBookHint(selectedShelfBook)}
+                      </Text>
+                    </View>
+                    <Pressable
+                      onPress={() => router.push(`/reading-life/${selectedShelfBook.id}`)}
+                      style={styles.previewButton}
+                    >
+                      <Text style={styles.previewButtonText}>상세보기</Text>
+                    </Pressable>
+                  </View>
+                ) : null}
+              </>
+            ) : (
+              <View style={styles.emptyShelf}>
+                <Text style={styles.emptyShelfText}>책을 스캔해 첫 책을 올려두세요.</Text>
+              </View>
+            )}
+          </View>
+        ) : null}
+
         <View style={styles.calendarSection}>
           <View style={styles.sectionTitleRow}>
             <View style={styles.calendarTitleBlock}>
@@ -391,144 +529,6 @@ export default function ReadingLifeScreen() {
             </View>
           ) : null}
         </View>
-
-        {session ? (
-          <View style={styles.myBooks}>
-            <View style={styles.sectionTitleRow}>
-              <View style={styles.shelfTitleGroup}>
-                <Text style={styles.sectionTitle}>내 책장</Text>
-                <Text style={styles.sectionCount}>{filteredBooks.length} / {books.length}권</Text>
-              </View>
-              <Pressable
-                accessibilityLabel="책 등록"
-                onPress={() => router.push(getScanRouteForFilter(bookshelfFilter))}
-                style={styles.shelfAddButton}
-              >
-                <Text style={styles.shelfAddButtonText}>＋</Text>
-              </Pressable>
-            </View>
-
-            {books.length > 0 ? (
-              <>
-                <ScrollView
-                  contentContainerStyle={styles.shelfFilterContent}
-                  horizontal
-                  showsHorizontalScrollIndicator={false}
-                >
-                  {bookshelfFilters.map((filter) => (
-                    <Pressable
-                      key={filter.value}
-                      onPress={() => {
-                        setBookshelfFilter(filter.value);
-                        setSelectedShelfBookId(null);
-                      }}
-                      style={[styles.shelfFilter, bookshelfFilter === filter.value ? styles.shelfFilterActive : null]}
-                    >
-                      <Text
-                        style={[
-                          styles.shelfFilterText,
-                          bookshelfFilter === filter.value ? styles.shelfFilterTextActive : null,
-                        ]}
-                      >
-                        {filter.label}
-                      </Text>
-                    </Pressable>
-                  ))}
-                </ScrollView>
-                <View style={styles.bookshelfFrame}>
-                  {filteredBooks.length > 0 ? (
-                    <ScrollView
-                      key={bookshelfFilter}
-                      contentContainerStyle={styles.bookshelfContent}
-                      horizontal
-                      onContentSizeChange={(contentWidth) => updateBookshelfMoreCue({ contentWidth })}
-                      onLayout={(event) =>
-                        updateBookshelfMoreCue({ viewportWidth: event.nativeEvent.layout.width })
-                      }
-                      onScroll={(event) =>
-                        updateBookshelfMoreCue({ offsetX: Math.max(0, event.nativeEvent.contentOffset.x) })
-                      }
-                      scrollEventThrottle={16}
-                      showsHorizontalScrollIndicator={false}
-                    >
-                      {filteredBooks.map((book) => (
-                        <Pressable
-                          key={book.id}
-                          onPress={() => setSelectedShelfBookId(book.id)}
-                          style={styles.shelfBook}
-                        >
-                          <View
-                            style={[
-                              styles.shelfCover,
-                              selectedShelfBook?.id === book.id ? styles.shelfCoverSelected : null,
-                            ]}
-                          >
-                            {book.externalCoverUrl ? (
-                              <Image resizeMode="cover" source={{ uri: book.externalCoverUrl }} style={styles.shelfCoverImage} />
-                            ) : (
-                              <Text style={styles.shelfCoverText}>BOOK</Text>
-                            )}
-                          </View>
-                          <Text style={styles.shelfTitle} numberOfLines={2}>
-                            {book.title}
-                          </Text>
-                          <Text style={styles.shelfMeta} numberOfLines={1}>
-                            {getShelfBookMeta(book)}
-                          </Text>
-                          {shouldShowShelfProgress(book) ? (
-                            <View style={styles.shelfProgressTrack}>
-                              <View style={[styles.shelfProgressFill, { width: `${book.progressPercent}%` }]} />
-                            </View>
-                          ) : null}
-                        </Pressable>
-                      ))}
-                    </ScrollView>
-                  ) : (
-                    <View style={styles.shelfEmptyState}>
-                      <Text style={styles.shelfEmptyText}>{bookshelfEmptyMessage}</Text>
-                    </View>
-                  )}
-                  {filteredBooks.length > 3 && showBookshelfMoreCue ? (
-                    <LinearGradient
-                      colors={['rgba(231,238,219,0)', 'rgba(231,238,219,0.96)']}
-                      end={{ x: 1, y: 0.5 }}
-                      pointerEvents="none"
-                      start={{ x: 0, y: 0.5 }}
-                      style={styles.bookshelfMoreFade}
-                    >
-                      <View style={styles.bookshelfMoreCue}>
-                        <Text style={styles.bookshelfMoreArrow}>›</Text>
-                      </View>
-                    </LinearGradient>
-                  ) : null}
-                </View>
-                {selectedShelfBook ? (
-                  <View style={styles.shelfPreview}>
-                    <View style={styles.previewCopy}>
-                      <Text style={styles.previewState}>{getStatusLabel(selectedShelfBook)}</Text>
-                      <Text style={styles.previewTitle} numberOfLines={2}>
-                        {selectedShelfBook.title}
-                      </Text>
-                      <Text style={styles.previewMeta} numberOfLines={1}>
-                        {getCurrentBookHint(selectedShelfBook)}
-                      </Text>
-                    </View>
-                    <Pressable
-                      onPress={() => router.push(`/reading-life/${selectedShelfBook.id}`)}
-                      style={styles.previewButton}
-                    >
-                      <Text style={styles.previewButtonText}>상세보기</Text>
-                    </Pressable>
-                  </View>
-                ) : null}
-              </>
-            ) : (
-              <View style={styles.emptyShelf}>
-                <Text style={styles.emptyShelfText}>책을 스캔해 첫 책을 올려두세요.</Text>
-              </View>
-            )}
-          </View>
-        ) : null}
 
       </ScrollView>
       <BottomNavigation active="reading-life" />
