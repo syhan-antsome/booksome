@@ -321,22 +321,6 @@ export default function ReadingLifeScreen() {
                             onPress={() => setSelectedShelfBookId(book.id)}
                             style={styles.shelfBook}
                           >
-                            {selectedShelfBook?.id === book.id ? (
-                              <>
-                                <LinearGradient
-                                  colors={[
-                                    'rgba(255,211,118,0.58)',
-                                    'rgba(255,232,172,0.24)',
-                                    'rgba(255,248,218,0)',
-                                  ]}
-                                  end={{ x: 0.5, y: 0 }}
-                                  pointerEvents="none"
-                                  start={{ x: 0.5, y: 1 }}
-                                  style={styles.shelfSpotlight}
-                                />
-                                <View pointerEvents="none" style={styles.shelfSpotlightBase} />
-                              </>
-                            ) : null}
                             <View style={styles.shelfProgressGaugeSlot}>
                               {shouldShowShelfProgress(book) ? (
                                 <View style={styles.shelfProgressGauge}>
@@ -1356,29 +1340,6 @@ const styles = StyleSheet.create({
     position: 'relative',
     width: 104,
   },
-  shelfSpotlight: {
-    bottom: 34,
-    height: 172,
-    left: -7,
-    position: 'absolute',
-    right: -7,
-    opacity: 0.72,
-    zIndex: 0,
-  },
-  shelfSpotlightBase: {
-    backgroundColor: 'rgba(255,202,91,0.3)',
-    borderRadius: 999,
-    bottom: 45,
-    height: 13,
-    left: 18,
-    position: 'absolute',
-    right: 18,
-    shadowColor: '#E7A934',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.58,
-    shadowRadius: 10,
-    zIndex: 1,
-  },
   shelfCover: {
     alignItems: 'center',
     backgroundColor: '#D8BE88',
@@ -1482,7 +1443,7 @@ const styles = StyleSheet.create({
     zIndex: 3,
   },
   shelfSelectionMarkActive: {
-    backgroundColor: 'rgba(255,210,111,0.82)',
+    backgroundColor: 'rgba(176,74,64,0.64)',
   },
   shelfTitle: {
     color: '#26372B',
