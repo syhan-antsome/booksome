@@ -374,9 +374,11 @@ export default function ReadingLifeScreen() {
                         <Text style={styles.previewTitle} numberOfLines={2}>
                           {selectedShelfBook.title}
                         </Text>
-                        <Text style={styles.previewMeta} numberOfLines={1}>
-                          {getShelfPreviewMeta(selectedShelfBook)}
-                        </Text>
+                        {selectedShelfBook.author ? (
+                          <Text style={styles.previewMeta} numberOfLines={1}>
+                            {selectedShelfBook.author}
+                          </Text>
+                        ) : null}
                       </View>
                       <Pressable
                         onPress={() => router.push(`/reading-life/${selectedShelfBook.id}`)}
@@ -573,13 +575,6 @@ function getCurrentBookStatusText(book: ReadingLifeBook) {
   if (book.status === 'paused') return '잠시 쉬는 책';
 
   return '이어 읽는 중';
-}
-
-function getShelfPreviewMeta(book: ReadingLifeBook) {
-  if (book.totalPages) return getCurrentBookHint(book);
-  if (book.author) return book.author;
-
-  return '상세 기록을 열어 책의 여정을 이어가세요.';
 }
 
 function shouldShowShelfProgress(book: ReadingLifeBook) {
