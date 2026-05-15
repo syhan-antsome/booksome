@@ -1270,7 +1270,7 @@ const styles = StyleSheet.create({
     left: 0,
     position: 'absolute',
     right: 0,
-    top: 151,
+    top: 173,
   },
   bookshelfRailShadow: {
     backgroundColor: 'rgba(88,59,28,0.28)',
@@ -1278,7 +1278,7 @@ const styles = StyleSheet.create({
     left: 0,
     position: 'absolute',
     right: 0,
-    top: 163,
+    top: 185,
   },
   bookshelfScrollerArea: {
     position: 'relative',
