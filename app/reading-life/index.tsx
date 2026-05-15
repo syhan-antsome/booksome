@@ -344,6 +344,12 @@ export default function ReadingLifeScreen() {
                               </View>
                             ) : null}
                           </View>
+                          <View
+                            style={[
+                              styles.shelfSelectionMark,
+                              selectedShelfBook?.id === book.id ? styles.shelfSelectionMarkActive : null,
+                            ]}
+                          />
                           <Text style={styles.shelfTitle} numberOfLines={2}>
                             {book.title}
                           </Text>
@@ -1316,16 +1322,12 @@ const styles = StyleSheet.create({
   },
   shelfBook: {
     alignItems: 'center',
-    borderColor: 'rgba(176,74,64,0)',
-    borderRadius: 10,
-    borderWidth: 1,
     paddingHorizontal: 5,
     paddingVertical: 6,
     width: 104,
   },
   shelfBookSelected: {
-    backgroundColor: 'rgba(176,74,64,0.06)',
-    borderColor: 'rgba(176,74,64,0.46)',
+    transform: [{ translateY: -2 }],
   },
   shelfCover: {
     alignItems: 'center',
@@ -1344,7 +1346,7 @@ const styles = StyleSheet.create({
     width: 92,
   },
   shelfCoverSelected: {
-    borderColor: 'rgba(176,74,64,0.5)',
+    borderColor: 'rgba(84,62,34,0.18)',
     transform: [{ translateY: -5 }],
   },
   shelfCoverImage: {
@@ -1388,12 +1390,22 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     lineHeight: 12,
   },
+  shelfSelectionMark: {
+    backgroundColor: 'transparent',
+    borderRadius: 999,
+    height: 3,
+    marginTop: 7,
+    width: 42,
+  },
+  shelfSelectionMarkActive: {
+    backgroundColor: 'rgba(176,74,64,0.78)',
+  },
   shelfTitle: {
     color: '#26372B',
     fontSize: 13,
     fontWeight: '800',
     lineHeight: 18,
-    marginTop: 10,
+    marginTop: 7,
     width: 92,
   },
   shelfPreview: {
