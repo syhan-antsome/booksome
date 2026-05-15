@@ -168,8 +168,8 @@ export default function MarketScreen() {
 
         <View style={styles.bookstoreIntro}>
           <Text style={styles.bookstoreEyebrow}>BOOKSOME BOOKSTORE</Text>
-          <Text numberOfLines={2} style={styles.bookstoreIntroText}>
-            읽은 책을 건네고, 가까운 다음 독자를 만납니다.
+          <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.86} style={styles.bookstoreIntroText}>
+            읽은 책이 다음 독자를 만나는 곳
           </Text>
         </View>
 
@@ -393,7 +393,6 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     lineHeight: 24,
     marginTop: 6,
-    maxWidth: 310,
   },
   locationPanel: {
     alignItems: 'center',
