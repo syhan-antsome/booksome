@@ -1437,13 +1437,17 @@ const styles = StyleSheet.create({
   shelfSelectionMark: {
     backgroundColor: 'transparent',
     borderRadius: 999,
-    height: 3,
-    marginTop: 7,
-    width: 42,
+    height: 5,
+    marginTop: 6,
+    width: 46,
     zIndex: 3,
   },
   shelfSelectionMarkActive: {
-    backgroundColor: 'rgba(176,74,64,0.64)',
+    backgroundColor: 'rgba(255,187,79,0.92)',
+    shadowColor: '#FFBE58',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.95,
+    shadowRadius: 9,
   },
   shelfTitle: {
     color: '#26372B',
