@@ -290,6 +290,13 @@ export default function ReadingLifeScreen() {
                   ))}
                 </ScrollView>
                 <View style={styles.bookshelfFrame}>
+                  <LinearGradient
+                    colors={['rgba(216,190,136,0.16)', 'rgba(216,190,136,0.04)']}
+                    pointerEvents="none"
+                    style={styles.bookshelfBackPanel}
+                  />
+                  <View pointerEvents="none" style={styles.bookshelfRail} />
+                  <View pointerEvents="none" style={styles.bookshelfRailShadow} />
                   {filteredBooks.length > 0 ? (
                     <ScrollView
                       key={bookshelfFilter}
@@ -304,6 +311,7 @@ export default function ReadingLifeScreen() {
                       }
                       scrollEventThrottle={16}
                       showsHorizontalScrollIndicator={false}
+                      style={styles.bookshelfScroll}
                     >
                       {filteredBooks.map((book) => (
                         <Pressable
@@ -1144,14 +1152,14 @@ const styles = StyleSheet.create({
     lineHeight: 26,
   },
   myBooks: {
-    backgroundColor: 'rgba(16,61,43,0.055)',
-    borderColor: 'rgba(16,61,43,0.07)',
-    borderRadius: 28,
-    borderWidth: 1,
+    backgroundColor: 'transparent',
+    borderBottomColor: 'rgba(16,61,43,0.11)',
+    borderBottomWidth: 1,
+    borderTopColor: 'rgba(16,61,43,0.11)',
+    borderTopWidth: 1,
     marginTop: 22,
-    paddingBottom: 18,
-    paddingHorizontal: 16,
-    paddingTop: 18,
+    paddingBottom: 20,
+    paddingTop: 22,
   },
   sectionTitleRow: {
     alignItems: 'center',
@@ -1215,13 +1223,55 @@ const styles = StyleSheet.create({
     fontWeight: '900',
   },
   bookshelfContent: {
+    alignItems: 'flex-start',
     gap: 18,
-    paddingRight: 68,
+    paddingBottom: 20,
+    paddingLeft: 20,
+    paddingRight: 88,
     paddingTop: 18,
   },
   bookshelfFrame: {
-    marginRight: -16,
+    backgroundColor: 'rgba(216,190,136,0.08)',
+    borderBottomColor: 'rgba(112,82,45,0.62)',
+    borderBottomWidth: 5,
+    borderTopColor: 'rgba(112,82,45,0.18)',
+    borderTopWidth: 1,
+    marginLeft: -20,
+    marginRight: -20,
+    marginTop: 12,
+    minHeight: 224,
     position: 'relative',
+    shadowColor: '#513819',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.1,
+    shadowRadius: 16,
+  },
+  bookshelfBackPanel: {
+    bottom: 0,
+    left: 0,
+    position: 'absolute',
+    right: 0,
+    top: 0,
+  },
+  bookshelfRail: {
+    backgroundColor: '#C8A76D',
+    height: 12,
+    left: 0,
+    position: 'absolute',
+    right: 0,
+    top: 151,
+  },
+  bookshelfRailShadow: {
+    backgroundColor: 'rgba(88,59,28,0.28)',
+    height: 5,
+    left: 0,
+    position: 'absolute',
+    right: 0,
+    top: 163,
+  },
+  bookshelfScroll: {
+    position: 'relative',
+    zIndex: 2,
   },
   shelfEmptyState: {
     alignItems: 'center',
@@ -1256,6 +1306,7 @@ const styles = StyleSheet.create({
     right: 0,
     top: 18,
     width: 86,
+    zIndex: 3,
   },
   bookshelfMoreCue: {
     alignItems: 'center',
@@ -1274,19 +1325,27 @@ const styles = StyleSheet.create({
     lineHeight: 30,
   },
   shelfBook: {
+    alignItems: 'center',
     width: 104,
   },
   shelfCover: {
     alignItems: 'center',
     backgroundColor: '#D8BE88',
-    borderRadius: 13,
+    borderColor: 'rgba(84,62,34,0.18)',
+    borderRadius: 5,
+    borderWidth: 1,
     height: 138,
     justifyContent: 'center',
     overflow: 'hidden',
     position: 'relative',
+    shadowColor: '#3E2D18',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.12,
+    shadowRadius: 10,
     width: 92,
   },
   shelfCoverSelected: {
+    borderColor: 'rgba(16,61,43,0.45)',
     transform: [{ translateY: -5 }],
   },
   shelfCoverImage: {
@@ -1328,10 +1387,11 @@ const styles = StyleSheet.create({
   },
   shelfPreview: {
     alignItems: 'center',
-    backgroundColor: 'rgba(247,241,229,0.7)',
-    borderColor: 'rgba(16,61,43,0.08)',
-    borderRadius: 22,
-    borderWidth: 1,
+    backgroundColor: 'transparent',
+    borderBottomColor: 'rgba(16,61,43,0.1)',
+    borderBottomWidth: 1,
+    borderTopColor: 'rgba(16,61,43,0.1)',
+    borderTopWidth: 1,
     flexDirection: 'row',
     gap: 16,
     marginTop: 16,
