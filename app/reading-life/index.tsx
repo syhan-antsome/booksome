@@ -352,12 +352,18 @@ export default function ReadingLifeScreen() {
                                 </View>
                               ) : null}
                             </View>
-                            <View
-                              style={[
-                                styles.shelfSelectionMark,
-                                selectedShelfBook?.id === book.id ? styles.shelfSelectionMarkActive : null,
-                              ]}
-                            />
+                            <View style={styles.shelfSelectionMark}>
+                              {selectedShelfBook?.id === book.id ? (
+                                <View style={styles.shelfLamp}>
+                                  <View style={styles.shelfLampLightRow}>
+                                    <View style={styles.shelfLampCap} />
+                                    <View style={styles.shelfLampGlow} />
+                                    <View style={styles.shelfLampCap} />
+                                  </View>
+                                  <View style={styles.shelfLampCover} />
+                                </View>
+                              ) : null}
+                            </View>
                             <Text style={styles.shelfTitle} numberOfLines={2}>
                               {book.title}
                             </Text>
@@ -1435,19 +1441,55 @@ const styles = StyleSheet.create({
     lineHeight: 14,
   },
   shelfSelectionMark: {
-    backgroundColor: 'transparent',
-    borderRadius: 999,
-    height: 5,
-    marginTop: 6,
-    width: 46,
+    alignItems: 'center',
+    height: 11,
+    justifyContent: 'center',
+    marginTop: 4,
+    width: 54,
     zIndex: 3,
   },
-  shelfSelectionMarkActive: {
-    backgroundColor: 'rgba(255,187,79,0.92)',
+  shelfLamp: {
+    alignItems: 'center',
+    height: 11,
+    justifyContent: 'flex-start',
+    width: 54,
+  },
+  shelfLampLightRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    height: 4,
+    width: 50,
+  },
+  shelfLampCap: {
+    backgroundColor: '#15110C',
+    borderTopLeftRadius: 2,
+    borderTopRightRadius: 2,
+    height: 4,
+    width: 8,
+  },
+  shelfLampGlow: {
+    backgroundColor: '#FFBF58',
+    borderRadius: 999,
+    flex: 1,
+    height: 4,
     shadowColor: '#FFBE58',
     shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.95,
-    shadowRadius: 9,
+    shadowOpacity: 1,
+    shadowRadius: 8,
+  },
+  shelfLampCover: {
+    backgroundColor: '#16110B',
+    borderBottomLeftRadius: 999,
+    borderBottomRightRadius: 999,
+    borderTopLeftRadius: 2,
+    borderTopRightRadius: 2,
+    height: 6,
+    marginTop: -1,
+    shadowColor: '#1A1208',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.35,
+    shadowRadius: 2,
+    width: 52,
   },
   shelfTitle: {
     color: '#26372B',
