@@ -17,6 +17,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import readingLifeSignboardImage from '../../assets/reading-life-signboard.jpg';
+import shelfCoverLightOverlayImage from '../../assets/white-gradient-transparency-92x138.png';
 import { AuthRequired } from '../../src/components/auth-required';
 import { BottomNavigation } from '../../src/components/bottom-navigation';
 import { getRandomReadingLifeQuote } from '../../src/data/reading-life-quotes';
@@ -355,18 +356,11 @@ export default function ReadingLifeScreen() {
                                 <Text style={styles.shelfCoverText}>BOOK</Text>
                               )}
                               {selectedShelfBook?.id === book.id ? (
-                                <View pointerEvents="none" style={styles.shelfCoverLightMask}>
-                                  <LinearGradient
-                                    colors={[
-                                      'rgba(255,255,255,0)',
-                                      'rgba(255,255,255,0.06)',
-                                      'rgba(255,255,255,0.16)',
-                                    ]}
-                                    pointerEvents="none"
-                                    style={styles.shelfCoverLightFade}
-                                  />
-                                  <View pointerEvents="none" style={styles.shelfCoverLightOval} />
-                                </View>
+                                <Image
+                                  resizeMode="stretch"
+                                  source={shelfCoverLightOverlayImage as ImageSourcePropType}
+                                  style={styles.shelfCoverLightOverlay}
+                                />
                               ) : null}
                               {book.status === 'finished' ? (
                                 <View style={styles.shelfFinishedStamp}>
@@ -1412,30 +1406,15 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     zIndex: 5,
   },
-  shelfCoverLightMask: {
+  shelfCoverLightOverlay: {
     bottom: 0,
+    height: '100%',
     left: 0,
     position: 'absolute',
     right: 0,
     top: 0,
+    width: '100%',
     zIndex: 3,
-  },
-  shelfCoverLightFade: {
-    bottom: 0,
-    height: 82,
-    left: 0,
-    position: 'absolute',
-    right: 0,
-  },
-  shelfCoverLightOval: {
-    backgroundColor: 'rgba(255,255,255,0.3)',
-    borderRadius: 999,
-    bottom: -24,
-    height: 76,
-    left: 7,
-    position: 'absolute',
-    right: 7,
-    transform: [{ scaleX: 1.22 }],
   },
   shelfProgressGaugeSlot: {
     height: 18,
