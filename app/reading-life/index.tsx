@@ -363,26 +363,26 @@ export default function ReadingLifeScreen() {
                       </View>
                     </LinearGradient>
                   ) : null}
-                </View>
-                {selectedShelfBook ? (
-                  <View style={styles.shelfPreview}>
-                    <View style={styles.previewCopy}>
-                      <Text style={styles.previewState}>{getStatusLabel(selectedShelfBook)}</Text>
-                      <Text style={styles.previewTitle} numberOfLines={2}>
-                        {selectedShelfBook.title}
-                      </Text>
-                      <Text style={styles.previewMeta} numberOfLines={1}>
-                        {getCurrentBookHint(selectedShelfBook)}
-                      </Text>
+                  {selectedShelfBook ? (
+                    <View style={styles.shelfPreview}>
+                      <View style={styles.previewCopy}>
+                        <Text style={styles.previewState}>{getStatusLabel(selectedShelfBook)}</Text>
+                        <Text style={styles.previewTitle} numberOfLines={2}>
+                          {selectedShelfBook.title}
+                        </Text>
+                        <Text style={styles.previewMeta} numberOfLines={1}>
+                          {getCurrentBookHint(selectedShelfBook)}
+                        </Text>
+                      </View>
+                      <Pressable
+                        onPress={() => router.push(`/reading-life/${selectedShelfBook.id}`)}
+                        style={styles.previewButton}
+                      >
+                        <Text style={styles.previewButtonText}>상세보기</Text>
+                      </Pressable>
                     </View>
-                    <Pressable
-                      onPress={() => router.push(`/reading-life/${selectedShelfBook.id}`)}
-                      style={styles.previewButton}
-                    >
-                      <Text style={styles.previewButtonText}>상세보기</Text>
-                    </Pressable>
-                  </View>
-                ) : null}
+                  ) : null}
+                </View>
               </>
             ) : (
               <View style={styles.emptyShelf}>
@@ -1387,16 +1387,18 @@ const styles = StyleSheet.create({
   },
   shelfPreview: {
     alignItems: 'center',
-    backgroundColor: 'transparent',
-    borderBottomColor: 'rgba(16,61,43,0.1)',
-    borderBottomWidth: 1,
-    borderTopColor: 'rgba(16,61,43,0.1)',
+    backgroundColor: 'rgba(238,241,223,0.54)',
+    borderTopColor: 'rgba(112,82,45,0.28)',
     borderTopWidth: 1,
     flexDirection: 'row',
     gap: 16,
-    marginTop: 16,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
+    marginHorizontal: 20,
+    marginTop: -2,
+    paddingBottom: 16,
+    paddingHorizontal: 0,
+    paddingTop: 14,
+    position: 'relative',
+    zIndex: 2,
   },
   previewCopy: {
     flex: 1,
@@ -1423,15 +1425,15 @@ const styles = StyleSheet.create({
   },
   previewButton: {
     alignItems: 'center',
-    backgroundColor: '#103D2B',
-    borderRadius: 17,
-    height: 42,
+    borderBottomColor: '#103D2B',
+    borderBottomWidth: 1,
     justifyContent: 'center',
-    minWidth: 82,
-    paddingHorizontal: 14,
+    paddingBottom: 3,
+    paddingHorizontal: 2,
+    paddingTop: 3,
   },
   previewButtonText: {
-    color: '#F7F1E5',
+    color: '#103D2B',
     fontSize: 13,
     fontWeight: '900',
   },
