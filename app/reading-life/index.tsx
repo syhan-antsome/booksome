@@ -354,6 +354,22 @@ export default function ReadingLifeScreen() {
                               ) : (
                                 <Text style={styles.shelfCoverText}>BOOK</Text>
                               )}
+                              {selectedShelfBook?.id === book.id ? (
+                                <>
+                                  <LinearGradient
+                                    colors={[
+                                      'rgba(255,245,201,0)',
+                                      'rgba(255,227,151,0.34)',
+                                      'rgba(255,190,83,0.48)',
+                                    ]}
+                                    end={{ x: 0.16, y: 0.12 }}
+                                    pointerEvents="none"
+                                    start={{ x: 0.86, y: 1 }}
+                                    style={styles.shelfCoverLightWash}
+                                  />
+                                  <View pointerEvents="none" style={styles.shelfCoverLightPool} />
+                                </>
+                              ) : null}
                               {book.status === 'finished' ? (
                                 <View style={styles.shelfFinishedStamp}>
                                   <Text style={styles.shelfFinishedStampText}>완독</Text>
@@ -1354,10 +1370,11 @@ const styles = StyleSheet.create({
     left: -7,
     position: 'absolute',
     right: -7,
+    opacity: 0.72,
     zIndex: 0,
   },
   shelfSpotlightBase: {
-    backgroundColor: 'rgba(255,202,91,0.42)',
+    backgroundColor: 'rgba(255,202,91,0.3)',
     borderRadius: 999,
     bottom: 45,
     height: 13,
@@ -1395,6 +1412,26 @@ const styles = StyleSheet.create({
     color: '#103D2B',
     fontSize: 12,
     fontWeight: '900',
+    zIndex: 2,
+  },
+  shelfCoverLightWash: {
+    bottom: 0,
+    left: 0,
+    position: 'absolute',
+    right: 0,
+    top: 0,
+    zIndex: 3,
+  },
+  shelfCoverLightPool: {
+    backgroundColor: 'rgba(255,214,120,0.34)',
+    borderRadius: 999,
+    bottom: -16,
+    height: 58,
+    left: 10,
+    position: 'absolute',
+    right: 10,
+    transform: [{ scaleX: 1.25 }],
+    zIndex: 4,
   },
   shelfProgressGaugeSlot: {
     height: 18,
