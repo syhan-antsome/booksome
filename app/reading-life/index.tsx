@@ -322,6 +322,16 @@ export default function ReadingLifeScreen() {
                             selectedShelfBook?.id === book.id ? styles.shelfBookSelected : null,
                           ]}
                         >
+                          <View style={styles.shelfProgressGaugeSlot}>
+                            {shouldShowShelfProgress(book) ? (
+                              <View style={styles.shelfProgressGauge}>
+                                <View style={styles.shelfProgressGaugeTrack}>
+                                  <View style={[styles.shelfProgressGaugeFill, { width: `${book.progressPercent}%` }]} />
+                                </View>
+                                <Text style={styles.shelfProgressGaugeText}>{book.progressPercent}%</Text>
+                              </View>
+                            ) : null}
+                          </View>
                           <View
                             style={[
                               styles.shelfCover,
@@ -333,11 +343,6 @@ export default function ReadingLifeScreen() {
                             ) : (
                               <Text style={styles.shelfCoverText}>BOOK</Text>
                             )}
-                            {shouldShowShelfProgress(book) ? (
-                              <View style={styles.shelfCoverProgressTrack}>
-                                <View style={[styles.shelfCoverProgressFill, { width: `${book.progressPercent}%` }]} />
-                              </View>
-                            ) : null}
                             {book.status === 'finished' ? (
                               <View style={styles.shelfFinishedStamp}>
                                 <Text style={styles.shelfFinishedStampText}>완독</Text>
@@ -1358,27 +1363,36 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '900',
   },
-  shelfCoverProgressTrack: {
-    backgroundColor: 'rgba(247,241,229,0.84)',
-    borderColor: 'rgba(16,61,43,0.16)',
-    borderRadius: 999,
-    borderWidth: 1,
-    height: 8,
-    left: 7,
-    overflow: 'hidden',
-    position: 'absolute',
-    right: 7,
-    shadowColor: '#102519',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.14,
-    shadowRadius: 4,
-    top: 7,
-    zIndex: 4,
+  shelfProgressGaugeSlot: {
+    height: 18,
+    justifyContent: 'center',
+    marginBottom: 5,
+    width: 92,
   },
-  shelfCoverProgressFill: {
+  shelfProgressGauge: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 5,
+    width: '100%',
+  },
+  shelfProgressGaugeTrack: {
+    backgroundColor: 'rgba(16,61,43,0.13)',
+    borderRadius: 999,
+    flex: 1,
+    height: 6,
+    overflow: 'hidden',
+  },
+  shelfProgressGaugeFill: {
     backgroundColor: '#0C5A42',
     borderRadius: 999,
     height: '100%',
+  },
+  shelfProgressGaugeText: {
+    color: '#0C5A42',
+    fontSize: 10,
+    fontWeight: '900',
+    minWidth: 26,
+    textAlign: 'right',
   },
   shelfFinishedStamp: {
     alignItems: 'center',
