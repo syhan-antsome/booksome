@@ -317,7 +317,10 @@ export default function ReadingLifeScreen() {
                         <Pressable
                           key={book.id}
                           onPress={() => setSelectedShelfBookId(book.id)}
-                          style={styles.shelfBook}
+                          style={[
+                            styles.shelfBook,
+                            selectedShelfBook?.id === book.id ? styles.shelfBookSelected : null,
+                          ]}
                         >
                           <View
                             style={[
@@ -330,18 +333,20 @@ export default function ReadingLifeScreen() {
                             ) : (
                               <Text style={styles.shelfCoverText}>BOOK</Text>
                             )}
+                            {shouldShowShelfProgress(book) ? (
+                              <View style={styles.shelfCoverProgressTrack}>
+                                <View style={[styles.shelfCoverProgressFill, { width: `${book.progressPercent}%` }]} />
+                              </View>
+                            ) : null}
+                            {book.status === 'finished' ? (
+                              <View style={styles.shelfFinishedStamp}>
+                                <Text style={styles.shelfFinishedStampText}>완독</Text>
+                              </View>
+                            ) : null}
                           </View>
                           <Text style={styles.shelfTitle} numberOfLines={2}>
                             {book.title}
                           </Text>
-                          <Text style={styles.shelfMeta} numberOfLines={1}>
-                            {getShelfBookMeta(book)}
-                          </Text>
-                          {shouldShowShelfProgress(book) ? (
-                            <View style={styles.shelfProgressTrack}>
-                              <View style={[styles.shelfProgressFill, { width: `${book.progressPercent}%` }]} />
-                            </View>
-                          ) : null}
                         </Pressable>
                       ))}
                     </ScrollView>
@@ -366,12 +371,11 @@ export default function ReadingLifeScreen() {
                   {selectedShelfBook ? (
                     <View style={styles.shelfPreview}>
                       <View style={styles.previewCopy}>
-                        <Text style={styles.previewState}>{getStatusLabel(selectedShelfBook)}</Text>
                         <Text style={styles.previewTitle} numberOfLines={2}>
                           {selectedShelfBook.title}
                         </Text>
                         <Text style={styles.previewMeta} numberOfLines={1}>
-                          {getCurrentBookHint(selectedShelfBook)}
+                          {getShelfPreviewMeta(selectedShelfBook)}
                         </Text>
                       </View>
                       <Pressable
@@ -571,20 +575,11 @@ function getCurrentBookStatusText(book: ReadingLifeBook) {
   return '이어 읽는 중';
 }
 
-function getStatusLabel(book: ReadingLifeBook) {
-  if (book.status === 'reading') return '읽는 중';
-  if (book.status === 'want_to_read') return '읽고 싶음';
-  if (book.status === 'finished') return '완독';
-  return '잠시 쉼';
-}
+function getShelfPreviewMeta(book: ReadingLifeBook) {
+  if (book.totalPages) return getCurrentBookHint(book);
+  if (book.author) return book.author;
 
-function getShelfBookMeta(book: ReadingLifeBook) {
-  if (book.status === 'finished') return '완독';
-  if (book.status === 'want_to_read') return '읽고 싶음';
-  if (book.status === 'paused') return '잠시 쉼';
-  if (book.totalPages) return `${book.progressPercent}%`;
-
-  return '읽는 중';
+  return '상세 기록을 열어 책의 여정을 이어가세요.';
 }
 
 function shouldShowShelfProgress(book: ReadingLifeBook) {
@@ -1226,7 +1221,7 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     gap: 18,
     paddingBottom: 20,
-    paddingLeft: 20,
+    paddingLeft: 12,
     paddingRight: 88,
     paddingTop: 18,
   },
@@ -1236,8 +1231,8 @@ const styles = StyleSheet.create({
     borderBottomWidth: 5,
     borderTopColor: 'rgba(112,82,45,0.18)',
     borderTopWidth: 1,
-    marginLeft: -20,
-    marginRight: -20,
+    marginLeft: 0,
+    marginRight: 0,
     marginTop: 12,
     minHeight: 224,
     position: 'relative',
@@ -1326,7 +1321,16 @@ const styles = StyleSheet.create({
   },
   shelfBook: {
     alignItems: 'center',
+    borderColor: 'rgba(176,74,64,0)',
+    borderRadius: 10,
+    borderWidth: 1,
+    paddingHorizontal: 5,
+    paddingVertical: 6,
     width: 104,
+  },
+  shelfBookSelected: {
+    backgroundColor: 'rgba(176,74,64,0.06)',
+    borderColor: 'rgba(176,74,64,0.46)',
   },
   shelfCover: {
     alignItems: 'center',
@@ -1345,7 +1349,7 @@ const styles = StyleSheet.create({
     width: 92,
   },
   shelfCoverSelected: {
-    borderColor: 'rgba(16,61,43,0.45)',
+    borderColor: 'rgba(176,74,64,0.5)',
     transform: [{ translateY: -5 }],
   },
   shelfCoverImage: {
@@ -1357,6 +1361,38 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '900',
   },
+  shelfCoverProgressTrack: {
+    backgroundColor: 'rgba(247,241,229,0.58)',
+    height: 5,
+    left: 0,
+    position: 'absolute',
+    right: 0,
+    top: 0,
+  },
+  shelfCoverProgressFill: {
+    backgroundColor: '#0C5A42',
+    height: '100%',
+  },
+  shelfFinishedStamp: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(176,74,64,0.88)',
+    borderColor: 'rgba(247,241,229,0.7)',
+    borderRadius: 999,
+    borderWidth: 1,
+    height: 32,
+    justifyContent: 'center',
+    position: 'absolute',
+    right: 6,
+    top: 8,
+    transform: [{ rotate: '-10deg' }],
+    width: 32,
+  },
+  shelfFinishedStampText: {
+    color: '#FFF8EC',
+    fontSize: 9,
+    fontWeight: '900',
+    lineHeight: 12,
+  },
   shelfTitle: {
     color: '#26372B',
     fontSize: 13,
@@ -1364,26 +1400,6 @@ const styles = StyleSheet.create({
     lineHeight: 18,
     marginTop: 10,
     width: 92,
-  },
-  shelfMeta: {
-    color: '#72806E',
-    fontSize: 11,
-    fontWeight: '800',
-    marginTop: 4,
-    width: 92,
-  },
-  shelfProgressTrack: {
-    backgroundColor: 'rgba(16,61,43,0.12)',
-    borderRadius: 999,
-    height: 4,
-    marginTop: 6,
-    overflow: 'hidden',
-    width: 92,
-  },
-  shelfProgressFill: {
-    backgroundColor: '#103D2B',
-    borderRadius: 999,
-    height: '100%',
   },
   shelfPreview: {
     alignItems: 'center',
@@ -1403,11 +1419,6 @@ const styles = StyleSheet.create({
   previewCopy: {
     flex: 1,
     minWidth: 0,
-  },
-  previewState: {
-    color: '#8F6A42',
-    fontSize: 11,
-    fontWeight: '900',
   },
   previewTitle: {
     color: '#26372B',
