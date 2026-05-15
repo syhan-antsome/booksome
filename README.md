@@ -84,6 +84,12 @@ If an existing database needs stricter comment writes, run:
 supabase/tighten-comment-rls.sql
 ```
 
+If an existing database needs reading note progress snapshots, run:
+
+```text
+supabase/add-reading-note-progress-snapshots.sql
+```
+
 The app first tries to read `room_discovery_cards` from Supabase. If the schema has not been applied yet, the Discover screen falls back to local preview data.
 
 ## Cloudflare Media API

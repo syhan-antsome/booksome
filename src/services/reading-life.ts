@@ -34,6 +34,9 @@ export type ReadingLifeNote = {
   quoteText: string | null;
   body: string | null;
   pageLabel: string | null;
+  currentPageSnapshot: number;
+  progressPercentSnapshot: number;
+  totalPagesSnapshot: number | null;
   mediaPath: string | null;
   mediaUrl: string | null;
   visibility: ReadingVisibility;
@@ -63,6 +66,9 @@ export type CreateReadingLifeNoteInput = {
   quoteText?: string | null;
   body?: string | null;
   pageLabel?: string | null;
+  currentPageSnapshot?: number | null;
+  progressPercentSnapshot?: number | null;
+  totalPagesSnapshot?: number | null;
   mediaPath?: string | null;
   mediaUrl?: string | null;
   visibility?: ReadingVisibility;
@@ -96,6 +102,9 @@ type ReadingNoteRow = {
   quote_text: string | null;
   body: string | null;
   page_label: string | null;
+  current_page_snapshot: number;
+  progress_percent_snapshot: number;
+  total_pages_snapshot: number | null;
   media_path: string | null;
   media_url: string | null;
   visibility: ReadingVisibility;
@@ -107,7 +116,7 @@ const readingBookSelect =
   'id, profile_id, isbn13, title, author, publisher, published_date, description, external_cover_url, status, progress_percent, current_page, total_pages, pinned_at, visibility, created_at, updated_at';
 
 const readingNoteSelect =
-  'id, reading_book_id, profile_id, kind, quote_text, body, page_label, media_path, media_url, visibility, created_at, updated_at';
+  'id, reading_book_id, profile_id, kind, quote_text, body, page_label, current_page_snapshot, progress_percent_snapshot, total_pages_snapshot, media_path, media_url, visibility, created_at, updated_at';
 
 export async function listReadingLifeBooks(profileId: string) {
   const { data, error } = await supabase
@@ -345,6 +354,10 @@ export async function createReadingLifeNote(input: CreateReadingLifeNoteInput) {
       quote_text: input.quoteText?.trim() || null,
       body: input.body?.trim() || null,
       page_label: input.pageLabel?.trim() || null,
+      current_page_snapshot: sanitizeNonNegativeInteger(input.currentPageSnapshot ?? 0),
+      progress_percent_snapshot: Math.min(100, Math.max(0, Math.round(input.progressPercentSnapshot ?? 0))),
+      total_pages_snapshot:
+        typeof input.totalPagesSnapshot === 'number' ? sanitizePositiveInteger(input.totalPagesSnapshot) : null,
       media_path: input.mediaPath ?? null,
       media_url: input.mediaUrl ?? null,
       visibility: input.visibility ?? 'private',
@@ -390,6 +403,9 @@ function mapReadingNote(row: ReadingNoteRow): ReadingLifeNote {
     quoteText: row.quote_text,
     body: row.body,
     pageLabel: row.page_label,
+    currentPageSnapshot: row.current_page_snapshot ?? 0,
+    progressPercentSnapshot: row.progress_percent_snapshot ?? 0,
+    totalPagesSnapshot: row.total_pages_snapshot,
     mediaPath: row.media_path,
     mediaUrl: row.media_url,
     visibility: row.visibility,

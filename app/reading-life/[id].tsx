@@ -166,6 +166,8 @@ export default function ReadingLifeBookScreen() {
             note.quoteText,
             note.body,
             note.pageLabel,
+            note.currentPageSnapshot > 0 ? `${note.currentPageSnapshot}쪽` : null,
+            note.progressPercentSnapshot > 0 ? `${note.progressPercentSnapshot}%` : null,
             note.kind === 'photo' ? '사진' : note.quoteText ? '문장' : '글',
           ]
             .filter(Boolean)
@@ -399,8 +401,6 @@ export default function ReadingLifeBookScreen() {
     [beginShuttleDrag, finishShuttleDrag, totalPageValue, updateDraftPageFromShuttle],
   );
 
-  const getDefaultNotePage = useCallback(() => (displayCurrentPage > 0 ? String(displayCurrentPage) : ''), [displayCurrentPage]);
-
   const openComposerChoice = () => {
     setComposer((current) => (current === 'choice' ? 'closed' : 'choice'));
     setErrorMessage(null);
@@ -416,7 +416,7 @@ export default function ReadingLifeBookScreen() {
     setNoteText('');
     setPhotoBody('');
     setPhotoAsset(null);
-    setPageLabel(getDefaultNotePage());
+    setPageLabel('');
     setErrorMessage(null);
   };
 
@@ -425,44 +425,45 @@ export default function ReadingLifeBookScreen() {
     setPhotoAsset(asset);
     setPhotoBody('');
     setNoteText('');
-    setPageLabel(getDefaultNotePage());
+    setPageLabel('');
     setErrorMessage(null);
   };
 
-  const getValidatedNotePage = () => {
+  const useCurrentPositionForNote = () => {
+    if (displayCurrentPage <= 0) {
+      setErrorMessage('현재 읽은 페이지가 아직 없습니다.');
+      return;
+    }
+
+    setPageLabel(String(displayCurrentPage));
+    setErrorMessage(null);
+  };
+
+  const getOptionalNotePage = () => {
+    const hasPageLabel = pageLabel.replace(/[^0-9]/g, '').length > 0;
+
+    if (!hasPageLabel) return null;
+
     const notePage = parsePositiveInteger(pageLabel);
 
     if (notePage === null) {
-      setErrorMessage('페이지 번호를 입력해주세요.');
-      return null;
+      setErrorMessage('기록 페이지는 1쪽 이상으로 입력해주세요.');
+      return undefined;
     }
 
     if (totalPageValue && notePage > totalPageValue) {
       setErrorMessage('기록한 페이지는 마지막 페이지보다 클 수 없습니다.');
-      return null;
+      return undefined;
     }
 
     return notePage;
   };
 
-  const updateBookProgressFromNotePage = async (notePage: number) => {
-    if (!session?.user.id || !bookId || !book?.totalPages || notePage <= book.currentPage) return;
-
-    const progressPercent = calculateReadingProgressPercent(notePage, book.totalPages);
-    const nextBook = await updateReadingLifeBook(session.user.id, bookId, {
-      currentPage: notePage,
-      progressPercent,
-      status: progressPercent >= 100 ? 'finished' : book.status === 'finished' ? 'reading' : book.status,
-      totalPages: book.totalPages,
-    });
-    setBook(nextBook);
-  };
-
   const saveTextNote = async () => {
     if (!session?.user.id || !bookId || !book) return;
 
-    const notePage = getValidatedNotePage();
-    if (notePage === null) return;
+    const notePage = getOptionalNotePage();
+    if (typeof notePage === 'undefined') return;
 
     if (!noteText.trim()) {
       setErrorMessage('남길 글을 입력해주세요.');
@@ -478,11 +479,13 @@ export default function ReadingLifeBookScreen() {
         profileId: session.user.id,
         kind: 'quote',
         body: noteText.trim(),
-        pageLabel: String(notePage),
+        pageLabel: notePage === null ? null : String(notePage),
+        currentPageSnapshot: displayCurrentPage,
+        progressPercentSnapshot: displayProgressPercent,
+        totalPagesSnapshot: totalPageValue,
         visibility: noteVisibility,
       });
       setNotes((current) => [note, ...current]);
-      await updateBookProgressFromNotePage(notePage);
       setNoteText('');
       setPageLabel('');
       setComposer('closed');
@@ -530,8 +533,8 @@ export default function ReadingLifeBookScreen() {
       return;
     }
 
-    const notePage = getValidatedNotePage();
-    if (notePage === null) return;
+    const notePage = getOptionalNotePage();
+    if (typeof notePage === 'undefined') return;
 
     setIsSavingNote(true);
     setErrorMessage(null);
@@ -552,13 +555,15 @@ export default function ReadingLifeBookScreen() {
         profileId: session.user.id,
         kind: 'photo',
         body: photoBody.trim() || null,
-        pageLabel: String(notePage),
+        pageLabel: notePage === null ? null : String(notePage),
+        currentPageSnapshot: displayCurrentPage,
+        progressPercentSnapshot: displayProgressPercent,
+        totalPagesSnapshot: totalPageValue,
         mediaPath: uploaded.objectPath,
         mediaUrl: uploaded.mediaUrl,
         visibility: noteVisibility,
       });
       setNotes((current) => [note, ...current]);
-      await updateBookProgressFromNotePage(notePage);
       setPhotoBody('');
       setPhotoAsset(null);
       setPageLabel('');
@@ -572,18 +577,26 @@ export default function ReadingLifeBookScreen() {
 
   const pageInputField = (
     <View style={styles.notePageField}>
-      <Text style={styles.notePageFieldLabel}>읽은 위치</Text>
+      <View style={styles.notePageHeader}>
+        <Text style={styles.notePageFieldLabel}>기록 페이지</Text>
+        <Pressable onPress={useCurrentPositionForNote} style={styles.notePageUseCurrentButton}>
+          <Text style={styles.notePageUseCurrentText}>현재 위치 넣기</Text>
+        </Pressable>
+      </View>
       <View style={styles.notePageInputRow}>
         <TextInput
           keyboardType="number-pad"
           onChangeText={(value) => setPageLabel(value.replace(/[^0-9]/g, ''))}
-          placeholder={displayCurrentPage > 0 ? String(displayCurrentPage) : '0'}
+          placeholder="선택"
           placeholderTextColor="#9A927F"
           style={styles.notePageInput}
           value={pageLabel}
         />
         <Text style={styles.notePageUnit}>쪽</Text>
       </View>
+      <Text style={styles.notePageHint}>
+        비워도 저장됩니다. 저장 순간의 현재 읽은 위치는 자동으로 함께 남습니다.
+      </Text>
     </View>
   );
 
@@ -924,7 +937,9 @@ export default function ReadingLifeBookScreen() {
                         <View />
                       )}
                       <Text style={styles.noteVisibility}>
-                        {formatNoteDate(note.createdAt)} · {note.visibility === 'public' ? '공개' : '비공개'}
+                        {[formatNoteDate(note.createdAt), formatNoteProgressSnapshot(note), note.visibility === 'public' ? '공개' : '비공개']
+                          .filter(Boolean)
+                          .join(' · ')}
                       </Text>
                     </View>
                     {note.mediaUrl ? (
@@ -1004,6 +1019,22 @@ function formatNoteDate(value: string) {
   if (Number.isNaN(date.getTime())) return '';
 
   return `${date.getMonth() + 1}.${date.getDate()} ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+}
+
+function formatNoteProgressSnapshot(note: ReadingLifeNote) {
+  if (note.totalPagesSnapshot && note.currentPageSnapshot > 0) {
+    return `당시 ${note.currentPageSnapshot}/${note.totalPagesSnapshot}쪽`;
+  }
+
+  if (note.currentPageSnapshot > 0) {
+    return `당시 ${note.currentPageSnapshot}쪽`;
+  }
+
+  if (note.progressPercentSnapshot > 0) {
+    return `당시 ${note.progressPercentSnapshot}%`;
+  }
+
+  return '';
 }
 
 const styles = StyleSheet.create({
@@ -1429,11 +1460,27 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 12,
   },
+  notePageHeader: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 4,
+  },
   notePageFieldLabel: {
     color: '#6D766F',
     fontSize: 11,
     fontWeight: '900',
-    marginBottom: 4,
+  },
+  notePageUseCurrentButton: {
+    backgroundColor: 'rgba(16,61,43,0.1)',
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  notePageUseCurrentText: {
+    color: '#103D2B',
+    fontSize: 11,
+    fontWeight: '900',
   },
   notePageInputRow: {
     alignItems: 'flex-end',
@@ -1453,6 +1500,13 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     lineHeight: 23,
     paddingBottom: 3,
+  },
+  notePageHint: {
+    color: '#6D766F',
+    fontSize: 11,
+    fontWeight: '700',
+    lineHeight: 16,
+    marginTop: 6,
   },
   input: {
     backgroundColor: 'transparent',
