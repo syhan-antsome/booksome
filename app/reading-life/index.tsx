@@ -354,6 +354,20 @@ export default function ReadingLifeScreen() {
                               ) : (
                                 <Text style={styles.shelfCoverText}>BOOK</Text>
                               )}
+                              {selectedShelfBook?.id === book.id ? (
+                                <View pointerEvents="none" style={styles.shelfCoverLightMask}>
+                                  <LinearGradient
+                                    colors={[
+                                      'rgba(255,255,255,0)',
+                                      'rgba(255,255,255,0.06)',
+                                      'rgba(255,255,255,0.16)',
+                                    ]}
+                                    pointerEvents="none"
+                                    style={styles.shelfCoverLightFade}
+                                  />
+                                  <View pointerEvents="none" style={styles.shelfCoverLightOval} />
+                                </View>
+                              ) : null}
                               {book.status === 'finished' ? (
                                 <View style={styles.shelfFinishedStamp}>
                                   <Text style={styles.shelfFinishedStampText}>완독</Text>
@@ -1396,7 +1410,32 @@ const styles = StyleSheet.create({
     color: '#103D2B',
     fontSize: 12,
     fontWeight: '900',
-    zIndex: 2,
+    zIndex: 5,
+  },
+  shelfCoverLightMask: {
+    bottom: 0,
+    left: 0,
+    position: 'absolute',
+    right: 0,
+    top: 0,
+    zIndex: 3,
+  },
+  shelfCoverLightFade: {
+    bottom: 0,
+    height: 82,
+    left: 0,
+    position: 'absolute',
+    right: 0,
+  },
+  shelfCoverLightOval: {
+    backgroundColor: 'rgba(255,255,255,0.3)',
+    borderRadius: 999,
+    bottom: -24,
+    height: 76,
+    left: 7,
+    position: 'absolute',
+    right: 7,
+    transform: [{ scaleX: 1.22 }],
   },
   shelfProgressGaugeSlot: {
     height: 18,
