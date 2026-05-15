@@ -1461,7 +1461,7 @@ const styles = StyleSheet.create({
     width: 50,
   },
   shelfLampCap: {
-    backgroundColor: '#15110C',
+    backgroundColor: '#3C3022',
     borderTopLeftRadius: 2,
     borderTopRightRadius: 2,
     height: 6,
@@ -1478,7 +1478,7 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
   },
   shelfLampCover: {
-    backgroundColor: '#16110B',
+    backgroundColor: '#3C3022',
     borderBottomLeftRadius: 999,
     borderBottomRightRadius: 999,
     borderTopLeftRadius: 2,
