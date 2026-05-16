@@ -521,6 +521,37 @@ export default function ReadingLifeBookScreen() {
     }
   };
 
+  const saveCheckpointNote = async () => {
+    if (!session?.user.id || !bookId || !book) return;
+
+    if (displayCurrentPage <= 0) {
+      setErrorMessage('먼저 현재 읽은 페이지를 기록해주세요.');
+      return;
+    }
+
+    setIsSavingNote(true);
+    setErrorMessage(null);
+
+    try {
+      const note = await createReadingLifeNote({
+        readingBookId: bookId,
+        profileId: session.user.id,
+        kind: 'quote',
+        body: '오늘은 여기까지.',
+        currentPageSnapshot: displayCurrentPage,
+        progressPercentSnapshot: displayProgressPercent,
+        totalPagesSnapshot: totalPageValue,
+        visibility: noteVisibility,
+      });
+      setNotes((current) => [note, ...current]);
+      setComposer('closed');
+    } catch (error) {
+      setErrorMessage(getErrorMessage(error, '현재 위치 기록을 저장하지 못했습니다.'));
+    } finally {
+      setIsSavingNote(false);
+    }
+  };
+
   const takePhoto = async () => {
     const permission = await ImagePicker.requestCameraPermissionsAsync();
 
@@ -633,15 +664,7 @@ export default function ReadingLifeBookScreen() {
         showsVerticalScrollIndicator={false}
         style={styles.scroll}
       >
-        <ScreenHeader
-          action={
-            <Pressable onPress={() => router.push('/scan')} style={styles.scanButton}>
-              <Text style={styles.scanButtonText}>＋</Text>
-            </Pressable>
-          }
-          title="나의 책"
-          tone="paper"
-        />
+        <ScreenHeader title="나의 책" tone="paper" />
 
         {!session ? (
           <AuthRequired
@@ -787,10 +810,11 @@ export default function ReadingLifeBookScreen() {
             </View>
 
             <View style={styles.memoPanel}>
-              <View style={styles.memoToolbar}>
-                <Pressable onPress={openComposerChoice} style={styles.writeButton}>
-                  <Text style={styles.writeButtonText}>✎</Text>
-                </Pressable>
+              <View style={styles.memoHeader}>
+                <View>
+                  <Text style={styles.memoTitle}>책갈피</Text>
+                  <Text style={styles.memoSubtitle}>{notes.length}개의 기록 조각</Text>
+                </View>
                 <View style={styles.memoTools}>
                   <Pressable
                     onPress={toggleSearch}
@@ -805,6 +829,28 @@ export default function ReadingLifeBookScreen() {
                     <Text style={styles.memoToolText}>{noteSortDirection === 'desc' ? '최신순' : '오래된순'}</Text>
                   </Pressable>
                 </View>
+              </View>
+
+              <View style={styles.captureDock}>
+                <Pressable onPress={openTextComposer} style={[styles.captureAction, styles.captureActionPrimary]}>
+                  <Text style={[styles.captureActionMark, styles.captureActionMarkPrimary]}>✎</Text>
+                  <Text style={[styles.captureActionTitle, styles.captureActionTitlePrimary]}>글</Text>
+                  <Text style={[styles.captureActionText, styles.captureActionTextPrimary]}>문장과 생각</Text>
+                </Pressable>
+                <Pressable onPress={openComposerChoice} style={styles.captureAction}>
+                  <Text style={styles.captureActionMark}>◉</Text>
+                  <Text style={styles.captureActionTitle}>사진</Text>
+                  <Text style={styles.captureActionText}>장면 남기기</Text>
+                </Pressable>
+                <Pressable
+                  disabled={isSavingNote}
+                  onPress={saveCheckpointNote}
+                  style={[styles.captureAction, isSavingNote ? styles.captureActionDisabled : null]}
+                >
+                  <Text style={styles.captureActionMark}>⌁</Text>
+                  <Text style={styles.captureActionTitle}>여기까지</Text>
+                  <Text style={styles.captureActionText}>{displayCurrentPage > 0 ? `${displayCurrentPage}쪽 저장` : '위치 저장'}</Text>
+                </Pressable>
               </View>
 
               {isSearchOpen ? (
@@ -828,10 +874,6 @@ export default function ReadingLifeBookScreen() {
                       <Pressable onPress={pickPhoto} style={styles.captureChoice}>
                         <Text style={styles.captureChoiceTitle}>갤러리</Text>
                         <Text style={styles.captureChoiceText}>사진 고르기</Text>
-                      </Pressable>
-                      <Pressable onPress={openTextComposer} style={styles.captureChoice}>
-                        <Text style={styles.captureChoiceTitle}>글</Text>
-                        <Text style={styles.captureChoiceText}>문장과 생각</Text>
                       </Pressable>
                     </View>
                   ) : null}
@@ -949,29 +991,39 @@ export default function ReadingLifeBookScreen() {
                     <Text style={styles.emptyNotes}>검색된 기록이 없습니다.</Text>
                   </View>
                 ) : null}
-                {visibleNotes.map((note) => (
-                  <View key={note.id} style={[styles.noteItem, note.kind === 'photo' ? styles.noteItemPhoto : null]}>
-                    <View style={styles.noteHead}>
-                      {note.pageLabel ? (
-                        <View style={styles.notePageBadge}>
-                          <Text style={styles.notePageBadgeText}>{note.pageLabel}쪽</Text>
+                {visibleNotes.map((note, index) => {
+                  const pageBadge = formatNotePageBadge(note);
+
+                  return (
+                    <View key={note.id} style={styles.noteTimelineRow}>
+                      <View style={styles.noteTimelineRail}>
+                        <View style={styles.noteTimelineDot} />
+                        {index < visibleNotes.length - 1 ? <View style={styles.noteTimelineLine} /> : null}
+                      </View>
+                      <View style={[styles.noteItem, note.kind === 'photo' ? styles.noteItemPhoto : null]}>
+                        <View style={styles.noteHead}>
+                          {pageBadge ? (
+                            <View style={styles.notePageBadge}>
+                              <Text style={styles.notePageBadgeText}>{pageBadge}</Text>
+                            </View>
+                          ) : (
+                            <View />
+                          )}
+                          <Text style={styles.noteVisibility}>
+                            {[formatNoteDate(note.createdAt), note.visibility === 'public' ? '공개' : '비공개']
+                              .filter(Boolean)
+                              .join(' · ')}
+                          </Text>
                         </View>
-                      ) : (
-                        <View />
-                      )}
-                      <Text style={styles.noteVisibility}>
-                        {[formatNoteDate(note.createdAt), formatNoteProgressSnapshot(note), note.visibility === 'public' ? '공개' : '비공개']
-                          .filter(Boolean)
-                          .join(' · ')}
-                      </Text>
+                        {note.mediaUrl ? (
+                          <Image resizeMode="cover" source={{ uri: note.mediaUrl }} style={styles.noteImage} />
+                        ) : null}
+                        {note.quoteText ? <Text style={styles.noteQuote}>“{note.quoteText}”</Text> : null}
+                        {note.body ? <Text style={styles.noteBody}>{note.body}</Text> : null}
+                      </View>
                     </View>
-                    {note.mediaUrl ? (
-                      <Image resizeMode="cover" source={{ uri: note.mediaUrl }} style={styles.noteImage} />
-                    ) : null}
-                    {note.quoteText ? <Text style={styles.noteQuote}>“{note.quoteText}”</Text> : null}
-                    {note.body ? <Text style={styles.noteBody}>{note.body}</Text> : null}
-                  </View>
-                ))}
+                  );
+                })}
               </View>
             </View>
 
@@ -1044,18 +1096,10 @@ function formatNoteDate(value: string) {
   return `${date.getMonth() + 1}.${date.getDate()} ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
 }
 
-function formatNoteProgressSnapshot(note: ReadingLifeNote) {
-  if (note.totalPagesSnapshot && note.currentPageSnapshot > 0) {
-    return `당시 ${note.currentPageSnapshot}/${note.totalPagesSnapshot}쪽`;
-  }
-
-  if (note.currentPageSnapshot > 0) {
-    return `당시 ${note.currentPageSnapshot}쪽`;
-  }
-
-  if (note.progressPercentSnapshot > 0) {
-    return `당시 ${note.progressPercentSnapshot}%`;
-  }
+function formatNotePageBadge(note: ReadingLifeNote) {
+  if (note.pageLabel) return `${note.pageLabel}쪽`;
+  if (note.currentPageSnapshot > 0) return `당시 ${note.currentPageSnapshot}쪽`;
+  if (note.progressPercentSnapshot > 0) return `당시 ${note.progressPercentSnapshot}%`;
 
   return '';
 }
@@ -1073,26 +1117,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 12,
     paddingBottom: 190,
-  },
-  header: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 14,
-  },
-  scanButton: {
-    alignItems: 'center',
-    backgroundColor: '#103D2B',
-    borderRadius: 23,
-    height: 46,
-    justifyContent: 'center',
-    width: 46,
-  },
-  scanButtonText: {
-    color: '#F7F1E5',
-    fontSize: 25,
-    fontWeight: '900',
-    lineHeight: 28,
   },
   loadingPanel: {
     alignItems: 'center',
@@ -1365,33 +1389,26 @@ const styles = StyleSheet.create({
     fontWeight: '900',
   },
   memoPanel: {
-    marginTop: 22,
+    marginTop: 24,
     paddingBottom: 8,
   },
-  memoToolbar: {
-    alignItems: 'center',
+  memoHeader: {
+    alignItems: 'flex-end',
     flexDirection: 'row',
     justifyContent: 'space-between',
   },
-  writeButton: {
-    alignItems: 'center',
-    backgroundColor: '#103D2B',
-    borderColor: 'rgba(216,190,136,0.34)',
-    borderRadius: 28,
-    borderWidth: 1,
-    height: 56,
-    justifyContent: 'center',
-    shadowColor: '#102519',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.16,
-    shadowRadius: 18,
-    width: 56,
-  },
-  writeButtonText: {
-    color: '#D8BE88',
-    fontSize: 28,
+  memoTitle: {
+    color: '#14251B',
+    fontSize: 22,
     fontWeight: '900',
-    lineHeight: 32,
+    lineHeight: 27,
+  },
+  memoSubtitle: {
+    color: '#778171',
+    fontSize: 12,
+    fontWeight: '800',
+    lineHeight: 17,
+    marginTop: 2,
   },
   memoTools: {
     flexDirection: 'row',
@@ -1417,6 +1434,61 @@ const styles = StyleSheet.create({
   },
   memoToolTextActive: {
     color: '#103D2B',
+  },
+  captureDock: {
+    flexDirection: 'row',
+    gap: 9,
+    marginTop: 15,
+  },
+  captureAction: {
+    backgroundColor: 'rgba(247,241,229,0.76)',
+    borderColor: 'rgba(16,61,43,0.08)',
+    borderRadius: 20,
+    borderWidth: 1,
+    flex: 1,
+    minHeight: 96,
+    paddingHorizontal: 12,
+    paddingVertical: 13,
+    shadowColor: '#213728',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.04,
+    shadowRadius: 12,
+  },
+  captureActionPrimary: {
+    backgroundColor: '#103D2B',
+    borderColor: 'rgba(216,190,136,0.32)',
+  },
+  captureActionDisabled: {
+    opacity: 0.52,
+  },
+  captureActionMark: {
+    color: '#103D2B',
+    fontSize: 22,
+    fontWeight: '900',
+    lineHeight: 26,
+  },
+  captureActionMarkPrimary: {
+    color: '#D8BE88',
+  },
+  captureActionTitle: {
+    color: '#103D2B',
+    fontSize: 15,
+    fontWeight: '900',
+    lineHeight: 19,
+    marginTop: 8,
+  },
+  captureActionText: {
+    color: '#6D766F',
+    fontSize: 11,
+    fontWeight: '800',
+    lineHeight: 15,
+    marginTop: 4,
+  },
+  captureActionTitlePrimary: {
+    color: '#F7F1E5',
+  },
+  captureActionTextPrimary: {
+    color: 'rgba(247,241,229,0.72)',
   },
   searchInput: {
     backgroundColor: 'rgba(247,241,229,0.78)',
@@ -1608,7 +1680,6 @@ const styles = StyleSheet.create({
     marginTop: 14,
   },
   noteStream: {
-    gap: 14,
     marginTop: 20,
   },
   emptyNotes: {
@@ -1625,11 +1696,37 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 16,
   },
+  noteTimelineRow: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  noteTimelineRail: {
+    alignItems: 'center',
+    width: 18,
+  },
+  noteTimelineDot: {
+    backgroundColor: '#D8BE88',
+    borderColor: '#103D2B',
+    borderRadius: 999,
+    borderWidth: 2,
+    height: 13,
+    marginTop: 21,
+    width: 13,
+  },
+  noteTimelineLine: {
+    backgroundColor: 'rgba(16,61,43,0.16)',
+    flex: 1,
+    marginTop: 4,
+    minHeight: 34,
+    width: 2,
+  },
   noteItem: {
     backgroundColor: 'rgba(247,241,229,0.92)',
     borderColor: 'rgba(16,61,43,0.08)',
     borderRadius: 22,
     borderWidth: 1,
+    flex: 1,
+    marginBottom: 14,
     paddingHorizontal: 18,
     paddingVertical: 16,
     shadowColor: '#213728',
