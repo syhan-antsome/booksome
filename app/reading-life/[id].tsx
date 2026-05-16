@@ -753,9 +753,9 @@ export default function ReadingLifeBookScreen() {
                         style={styles.shuttleGuard}
                       >
                         <LinearGradient
-                          colors={['rgba(247,241,229,0.88)', 'rgba(216,190,136,0.9)']}
-                          start={{ x: 0, y: 0 }}
-                          end={{ x: 1, y: 1 }}
+                          colors={['rgba(7,20,15,0.36)', 'rgba(7,20,15,0.2)', 'rgba(247,241,229,0.18)']}
+                          start={{ x: 0, y: 0.5 }}
+                          end={{ x: 1, y: 0.5 }}
                           style={styles.shuttleGuardSurface}
                         >
                           <Text style={styles.shuttleGuardTitle}>읽은 페이지를 바꾸려면</Text>
@@ -1296,7 +1296,7 @@ const styles = StyleSheet.create({
   },
   shuttleGuardSurface: {
     alignItems: 'center',
-    borderColor: 'rgba(255,255,255,0.46)',
+    borderColor: 'rgba(255,255,255,0.28)',
     borderRadius: 15,
     borderWidth: 1,
     justifyContent: 'center',
@@ -1305,21 +1305,27 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     shadowColor: '#11150F',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.14,
+    shadowOpacity: 0.1,
     shadowRadius: 8,
   },
   shuttleGuardTitle: {
-    color: '#103D2B',
+    color: '#FFFFFF',
     fontSize: 12,
     fontWeight: '900',
     lineHeight: 16,
+    textShadowColor: 'rgba(0,0,0,0.32)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 4,
   },
   shuttleGuardText: {
-    color: '#4B583F',
+    color: 'rgba(255,255,255,0.86)',
     fontSize: 11,
     fontWeight: '800',
     lineHeight: 15,
     marginTop: 2,
+    textShadowColor: 'rgba(0,0,0,0.28)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 4,
   },
   pageSetupPanel: {
     alignItems: 'flex-end',
