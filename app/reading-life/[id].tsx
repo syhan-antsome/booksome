@@ -464,6 +464,32 @@ export default function ReadingLifeBookScreen() {
     setErrorMessage(null);
   };
 
+  const changeNotePageLabel = (value: string) => {
+    const normalizedValue = value.replace(/[^0-9]/g, '');
+
+    if (!normalizedValue) {
+      setPageLabel('');
+      setErrorMessage(null);
+      return;
+    }
+
+    const parsedValue = Number(normalizedValue);
+    if (!Number.isSafeInteger(parsedValue) || parsedValue <= 0) {
+      setPageLabel('');
+      return;
+    }
+
+    const nextPage = totalPageValue ? Math.min(parsedValue, totalPageValue) : parsedValue;
+    setPageLabel(String(nextPage));
+
+    if (totalPageValue && parsedValue > totalPageValue) {
+      setErrorMessage(`마지막 페이지는 ${totalPageValue}쪽입니다.`);
+      return;
+    }
+
+    setErrorMessage(null);
+  };
+
   const getOptionalNotePage = () => {
     const hasPageLabel = pageLabel.replace(/[^0-9]/g, '').length > 0;
 
@@ -537,7 +563,7 @@ export default function ReadingLifeBookScreen() {
         readingBookId: bookId,
         profileId: session.user.id,
         kind: 'quote',
-        body: '오늘은 여기까지.',
+        body: '읽은 위치를 남겼어요.',
         currentPageSnapshot: displayCurrentPage,
         progressPercentSnapshot: displayProgressPercent,
         totalPagesSnapshot: totalPageValue,
@@ -642,7 +668,7 @@ export default function ReadingLifeBookScreen() {
       <View style={styles.notePageInputRow}>
         <TextInput
           keyboardType="number-pad"
-          onChangeText={(value) => setPageLabel(value.replace(/[^0-9]/g, ''))}
+          onChangeText={changeNotePageLabel}
           placeholder="선택"
           placeholderTextColor="#9A927F"
           style={styles.notePageInput}
@@ -650,9 +676,7 @@ export default function ReadingLifeBookScreen() {
         />
         <Text style={styles.notePageUnit}>쪽</Text>
       </View>
-      <Text style={styles.notePageHint}>
-        비워도 저장됩니다. 저장 순간의 현재 읽은 위치는 자동으로 함께 남습니다.
-      </Text>
+      <Text style={styles.notePageHint}>비워도 괜찮아요.</Text>
     </View>
   );
 
@@ -848,7 +872,7 @@ export default function ReadingLifeBookScreen() {
                   style={[styles.captureAction, isSavingNote ? styles.captureActionDisabled : null]}
                 >
                   <Text style={styles.captureActionMark}>⌁</Text>
-                  <Text style={styles.captureActionTitle}>여기까지</Text>
+                  <Text style={styles.captureActionTitle}>읽은 위치</Text>
                   <Text style={styles.captureActionText}>{displayCurrentPage > 0 ? `${displayCurrentPage}쪽 저장` : '위치 저장'}</Text>
                 </Pressable>
               </View>
