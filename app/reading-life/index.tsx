@@ -22,7 +22,12 @@ import { AuthRequired } from '../../src/components/auth-required';
 import { BottomNavigation } from '../../src/components/bottom-navigation';
 import { getRandomReadingLifeQuote } from '../../src/data/reading-life-quotes';
 import { useAuth } from '../../src/providers/auth-provider';
-import { listReadingLifeBooks, type ReadingBookStatus, type ReadingLifeBook } from '../../src/services/reading-life';
+import {
+  listReadingLifeBooks,
+  listReadingLifeNoteCounts,
+  type ReadingBookStatus,
+  type ReadingLifeBook,
+} from '../../src/services/reading-life';
 
 type BookshelfFilter = 'all' | 'reading' | 'want_to_read' | 'finished';
 type CalendarEventType = 'registration' | 'reading';
@@ -81,6 +86,7 @@ export default function ReadingLifeScreen() {
   const { width } = useWindowDimensions();
   const [quoteFontsLoaded] = useFonts({ NotoSerifKR_500Medium });
   const [books, setBooks] = useState<ReadingLifeBook[]>([]);
+  const [noteCountsByBookId, setNoteCountsByBookId] = useState<Record<string, number>>({});
   const [isLoadingBooks, setIsLoadingBooks] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [bookshelfFilter, setBookshelfFilter] = useState<BookshelfFilter>('all');
@@ -98,6 +104,7 @@ export default function ReadingLifeScreen() {
 
       if (!session?.user.id) {
         setBooks([]);
+        setNoteCountsByBookId({});
         setIsLoadingBooks(false);
         return undefined;
       }
@@ -105,9 +112,15 @@ export default function ReadingLifeScreen() {
       setIsLoadingBooks(true);
       setLoadError(null);
 
-      listReadingLifeBooks(session.user.id)
-        .then((nextBooks) => {
-          if (isMounted) setBooks(nextBooks);
+      Promise.all([
+        listReadingLifeBooks(session.user.id),
+        listReadingLifeNoteCounts(session.user.id),
+      ])
+        .then(([nextBooks, nextNoteCounts]) => {
+          if (isMounted) {
+            setBooks(nextBooks);
+            setNoteCountsByBookId(nextNoteCounts);
+          }
         })
         .catch((error) => {
           if (isMounted) setLoadError(getErrorMessage(error, '독서생활 기록을 불러오지 못했습니다.'));
@@ -163,6 +176,7 @@ export default function ReadingLifeScreen() {
     filteredBooks.find((book) => book.id === selectedShelfBookId) ??
     filteredBooks[0] ??
     null;
+  const selectedShelfBookNoteCount = selectedShelfBook ? noteCountsByBookId[selectedShelfBook.id] ?? 0 : 0;
   const bookshelfEmptyMessage = bookshelfEmptyMessages[bookshelfFilter];
   const calendarDays = useMemo(() => buildReadingCalendarDays(books, calendarMonth), [books, calendarMonth]);
   const selectedCalendarEvents = useMemo(
@@ -386,24 +400,33 @@ export default function ReadingLifeScreen() {
                     </View>
                   )}
                   {selectedShelfBook ? (
-                    <View style={styles.shelfPreview}>
+                    <Pressable
+                      accessibilityLabel={`${selectedShelfBook.title} 상세 보기`}
+                      onPress={() => router.push(`/reading-life/${selectedShelfBook.id}`)}
+                      style={({ pressed }) => [styles.shelfPreview, pressed ? styles.shelfPreviewPressed : null]}
+                    >
+                      <View style={styles.previewAccent} />
                       <View style={styles.previewCopy}>
                         <Text style={styles.previewTitle} numberOfLines={2}>
                           {selectedShelfBook.title}
                         </Text>
-                        {selectedShelfBook.author ? (
-                          <Text style={styles.previewMeta} numberOfLines={1}>
-                            {selectedShelfBook.author}
+                        <Text style={styles.previewMeta} numberOfLines={1}>
+                          {formatSelectedShelfBookByline(selectedShelfBook)}
+                        </Text>
+                        <View style={styles.previewDetails}>
+                          <Text style={styles.previewDetailText} numberOfLines={1}>
+                            {formatSelectedShelfBookPageInfo(selectedShelfBook)}
                           </Text>
-                        ) : null}
+                          <View style={styles.previewDetailDot} />
+                          <Text style={styles.previewDetailText} numberOfLines={1}>
+                            메모 {selectedShelfBookNoteCount}개
+                          </Text>
+                        </View>
                       </View>
-                      <Pressable
-                        onPress={() => router.push(`/reading-life/${selectedShelfBook.id}`)}
-                        style={styles.previewButton}
-                      >
-                        <Text style={styles.previewButtonText}>열기 ›</Text>
-                      </Pressable>
-                    </View>
+                      <View style={styles.previewArrowPlate}>
+                        <Text style={styles.previewArrow}>›</Text>
+                      </View>
+                    </Pressable>
                   ) : null}
                 </View>
               </>
@@ -591,6 +614,24 @@ function getCurrentBookStatusText(book: ReadingLifeBook) {
   if (book.status === 'finished') return '완독한 책';
 
   return '이어 읽는 중';
+}
+
+function formatSelectedShelfBookByline(book: ReadingLifeBook) {
+  const byline = [book.author, book.publisher].filter(Boolean).join(' · ');
+
+  return byline || '책 정보 확인 중';
+}
+
+function formatSelectedShelfBookPageInfo(book: ReadingLifeBook) {
+  if (book.totalPages) {
+    return `${book.currentPage} / ${book.totalPages}쪽`;
+  }
+
+  if (book.currentPage > 0) {
+    return `${book.currentPage}쪽까지`;
+  }
+
+  return '페이지 미등록';
 }
 
 function formatCalendarMonth(date: Date) {
@@ -1492,48 +1533,79 @@ const styles = StyleSheet.create({
     zIndex: 3,
   },
   shelfPreview: {
-    alignItems: 'center',
-    backgroundColor: 'transparent',
+    alignItems: 'stretch',
+    backgroundColor: 'rgba(255,248,236,0.56)',
+    borderBottomColor: 'rgba(16,61,43,0.08)',
+    borderBottomWidth: 1,
+    borderTopColor: 'rgba(16,61,43,0.08)',
+    borderTopWidth: 1,
     flexDirection: 'row',
-    gap: 12,
-    marginHorizontal: 12,
-    marginTop: 4,
-    paddingBottom: 14,
-    paddingHorizontal: 0,
-    paddingTop: 8,
+    gap: 11,
+    marginHorizontal: 10,
+    marginTop: 8,
+    minHeight: 82,
+    paddingBottom: 13,
+    paddingHorizontal: 12,
+    paddingTop: 13,
     position: 'relative',
     zIndex: 2,
   },
+  shelfPreviewPressed: {
+    opacity: 0.72,
+  },
+  previewAccent: {
+    backgroundColor: '#B04A40',
+    borderRadius: 999,
+    marginVertical: 3,
+    width: 4,
+  },
   previewCopy: {
-    borderLeftColor: 'rgba(176,74,64,0.78)',
-    borderLeftWidth: 3,
     flex: 1,
+    justifyContent: 'center',
     minWidth: 0,
-    paddingLeft: 10,
   },
   previewTitle: {
     color: '#26372B',
-    fontSize: 15,
-    fontWeight: '800',
-    lineHeight: 20,
+    fontSize: 16,
+    fontWeight: '900',
+    lineHeight: 21,
   },
   previewMeta: {
-    color: '#72806E',
+    color: '#66745F',
     fontSize: 12,
     fontWeight: '700',
     lineHeight: 17,
-    marginTop: 3,
+    marginTop: 4,
   },
-  previewButton: {
+  previewDetails: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 7,
+    marginTop: 9,
+  },
+  previewDetailText: {
+    color: '#0C5A42',
+    fontSize: 12,
+    fontWeight: '800',
+    lineHeight: 16,
+  },
+  previewDetailDot: {
+    backgroundColor: 'rgba(16,61,43,0.26)',
+    borderRadius: 999,
+    height: 3,
+    width: 3,
+  },
+  previewArrowPlate: {
     alignItems: 'center',
     justifyContent: 'center',
-    minHeight: 34,
-    paddingHorizontal: 0,
+    paddingLeft: 2,
   },
-  previewButtonText: {
+  previewArrow: {
     color: '#103D2B',
-    fontSize: 13,
+    fontSize: 25,
     fontWeight: '900',
+    lineHeight: 28,
   },
   myBookItem: {
     alignItems: 'center',

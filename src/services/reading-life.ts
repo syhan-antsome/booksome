@@ -113,6 +113,10 @@ type ReadingNoteRow = {
   updated_at: string;
 };
 
+type ReadingNoteCountRow = {
+  reading_book_id: string;
+};
+
 const readingBookSelect =
   'id, profile_id, isbn13, title, author, publisher, published_date, description, external_cover_url, status, progress_percent, current_page, total_pages, pinned_at, visibility, created_at, updated_at';
 
@@ -184,6 +188,23 @@ export async function listReadingLifeNotes(profileId: string, readingBookId: str
   }
 
   return (data ?? []).map(mapReadingNote);
+}
+
+export async function listReadingLifeNoteCounts(profileId: string) {
+  const { data, error } = await supabase
+    .from('reading_notes')
+    .select('reading_book_id')
+    .eq('profile_id', profileId)
+    .returns<ReadingNoteCountRow[]>();
+
+  if (error) {
+    throw error;
+  }
+
+  return (data ?? []).reduce<Record<string, number>>((counts, row) => {
+    counts[row.reading_book_id] = (counts[row.reading_book_id] ?? 0) + 1;
+    return counts;
+  }, {});
 }
 
 export async function addBookToReadingLife(
