@@ -1,7 +1,7 @@
 import { NotoSerifKR_500Medium } from '@expo-google-fonts/noto-serif-kr/500Medium';
 import { useFonts } from 'expo-font';
 import { LinearGradient } from 'expo-linear-gradient';
-import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -25,11 +25,9 @@ import { useAuth } from '../../src/providers/auth-provider';
 import {
   listReadingLifeBooks,
   listReadingLifeNoteCounts,
-  type ReadingBookStatus,
   type ReadingLifeBook,
 } from '../../src/services/reading-life';
 
-type BookshelfFilter = 'all' | 'reading' | 'want_to_read' | 'finished';
 type CalendarEventType = 'registration' | 'reading';
 
 type CalendarEvent = {
@@ -37,66 +35,27 @@ type CalendarEvent = {
   type: CalendarEventType;
 };
 
-const bookshelfFilters: Array<{ label: string; value: BookshelfFilter }> = [
-  { label: '전체', value: 'all' },
-  { label: '읽는 중', value: 'reading' },
-  { label: '읽고 싶음', value: 'want_to_read' },
-  { label: '완독', value: 'finished' },
-];
-
 const weekdayLabels = ['일', '월', '화', '수', '목', '금', '토'];
-const bookshelfEmptyMessages: Record<BookshelfFilter, string> = {
-  all: '아직 등록된 책이 없습니다.',
-  reading: '읽는 중인 책이 없습니다.',
-  want_to_read: '읽고 싶은 책이 없습니다.',
-  finished: '완독한 책이 없습니다.',
-};
 
 const readingLifeSignboardSource: ImageSourcePropType =
   typeof readingLifeSignboardImage === 'string' ? { uri: readingLifeSignboardImage } : readingLifeSignboardImage;
 const readingLifeSignboardRatio = 803 / 1400;
 const bookshelfEndThreshold = 16;
 
-function parseBookshelfFilter(value?: string): BookshelfFilter | null {
-  return bookshelfFilters.some((filter) => filter.value === value) ? (value as BookshelfFilter) : null;
-}
-
-function getReadingStatusForFilter(filter: BookshelfFilter): ReadingBookStatus | null {
-  if (filter === 'reading' || filter === 'want_to_read') {
-    return filter;
-  }
-
-  return null;
-}
-
-function getScanRouteForFilter(filter: BookshelfFilter) {
-  const status = getReadingStatusForFilter(filter);
-
-  return status
-    ? {
-        pathname: '/scan' as const,
-        params: { status },
-      }
-    : '/scan';
-}
-
 export default function ReadingLifeScreen() {
   const { session } = useAuth();
-  const params = useLocalSearchParams<{ filter?: string }>();
   const { width } = useWindowDimensions();
   const [quoteFontsLoaded] = useFonts({ NotoSerifKR_500Medium });
   const [books, setBooks] = useState<ReadingLifeBook[]>([]);
   const [noteCountsByBookId, setNoteCountsByBookId] = useState<Record<string, number>>({});
   const [isLoadingBooks, setIsLoadingBooks] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [bookshelfFilter, setBookshelfFilter] = useState<BookshelfFilter>('all');
   const [selectedShelfBookId, setSelectedShelfBookId] = useState<string | null>(null);
   const [calendarMonth, setCalendarMonth] = useState(() => startOfMonth(new Date()));
   const [selectedCalendarDateKey, setSelectedCalendarDateKey] = useState<string | null>(null);
   const [readingQuote, setReadingQuote] = useState(() => getRandomReadingLifeQuote());
   const [showBookshelfMoreCue, setShowBookshelfMoreCue] = useState(false);
   const bookshelfScrollMetrics = useRef({ contentWidth: 0, offsetX: 0, viewportWidth: 0 });
-  const requestedFilter = parseBookshelfFilter(Array.isArray(params.filter) ? params.filter[0] : params.filter);
 
   useFocusEffect(
     useCallback(() => {
@@ -145,12 +104,6 @@ export default function ReadingLifeScreen() {
     }, []),
   );
 
-  useEffect(() => {
-    if (requestedFilter) {
-      setBookshelfFilter(requestedFilter);
-    }
-  }, [requestedFilter]);
-
   const updateBookshelfMoreCue = useCallback((nextMetrics: Partial<typeof bookshelfScrollMetrics.current>) => {
     const metrics = { ...bookshelfScrollMetrics.current, ...nextMetrics };
     bookshelfScrollMetrics.current = metrics;
@@ -163,21 +116,16 @@ export default function ReadingLifeScreen() {
   }, []);
 
   const currentBook = books.find((book) => book.status === 'reading') ?? books[0] ?? null;
-  const filteredBooks = useMemo(() => {
-    if (bookshelfFilter === 'all') return books;
-    return books.filter((book) => book.status === bookshelfFilter);
-  }, [books, bookshelfFilter]);
 
   useEffect(() => {
     updateBookshelfMoreCue({ offsetX: 0 });
-  }, [filteredBooks.length, updateBookshelfMoreCue]);
+  }, [books.length, updateBookshelfMoreCue]);
 
   const selectedShelfBook =
-    filteredBooks.find((book) => book.id === selectedShelfBookId) ??
-    filteredBooks[0] ??
+    books.find((book) => book.id === selectedShelfBookId) ??
+    books[0] ??
     null;
   const selectedShelfBookNoteCount = selectedShelfBook ? noteCountsByBookId[selectedShelfBook.id] ?? 0 : 0;
-  const bookshelfEmptyMessage = bookshelfEmptyMessages[bookshelfFilter];
   const calendarDays = useMemo(() => buildReadingCalendarDays(books, calendarMonth), [books, calendarMonth]);
   const selectedCalendarEvents = useMemo(
     () => getCalendarEventsForDate(books, selectedCalendarDateKey),
@@ -233,9 +181,6 @@ export default function ReadingLifeScreen() {
               )}
             </View>
             <View style={styles.bookCopy}>
-              <Text style={styles.bookState}>
-                {currentBook ? getCurrentBookStatusText(currentBook) : '기록을 기다리는 중'}
-              </Text>
               <Text style={styles.bookTitle} numberOfLines={2}>
                 {currentBook?.title ?? '아직 기록된 책이 없어요'}
               </Text>
@@ -264,11 +209,11 @@ export default function ReadingLifeScreen() {
             <View style={styles.sectionTitleRow}>
               <View style={styles.shelfTitleGroup}>
                 <Text style={styles.sectionTitle}>내 책장</Text>
-                <Text style={styles.sectionCount}>{filteredBooks.length} / {books.length}권</Text>
+                <Text style={styles.sectionCount}>{books.length}권</Text>
               </View>
               <Pressable
                 accessibilityLabel="책 등록"
-                onPress={() => router.push(getScanRouteForFilter(bookshelfFilter))}
+                onPress={() => router.push('/scan')}
                 style={styles.shelfAddButton}
               >
                 <Text style={styles.shelfAddButtonText}>＋</Text>
@@ -277,31 +222,6 @@ export default function ReadingLifeScreen() {
 
             {books.length > 0 ? (
               <>
-                <ScrollView
-                  contentContainerStyle={styles.shelfFilterContent}
-                  horizontal
-                  showsHorizontalScrollIndicator={false}
-                >
-                  {bookshelfFilters.map((filter) => (
-                    <Pressable
-                      key={filter.value}
-                      onPress={() => {
-                        setBookshelfFilter(filter.value);
-                        setSelectedShelfBookId(null);
-                      }}
-                      style={[styles.shelfFilter, bookshelfFilter === filter.value ? styles.shelfFilterActive : null]}
-                    >
-                      <Text
-                        style={[
-                          styles.shelfFilterText,
-                          bookshelfFilter === filter.value ? styles.shelfFilterTextActive : null,
-                        ]}
-                      >
-                        {filter.label}
-                      </Text>
-                    </Pressable>
-                  ))}
-                </ScrollView>
                 <View style={styles.bookshelfFrame}>
                   <LinearGradient
                     colors={['rgba(216,190,136,0.16)', 'rgba(216,190,136,0.04)']}
@@ -310,10 +230,9 @@ export default function ReadingLifeScreen() {
                   />
                   <View pointerEvents="none" style={styles.bookshelfRail} />
                   <View pointerEvents="none" style={styles.bookshelfRailShadow} />
-                  {filteredBooks.length > 0 ? (
+                  {books.length > 0 ? (
                     <View style={styles.bookshelfScrollerArea}>
                       <ScrollView
-                        key={bookshelfFilter}
                         contentContainerStyle={styles.bookshelfContent}
                         horizontal
                         onContentSizeChange={(contentWidth) => updateBookshelfMoreCue({ contentWidth })}
@@ -327,7 +246,7 @@ export default function ReadingLifeScreen() {
                         showsHorizontalScrollIndicator={false}
                         style={styles.bookshelfScroll}
                       >
-                        {filteredBooks.map((book) => (
+                        {books.map((book) => (
                           <Pressable
                             key={book.id}
                             onPress={() => setSelectedShelfBookId(book.id)}
@@ -380,7 +299,7 @@ export default function ReadingLifeScreen() {
                           </Pressable>
                         ))}
                       </ScrollView>
-                      {filteredBooks.length > 3 && showBookshelfMoreCue ? (
+                      {books.length > 3 && showBookshelfMoreCue ? (
                         <LinearGradient
                           colors={['rgba(231,238,219,0)', 'rgba(231,238,219,0.96)']}
                           end={{ x: 1, y: 0.5 }}
@@ -396,7 +315,7 @@ export default function ReadingLifeScreen() {
                     </View>
                   ) : (
                     <View style={styles.shelfEmptyState}>
-                      <Text style={styles.shelfEmptyText}>{bookshelfEmptyMessage}</Text>
+                      <Text style={styles.shelfEmptyText}>아직 등록된 책이 없습니다.</Text>
                     </View>
                   )}
                   {selectedShelfBook ? (
@@ -607,13 +526,6 @@ function getErrorMessage(error: unknown, fallback: string) {
 
 function getCurrentBookHint(book: ReadingLifeBook) {
   return `${book.currentPage} / ${book.totalPages}쪽 · ${book.progressPercent}%까지 읽었습니다.`;
-}
-
-function getCurrentBookStatusText(book: ReadingLifeBook) {
-  if (book.status === 'want_to_read') return '곧 읽을 책';
-  if (book.status === 'finished') return '완독한 책';
-
-  return '이어 읽는 중';
 }
 
 function formatSelectedShelfBookByline(book: ReadingLifeBook) {
@@ -910,11 +822,6 @@ const styles = StyleSheet.create({
   bookCopy: {
     flex: 1,
     justifyContent: 'center',
-  },
-  bookState: {
-    color: '#D8BE88',
-    fontSize: 12,
-    fontWeight: '900',
   },
   bookTitle: {
     color: '#FFFFFF',
@@ -1238,32 +1145,6 @@ const styles = StyleSheet.create({
     fontSize: 23,
     fontWeight: '900',
     lineHeight: 26,
-  },
-  shelfFilterContent: {
-    gap: 8,
-    paddingRight: 16,
-    paddingTop: 14,
-  },
-  shelfFilter: {
-    alignItems: 'center',
-    borderBottomColor: 'rgba(16,61,43,0.16)',
-    borderBottomWidth: 1,
-    minWidth: 58,
-    paddingBottom: 8,
-    paddingHorizontal: 4,
-  },
-  shelfFilterActive: {
-    borderBottomColor: '#103D2B',
-    borderBottomWidth: 3,
-  },
-  shelfFilterText: {
-    color: '#72806E',
-    fontSize: 12,
-    fontWeight: '800',
-  },
-  shelfFilterTextActive: {
-    color: '#103D2B',
-    fontWeight: '900',
   },
   bookshelfContent: {
     alignItems: 'flex-start',

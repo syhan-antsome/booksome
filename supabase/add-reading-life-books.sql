@@ -2,7 +2,7 @@
 -- Run this once in Supabase SQL Editor before using Scan > 독서생활에 등록.
 
 do $$ begin
-  create type public.reading_book_status as enum ('want_to_read', 'reading', 'finished');
+  create type public.reading_book_status as enum ('reading', 'finished');
 exception
   when duplicate_object then null;
 end $$;

@@ -24,19 +24,12 @@ import { uploadImageAsset } from '../../src/services/media';
 import {
   addBookToReadingLife,
   getReadingLifeBookByIsbn,
-  type ReadingBookStatus,
   type ReadingLifeBook,
 } from '../../src/services/reading-life';
 
-const readingStatusOptions: Array<{ value: ReadingBookStatus; label: string }> = [
-  { value: 'reading', label: '읽는 중' },
-  { value: 'want_to_read', label: '읽고 싶음' },
-];
-
 export default function ScanResultScreen() {
   const { session } = useAuth();
-  const params = useLocalSearchParams<{ context?: string; isbn?: string; status?: string }>();
-  const initialReadingStatus = parseReadingStatus(Array.isArray(params.status) ? params.status[0] : params.status) ?? 'reading';
+  const params = useLocalSearchParams<{ context?: string; isbn?: string }>();
   const [bookResults, setBookResults] = useState<BookSearchItem[]>([]);
   const [isLookingUpBook, setIsLookingUpBook] = useState(false);
   const [bookLookupError, setBookLookupError] = useState<string | null>(null);
@@ -45,7 +38,6 @@ export default function ScanResultScreen() {
   const [isAddingToReadingLife, setIsAddingToReadingLife] = useState(false);
   const [registrationError, setRegistrationError] = useState<string | null>(null);
   const [totalPagesInput, setTotalPagesInput] = useState('');
-  const [readingStatus, setReadingStatus] = useState<ReadingBookStatus>(initialReadingStatus);
   const [customCoverAsset, setCustomCoverAsset] = useState<ImagePicker.ImagePickerAsset | null>(null);
   const [coverError, setCoverError] = useState<string | null>(null);
   const scrollViewRef = useRef<ScrollView>(null);
@@ -140,7 +132,6 @@ export default function ScanResultScreen() {
       params: {
         ...(isRoomContext ? { context: 'create-room' } : {}),
         ...(isMarketContext ? { context: 'market-listing' } : {}),
-        ...(!isRoomContext && !isMarketContext ? { status: readingStatus } : {}),
       },
     });
   };
@@ -151,10 +142,7 @@ export default function ScanResultScreen() {
         ? '/create-room'
         : isMarketContext
           ? '/market/new'
-          : {
-            pathname: '/reading-life',
-            params: { filter: readingStatus },
-          },
+          : '/reading-life',
     );
   };
 
@@ -198,13 +186,9 @@ export default function ScanResultScreen() {
 
       await addBookToReadingLife(session.user.id, selectedBook, {
         externalCoverUrl,
-        status: readingStatus,
         totalPages: totalPagesValue,
       });
-      router.replace({
-        pathname: '/reading-life',
-        params: { filter: readingStatus },
-      });
+      router.replace('/reading-life');
     } catch (error) {
       setRegistrationError(getErrorMessage(error, '내 책장에 등록하지 못했습니다.'));
     } finally {
@@ -395,33 +379,6 @@ export default function ScanResultScreen() {
               ) : null}
 
               {selectedBook && !isRoomContext && !isMarketContext && !isCheckingDuplicate && !duplicateBook ? (
-                <View style={styles.statusPanel}>
-                  <Text style={styles.statusLabel}>내 책장 위치</Text>
-                  <View style={styles.statusOptions}>
-                    {readingStatusOptions.map((option) => (
-                      <Pressable
-                        key={option.value}
-                        onPress={() => setReadingStatus(option.value)}
-                        style={[
-                          styles.statusOption,
-                          readingStatus === option.value ? styles.statusOptionActive : null,
-                        ]}
-                      >
-                        <Text
-                          style={[
-                            styles.statusOptionText,
-                            readingStatus === option.value ? styles.statusOptionTextActive : null,
-                          ]}
-                        >
-                          {option.label}
-                        </Text>
-                      </Pressable>
-                    ))}
-                  </View>
-                </View>
-              ) : null}
-
-              {selectedBook && !isRoomContext && !isMarketContext && !isCheckingDuplicate && !duplicateBook ? (
                 <View style={styles.pagePanel}>
                   <Text style={styles.pageLabel}>마지막 페이지</Text>
                   <TextInput
@@ -486,14 +443,6 @@ function parsePositiveInteger(value: string) {
 
   const parsedValue = Number(normalizedValue);
   return Number.isSafeInteger(parsedValue) && parsedValue > 0 ? parsedValue : null;
-}
-
-function parseReadingStatus(value?: string): ReadingBookStatus | null {
-  if (value === 'reading' || value === 'want_to_read') {
-    return value;
-  }
-
-  return null;
 }
 
 function getResultSubtitle(isRoomContext: boolean, isMarketContext: boolean) {
@@ -711,40 +660,6 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 13,
     fontWeight: '900',
-  },
-  statusPanel: {
-    marginTop: 24,
-  },
-  statusLabel: {
-    color: '#8F6A42',
-    fontSize: 12,
-    fontWeight: '900',
-  },
-  statusOptions: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-    marginTop: 10,
-  },
-  statusOption: {
-    backgroundColor: 'rgba(16, 61, 43, 0.07)',
-    borderColor: 'rgba(16, 61, 43, 0.1)',
-    borderRadius: 999,
-    borderWidth: 1,
-    paddingHorizontal: 13,
-    paddingVertical: 9,
-  },
-  statusOptionActive: {
-    backgroundColor: '#103D2B',
-    borderColor: '#103D2B',
-  },
-  statusOptionText: {
-    color: '#26372B',
-    fontSize: 13,
-    fontWeight: '900',
-  },
-  statusOptionTextActive: {
-    color: '#F7F2EA',
   },
   errorText: {
     color: '#A43D20',

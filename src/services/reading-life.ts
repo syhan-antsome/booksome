@@ -1,8 +1,8 @@
 import { supabase } from '../lib/supabase';
 import type { BookSearchItem } from './books';
 
-export type ReadingBookStatus = 'want_to_read' | 'reading' | 'finished';
-type ReadingBookStatusRow = ReadingBookStatus | 'paused';
+export type ReadingBookStatus = 'reading' | 'finished';
+type ReadingBookStatusRow = ReadingBookStatus | 'want_to_read' | 'paused';
 
 export type ReadingLifeBook = {
   id: string;
@@ -417,7 +417,7 @@ function mapReadingBook(row: ReadingBookRow): ReadingLifeBook {
 }
 
 function normalizeReadingBookStatus(status: ReadingBookStatusRow): ReadingBookStatus {
-  return status === 'paused' ? 'reading' : status;
+  return status === 'paused' || status === 'want_to_read' ? 'reading' : status;
 }
 
 function mapReadingNote(row: ReadingNoteRow): ReadingLifeNote {

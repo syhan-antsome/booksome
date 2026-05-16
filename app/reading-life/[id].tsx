@@ -29,7 +29,6 @@ import {
   deleteReadingLifeBook,
   getReadingLifeBook,
   listReadingLifeNotes,
-  type ReadingBookStatus,
   type ReadingLifeBook,
   type ReadingLifeNote,
   type ReadingVisibility,
@@ -38,10 +37,6 @@ import {
 } from '../../src/services/reading-life';
 import { uploadImageAsset } from '../../src/services/media';
 
-const statusOptions: Array<{ value: ReadingBookStatus; label: string }> = [
-  { value: 'reading', label: '읽는 중' },
-  { value: 'want_to_read', label: '읽고 싶음' },
-];
 const shuttleGrooves = Array.from({ length: 32 }, (_, index) => index);
 const shuttleVisualPeriod = 28;
 const shuttlePixelsPerPage = 1.5;
@@ -201,12 +196,6 @@ export default function ReadingLifeBookScreen() {
     }
   };
 
-  const changeBookStatus = async (nextStatus: ReadingBookStatus) => {
-    if (!book || nextStatus === book.status) return;
-
-    await saveBook({ status: nextStatus });
-  };
-
   const deleteBook = async () => {
     if (!session?.user.id || !bookId) return;
 
@@ -263,7 +252,7 @@ export default function ReadingLifeBookScreen() {
     }
 
     const progressPercent = calculateReadingProgressPercent(currentPage, totalPages);
-    const nextStatus: ReadingBookStatus = progressPercent >= 100 ? 'finished' : 'reading';
+    const nextStatus = progressPercent >= 100 ? 'finished' : 'reading';
 
     void saveBook({
       currentPage,
@@ -651,25 +640,6 @@ export default function ReadingLifeBookScreen() {
                     {book.publisher ? ` · ${book.publisher}` : ''}
                   </Text>
                 </View>
-              </View>
-
-              <View style={styles.statusRail}>
-                {statusOptions.map((option) => {
-                  const isActive = book.status === option.value;
-
-                  return (
-                    <Pressable
-                      disabled={isSaving || isActive}
-                      key={option.value}
-                      onPress={() => void changeBookStatus(option.value)}
-                      style={[styles.statusChip, isActive ? styles.statusChipActive : null]}
-                    >
-                      <Text style={[styles.statusChipText, isActive ? styles.statusChipTextActive : null]}>
-                        {option.label}
-                      </Text>
-                    </Pressable>
-                  );
-                })}
               </View>
 
               <View style={styles.heroBottom}>
@@ -1127,32 +1097,6 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     lineHeight: 19,
     marginTop: 10,
-  },
-  statusRail: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-    marginTop: 16,
-  },
-  statusChip: {
-    backgroundColor: 'rgba(247,241,229,0.09)',
-    borderColor: 'rgba(247,241,229,0.1)',
-    borderRadius: 999,
-    borderWidth: 1,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-  },
-  statusChipActive: {
-    backgroundColor: '#D8BE88',
-    borderColor: '#D8BE88',
-  },
-  statusChipText: {
-    color: 'rgba(247,241,229,0.72)',
-    fontSize: 12,
-    fontWeight: '900',
-  },
-  statusChipTextActive: {
-    color: '#103D2B',
   },
   heroBottom: {
     alignItems: 'center',
