@@ -71,6 +71,7 @@ export default function ReadingLifeBookScreen() {
   const [currentPageInput, setCurrentPageInput] = useState('');
   const [totalPagesInput, setTotalPagesInput] = useState('');
   const [isShuttleDragging, setIsShuttleDragging] = useState(false);
+  const [isShuttleUnlocked, setIsShuttleUnlocked] = useState(false);
   const [shuttleDeltaPage, setShuttleDeltaPage] = useState(0);
   const [undoProgress, setUndoProgress] = useState<{ fromPage: number; toPage: number } | null>(null);
   const shuttleDraftPageRef = useRef<number | null>(null);
@@ -81,6 +82,7 @@ export default function ReadingLifeBookScreen() {
   const shuttleStartTouchXRef = useRef(0);
   const shuttleVisualOffset = useRef(new Animated.Value(0)).current;
   const undoProgressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const shuttleUnlockTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [photoBody, setPhotoBody] = useState('');
   const [photoAsset, setPhotoAsset] = useState<ImagePicker.ImagePickerAsset | null>(null);
   const [noteVisibility, setNoteVisibility] = useState<ReadingVisibility>('private');
@@ -269,9 +271,38 @@ export default function ReadingLifeBookScreen() {
   useEffect(
     () => () => {
       if (undoProgressTimerRef.current) clearTimeout(undoProgressTimerRef.current);
+      if (shuttleUnlockTimerRef.current) clearTimeout(shuttleUnlockTimerRef.current);
     },
     [],
   );
+
+  useEffect(() => {
+    setIsShuttleUnlocked(false);
+    if (shuttleUnlockTimerRef.current) {
+      clearTimeout(shuttleUnlockTimerRef.current);
+      shuttleUnlockTimerRef.current = null;
+    }
+  }, [book?.id, totalPageValue]);
+
+  const lockShuttle = useCallback(() => {
+    if (shuttleUnlockTimerRef.current) {
+      clearTimeout(shuttleUnlockTimerRef.current);
+      shuttleUnlockTimerRef.current = null;
+    }
+    setIsShuttleUnlocked(false);
+  }, []);
+
+  const unlockShuttle = useCallback(() => {
+    if (!totalPageValue) return;
+
+    if (shuttleUnlockTimerRef.current) clearTimeout(shuttleUnlockTimerRef.current);
+    setIsShuttleUnlocked(true);
+    setErrorMessage(null);
+    shuttleUnlockTimerRef.current = setTimeout(() => {
+      setIsShuttleUnlocked(false);
+      shuttleUnlockTimerRef.current = null;
+    }, 7000);
+  }, [totalPageValue]);
 
   const showUndoProgress = useCallback((fromPage: number, toPage: number) => {
     if (fromPage === toPage) return;
@@ -306,6 +337,10 @@ export default function ReadingLifeBookScreen() {
     if (undoProgressTimerRef.current) {
       clearTimeout(undoProgressTimerRef.current);
       undoProgressTimerRef.current = null;
+    }
+    if (shuttleUnlockTimerRef.current) {
+      clearTimeout(shuttleUnlockTimerRef.current);
+      shuttleUnlockTimerRef.current = null;
     }
     shuttleVisualOffset.stopAnimation();
     shuttleVisualOffset.setValue(0);
@@ -355,21 +390,23 @@ export default function ReadingLifeBookScreen() {
 
       setIsShuttleDragging(false);
       setShuttleDeltaPage(0);
+      lockShuttle();
 
       if (shuttleDidMoveRef.current && nextPage !== null && nextPage !== shuttleStartPageRef.current) {
         showUndoProgress(shuttleStartPageRef.current, nextPage);
         savePageProgressRef.current(nextPage);
       }
     },
-    [shuttleVisualOffset, showUndoProgress, updateDraftPageFromShuttle],
+    [lockShuttle, shuttleVisualOffset, showUndoProgress, updateDraftPageFromShuttle],
   );
 
   const shuttleResponder = useMemo(
     () =>
       PanResponder.create({
-        onStartShouldSetPanResponder: () => Boolean(totalPageValue),
+        onStartShouldSetPanResponder: () => Boolean(totalPageValue && isShuttleUnlocked),
         onMoveShouldSetPanResponder: (_event, gestureState) =>
           Boolean(totalPageValue) &&
+          isShuttleUnlocked &&
           Math.abs(gestureState.moveX - gestureState.x0) > 3 &&
           Math.abs(gestureState.moveX - gestureState.x0) > Math.abs(gestureState.moveY - gestureState.y0),
         onPanResponderTerminationRequest: () => false,
@@ -386,7 +423,7 @@ export default function ReadingLifeBookScreen() {
           finishShuttleDrag(getGestureCurrentX(event, gestureState));
         },
       }),
-    [beginShuttleDrag, finishShuttleDrag, totalPageValue, updateDraftPageFromShuttle],
+    [beginShuttleDrag, finishShuttleDrag, isShuttleUnlocked, totalPageValue, updateDraftPageFromShuttle],
   );
 
   const openComposerChoice = () => {
@@ -709,6 +746,23 @@ export default function ReadingLifeBookScreen() {
                         />
                       </View>
                     </View>
+                    {!isShuttleUnlocked && !isShuttleDragging ? (
+                      <Pressable
+                        accessibilityLabel="조그셔틀 잠금 해제"
+                        onPress={unlockShuttle}
+                        style={styles.shuttleGuard}
+                      >
+                        <LinearGradient
+                          colors={['rgba(247,241,229,0.88)', 'rgba(216,190,136,0.9)']}
+                          start={{ x: 0, y: 0 }}
+                          end={{ x: 1, y: 1 }}
+                          style={styles.shuttleGuardSurface}
+                        >
+                          <Text style={styles.shuttleGuardTitle}>읽은 페이지를 바꾸려면</Text>
+                          <Text style={styles.shuttleGuardText}>한 번 터치한 뒤 조그셔틀을 이용하세요</Text>
+                        </LinearGradient>
+                      </Pressable>
+                    ) : null}
                   </View>
                 ) : (
                   <View style={styles.pageSetupPanel}>
@@ -1157,6 +1211,7 @@ const styles = StyleSheet.create({
   jogShuttleTouch: {
     justifyContent: 'center',
     minHeight: 60,
+    position: 'relative',
   },
   shuttleDeltaRow: {
     alignItems: 'center',
@@ -1228,6 +1283,43 @@ const styles = StyleSheet.create({
   },
   jogShuttleEdgeShadeRight: {
     right: 0,
+  },
+  shuttleGuard: {
+    alignItems: 'stretch',
+    bottom: 0,
+    justifyContent: 'center',
+    left: 0,
+    position: 'absolute',
+    right: 0,
+    top: 0,
+    zIndex: 5,
+  },
+  shuttleGuardSurface: {
+    alignItems: 'center',
+    borderColor: 'rgba(255,255,255,0.46)',
+    borderRadius: 15,
+    borderWidth: 1,
+    justifyContent: 'center',
+    marginHorizontal: 4,
+    minHeight: 52,
+    paddingHorizontal: 12,
+    shadowColor: '#11150F',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.14,
+    shadowRadius: 8,
+  },
+  shuttleGuardTitle: {
+    color: '#103D2B',
+    fontSize: 12,
+    fontWeight: '900',
+    lineHeight: 16,
+  },
+  shuttleGuardText: {
+    color: '#4B583F',
+    fontSize: 11,
+    fontWeight: '800',
+    lineHeight: 15,
+    marginTop: 2,
   },
   pageSetupPanel: {
     alignItems: 'flex-end',
