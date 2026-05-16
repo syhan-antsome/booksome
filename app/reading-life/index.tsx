@@ -320,14 +320,12 @@ export default function ReadingLifeScreen() {
                             style={styles.shelfBook}
                           >
                             <View style={styles.shelfProgressGaugeSlot}>
-                              {shouldShowShelfProgress(book) ? (
-                                <View style={styles.shelfProgressGauge}>
-                                  <View style={styles.shelfProgressGaugeTrack}>
-                                    <View style={[styles.shelfProgressGaugeFill, { width: `${book.progressPercent}%` }]} />
-                                  </View>
-                                  <Text style={styles.shelfProgressGaugeText}>{book.progressPercent}%</Text>
+                              <View style={styles.shelfProgressGauge}>
+                                <View style={styles.shelfProgressGaugeTrack}>
+                                  <View style={[styles.shelfProgressGaugeFill, { width: `${book.progressPercent}%` }]} />
                                 </View>
-                              ) : null}
+                                <Text style={styles.shelfProgressGaugeText}>{book.progressPercent}%</Text>
+                              </View>
                             </View>
                             <View
                               style={styles.shelfCover}
@@ -593,10 +591,6 @@ function getCurrentBookStatusText(book: ReadingLifeBook) {
   if (book.status === 'finished') return '완독한 책';
 
   return '이어 읽는 중';
-}
-
-function shouldShowShelfProgress(book: ReadingLifeBook) {
-  return Boolean(book.totalPages) && book.progressPercent > 0;
 }
 
 function formatCalendarMonth(date: Date) {
