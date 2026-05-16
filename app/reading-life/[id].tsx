@@ -676,7 +676,7 @@ export default function ReadingLifeBookScreen() {
         />
         <Text style={styles.notePageUnit}>쪽</Text>
       </View>
-      <Text style={styles.notePageHint}>비워도 괜찮아요.</Text>
+      <Text style={styles.notePageHint}>비워두면 현재 읽은 위치가 저장됩니다.</Text>
     </View>
   );
 
