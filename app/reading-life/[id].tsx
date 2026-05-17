@@ -1,13 +1,16 @@
 import * as ImagePicker from 'expo-image-picker';
 import { LinearGradient } from 'expo-linear-gradient';
-import { router, useLocalSearchParams } from 'expo-router';
+import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
   Animated,
   Image,
+  KeyboardAvoidingView,
+  Modal,
   PanResponder,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -18,6 +21,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import Svg, { Path, Rect } from 'react-native-svg';
 
 import { AuthRequired } from '../../src/components/auth-required';
 import { BottomNavigation } from '../../src/components/bottom-navigation';
@@ -27,6 +31,7 @@ import {
   calculateReadingProgressPercent,
   createReadingLifeNote,
   deleteReadingLifeBook,
+  deleteReadingLifeNote,
   getReadingLifeBook,
   listReadingLifeNotes,
   type ReadingLifeBook,
@@ -34,15 +39,60 @@ import {
   type ReadingVisibility,
   type UpdateReadingLifeBookInput,
   updateReadingLifeBook,
+  updateReadingLifeNote,
 } from '../../src/services/reading-life';
 import { uploadImageAsset } from '../../src/services/media';
+import {
+  consumeReadingImageCropResult,
+  createReadingImageCropRequest,
+  type ReadingImageCropAsset,
+  type ReadingImageCropTarget,
+} from '../../src/state/reading-image-crop';
 
 const shuttleGrooves = Array.from({ length: 32 }, (_, index) => index);
 const shuttleVisualPeriod = 28;
 const shuttlePixelsPerPage = 1.5;
+const highlightNotePrefix = '__booksome_highlight_v2__:';
+const legacyHighlightNotePrefix = '__booksome_highlight_v1__:';
+const highlightStrokeSize = 22;
+const highlightSvgViewBoxSize = 1000;
+const highlightStrokeOpacity = 0.34;
+const highlightLegacyRectOpacity = 0.16;
+const highlightPenColors = [
+  { id: 'mint', label: '민트', hex: '#14E7D0' },
+  { id: 'lime', label: '라임', hex: '#B9FF45' },
+  { id: 'pink', label: '핑크', hex: '#FF6AB7' },
+] as const;
+const defaultHighlightPenColor = highlightPenColors[0].hex;
+type HighlightPenColor = (typeof highlightPenColors)[number]['hex'];
 
-type ComposerMode = 'closed' | 'choice' | 'text' | 'photo';
+type ComposerMode = 'closed' | 'text' | 'photo' | 'highlight';
 type NoteSortDirection = 'desc' | 'asc';
+type HighlightPoint = {
+  x: number;
+  y: number;
+};
+type HighlightRect = {
+  id: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+};
+type HighlightStroke = {
+  color: HighlightPenColor;
+  id: string;
+  points: HighlightPoint[];
+  size: number;
+};
+type HighlightNoteData = {
+  aspectRatio: number | null;
+  rects: HighlightRect[];
+  strokes: HighlightStroke[];
+  text: string | null;
+};
+type ComposerImageAsset = ReadingImageCropAsset;
+type ImageComposerTarget = ReadingImageCropTarget;
 
 const getGestureStartX = (event: GestureResponderEvent, gestureState: PanResponderGestureState) =>
   gestureState.x0 || event.nativeEvent.pageX || 0;
@@ -73,7 +123,6 @@ export default function ReadingLifeBookScreen() {
   const [isShuttleDragging, setIsShuttleDragging] = useState(false);
   const [isShuttleUnlocked, setIsShuttleUnlocked] = useState(false);
   const [shuttleDeltaPage, setShuttleDeltaPage] = useState(0);
-  const [undoProgress, setUndoProgress] = useState<{ fromPage: number; toPage: number } | null>(null);
   const shuttleDraftPageRef = useRef<number | null>(null);
   const displayCurrentPageRef = useRef(0);
   const savePageProgressRef = useRef<(nextCurrentPage?: number) => void>(() => {});
@@ -81,17 +130,34 @@ export default function ReadingLifeBookScreen() {
   const shuttleStartPageRef = useRef(0);
   const shuttleStartTouchXRef = useRef(0);
   const shuttleVisualOffset = useRef(new Animated.Value(0)).current;
-  const undoProgressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const shuttleUnlockTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const saveCheckpointNoteRef = useRef<(page?: number) => void>(() => {});
   const [photoBody, setPhotoBody] = useState('');
-  const [photoAsset, setPhotoAsset] = useState<ImagePicker.ImagePickerAsset | null>(null);
+  const [photoAsset, setPhotoAsset] = useState<ComposerImageAsset | null>(null);
+  const [photoAssetChanged, setPhotoAssetChanged] = useState(false);
+  const [highlightAsset, setHighlightAsset] = useState<ComposerImageAsset | null>(null);
+  const [highlightAssetChanged, setHighlightAssetChanged] = useState(false);
+  const [highlightStrokes, setHighlightStrokes] = useState<HighlightStroke[]>([]);
+  const [draftHighlightStroke, setDraftHighlightStroke] = useState<HighlightStroke | null>(null);
+  const [highlightPenColor, setHighlightPenColor] = useState<HighlightPenColor>(defaultHighlightPenColor);
+  const [highlightCanvasSize, setHighlightCanvasSize] = useState({ width: 0, height: 0 });
+  const [isHighlightDrawing, setIsHighlightDrawing] = useState(false);
+  const highlightDraftStrokeRef = useRef<HighlightStroke | null>(null);
+  const pendingCropTokenRef = useRef<string | null>(null);
+  const [previewImage, setPreviewImage] = useState<{
+    highlightData: HighlightNoteData;
+    uri: string;
+  } | null>(null);
   const [noteVisibility, setNoteVisibility] = useState<ReadingVisibility>('private');
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [noteSearchQuery, setNoteSearchQuery] = useState('');
   const [noteSortDirection, setNoteSortDirection] = useState<NoteSortDirection>('desc');
+  const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
+  const [deletingNoteId, setDeletingNoteId] = useState<string | null>(null);
 
   const bookId = Array.isArray(id) ? id[0] : id;
   const activeSection = Array.isArray(section) ? section[0] : section;
+  const highlightAssetAspectRatio = getAssetAspectRatio(highlightAsset);
 
   useEffect(() => {
     let isMounted = true;
@@ -128,7 +194,7 @@ export default function ReadingLifeBookScreen() {
 
   useEffect(() => {
     if (activeSection === 'photo') {
-      setComposer('choice');
+      setComposer('closed');
       return;
     }
 
@@ -160,7 +226,7 @@ export default function ReadingLifeBookScreen() {
       ? notes.filter((note) => {
           const searchableText = [
             note.quoteText,
-            note.body,
+            getVisibleNoteBody(note.body),
             note.pageLabel,
             note.currentPageSnapshot > 0 ? `${note.currentPageSnapshot}쪽` : null,
             note.progressPercentSnapshot > 0 ? `${note.progressPercentSnapshot}%` : null,
@@ -270,7 +336,6 @@ export default function ReadingLifeBookScreen() {
 
   useEffect(
     () => () => {
-      if (undoProgressTimerRef.current) clearTimeout(undoProgressTimerRef.current);
       if (shuttleUnlockTimerRef.current) clearTimeout(shuttleUnlockTimerRef.current);
     },
     [],
@@ -304,27 +369,32 @@ export default function ReadingLifeBookScreen() {
     }, 7000);
   }, [totalPageValue]);
 
-  const showUndoProgress = useCallback((fromPage: number, toPage: number) => {
-    if (fromPage === toPage) return;
+  const promptCheckpointRecord = useCallback(
+    (fromPage: number, toPage: number) => {
+      if (!session?.user.id || !bookId || !book || toPage <= 0) return;
 
-    if (undoProgressTimerRef.current) clearTimeout(undoProgressTimerRef.current);
-    setUndoProgress({ fromPage, toPage });
-    undoProgressTimerRef.current = setTimeout(() => {
-      setUndoProgress(null);
-      undoProgressTimerRef.current = null;
-    }, 5000);
-  }, []);
-
-  const undoShuttleProgress = useCallback(() => {
-    if (!undoProgress) return;
-
-    if (undoProgressTimerRef.current) clearTimeout(undoProgressTimerRef.current);
-    undoProgressTimerRef.current = null;
-    setUndoProgress(null);
-    setCurrentPageInput(String(undoProgress.fromPage));
-    setErrorMessage(null);
-    savePageProgressRef.current(undoProgress.fromPage);
-  }, [undoProgress]);
+      Alert.alert(
+        '오늘 여기까지 기록할까요?',
+        `${toPage}쪽까지 읽은 오늘의 마침표를 나의 기록에 남길까요?`,
+        [
+          {
+            text: '되돌리기',
+            style: 'destructive',
+            onPress: () => {
+              setCurrentPageInput(String(fromPage));
+              savePageProgressRef.current(fromPage);
+            },
+          },
+          { text: '나중에', style: 'cancel' },
+          {
+            text: '기록하기',
+            onPress: () => saveCheckpointNoteRef.current(toPage),
+          },
+        ],
+      );
+    },
+    [book, bookId, session?.user.id],
+  );
 
   const beginShuttleDrag = useCallback((touchX: number) => {
     shuttleDraftPageRef.current = null;
@@ -333,11 +403,6 @@ export default function ReadingLifeBookScreen() {
     shuttleStartTouchXRef.current = touchX;
     setIsShuttleDragging(true);
     setShuttleDeltaPage(0);
-    setUndoProgress(null);
-    if (undoProgressTimerRef.current) {
-      clearTimeout(undoProgressTimerRef.current);
-      undoProgressTimerRef.current = null;
-    }
     if (shuttleUnlockTimerRef.current) {
       clearTimeout(shuttleUnlockTimerRef.current);
       shuttleUnlockTimerRef.current = null;
@@ -393,11 +458,11 @@ export default function ReadingLifeBookScreen() {
       lockShuttle();
 
       if (shuttleDidMoveRef.current && nextPage !== null && nextPage !== shuttleStartPageRef.current) {
-        showUndoProgress(shuttleStartPageRef.current, nextPage);
         savePageProgressRef.current(nextPage);
+        promptCheckpointRecord(shuttleStartPageRef.current, nextPage);
       }
     },
-    [lockShuttle, shuttleVisualOffset, showUndoProgress, updateDraftPageFromShuttle],
+    [lockShuttle, promptCheckpointRecord, shuttleVisualOffset, updateDraftPageFromShuttle],
   );
 
   const shuttleResponder = useMemo(
@@ -426,8 +491,100 @@ export default function ReadingLifeBookScreen() {
     [beginShuttleDrag, finishShuttleDrag, isShuttleUnlocked, totalPageValue, updateDraftPageFromShuttle],
   );
 
-  const openComposerChoice = () => {
-    setComposer((current) => (current === 'choice' ? 'closed' : 'choice'));
+  const resetComposerState = useCallback(() => {
+    setComposer('closed');
+    setEditingNoteId(null);
+    setNoteText('');
+    setPhotoBody('');
+    setPhotoAsset(null);
+    setPhotoAssetChanged(false);
+    setHighlightAsset(null);
+    setHighlightAssetChanged(false);
+    setHighlightStrokes([]);
+    setDraftHighlightStroke(null);
+    setHighlightPenColor(defaultHighlightPenColor);
+    highlightDraftStrokeRef.current = null;
+    pendingCropTokenRef.current = null;
+    setPageLabel('');
+    setNoteVisibility('private');
+    setErrorMessage(null);
+    setIsHighlightDrawing(false);
+  }, []);
+
+  const hasComposerDraft = useCallback(() => {
+    if (editingNoteId) return true;
+    if (composer === 'text') return Boolean(noteText.trim() || pageLabel.trim());
+    if (composer === 'photo') return Boolean(photoAsset || photoBody.trim() || pageLabel.trim());
+    if (composer === 'highlight') {
+      return Boolean(
+        highlightAsset ||
+        highlightStrokes.length > 0 ||
+        draftHighlightStroke ||
+        pageLabel.trim() ||
+        photoBody.trim()
+      );
+    }
+
+    return false;
+  }, [composer, draftHighlightStroke, editingNoteId, highlightAsset, highlightStrokes.length, noteText, pageLabel, photoAsset, photoBody]);
+
+  const closeComposerWithConfirm = useCallback(() => {
+    if (!hasComposerDraft()) {
+      resetComposerState();
+      return;
+    }
+
+    Alert.alert('작성 중인 기록을 닫을까요?', '저장하지 않은 내용은 사라집니다.', [
+      { text: '계속 작성', style: 'cancel' },
+      { text: '닫기', style: 'destructive', onPress: resetComposerState },
+    ]);
+  }, [hasComposerDraft, resetComposerState]);
+
+  const openComposerAfterConfirm = useCallback(
+    (openNextComposer: () => void) => {
+      if (composer !== 'closed' && hasComposerDraft()) {
+        Alert.alert('작성 중인 기록을 바꿀까요?', '저장하지 않은 내용은 사라집니다.', [
+          { text: '계속 작성', style: 'cancel' },
+          {
+            text: '바꾸기',
+            style: 'destructive',
+            onPress: () => {
+              resetComposerState();
+              openNextComposer();
+            },
+          },
+        ]);
+        return;
+      }
+
+      openNextComposer();
+    },
+    [composer, hasComposerDraft, resetComposerState],
+  );
+
+  const openTextComposer = () => {
+    openComposerAfterConfirm(() => {
+      resetComposerState();
+      setComposer('text');
+      setErrorMessage(null);
+    });
+  };
+
+  const openPhotoComposer = (asset: ComposerImageAsset, changed = true) => {
+    setComposer('photo');
+    setEditingNoteId(null);
+    setPhotoAsset(asset);
+    setPhotoAssetChanged(changed);
+    setHighlightAsset(null);
+    setHighlightAssetChanged(false);
+    setHighlightStrokes([]);
+    setDraftHighlightStroke(null);
+    setHighlightPenColor(defaultHighlightPenColor);
+    highlightDraftStrokeRef.current = null;
+    setPhotoBody('');
+    setNoteText('');
+    setPageLabel('');
+    setNoteVisibility('private');
     setErrorMessage(null);
   };
 
@@ -436,21 +593,37 @@ export default function ReadingLifeBookScreen() {
     setIsSearchOpen((current) => !current);
   };
 
-  const openTextComposer = () => {
-    setComposer('text');
-    setNoteText('');
-    setPhotoBody('');
+  const openHighlightComposer = (asset: ComposerImageAsset, changed = true) => {
+    setComposer('highlight');
+    setEditingNoteId(null);
+    setHighlightAsset(asset);
+    setHighlightAssetChanged(changed);
+    setHighlightStrokes([]);
+    setDraftHighlightStroke(null);
+    setHighlightPenColor(defaultHighlightPenColor);
+    highlightDraftStrokeRef.current = null;
     setPhotoAsset(null);
+    setPhotoAssetChanged(false);
+    setPhotoBody('');
+    setNoteText('');
     setPageLabel('');
+    setNoteVisibility('private');
     setErrorMessage(null);
   };
 
-  const openPhotoComposer = (asset: ImagePicker.ImagePickerAsset) => {
-    setComposer('photo');
+  const replacePhotoComposerAsset = (asset: ComposerImageAsset) => {
     setPhotoAsset(asset);
-    setPhotoBody('');
-    setNoteText('');
-    setPageLabel('');
+    setPhotoAssetChanged(true);
+    setErrorMessage(null);
+  };
+
+  const replaceHighlightComposerAsset = (asset: ComposerImageAsset) => {
+    setHighlightAsset(asset);
+    setHighlightAssetChanged(true);
+    setHighlightStrokes([]);
+    setDraftHighlightStroke(null);
+    setHighlightPenColor(defaultHighlightPenColor);
+    highlightDraftStrokeRef.current = null;
     setErrorMessage(null);
   };
 
@@ -510,6 +683,264 @@ export default function ReadingLifeBookScreen() {
     return notePage;
   };
 
+  const beginImageCrop = (target: ImageComposerTarget, asset: ComposerImageAsset, shouldReplace = false) => {
+    if (!bookId) return;
+
+    const request = createReadingImageCropRequest({
+      asset,
+      bookId,
+      shouldReplace: shouldReplace || Boolean(editingNoteId),
+      target,
+    });
+    pendingCropTokenRef.current = request.token;
+    setComposer('closed');
+    setErrorMessage(null);
+    router.push({
+      pathname: '/reading-life/image-crop',
+      params: { token: request.token },
+    });
+  };
+
+  const applySelectedImageAsset = (target: ImageComposerTarget, asset: ComposerImageAsset, shouldReplace = false) => {
+    beginImageCrop(target, asset, shouldReplace);
+  };
+
+  const chooseComposerImage = async (
+    target: ImageComposerTarget,
+    source: 'camera' | 'library',
+    shouldReplace = false,
+  ) => {
+    if (source === 'camera') {
+      const permission = await ImagePicker.requestCameraPermissionsAsync();
+
+      if (!permission.granted) {
+        setErrorMessage('카메라 권한이 필요합니다.');
+        return;
+      }
+    }
+
+    const options: ImagePicker.ImagePickerOptions = {
+      allowsEditing: false,
+      quality: target === 'highlight' ? 0.82 : 0.86,
+    };
+
+    const result =
+      source === 'camera'
+        ? await ImagePicker.launchCameraAsync(options)
+        : await ImagePicker.launchImageLibraryAsync(options);
+
+    if (!result.canceled && result.assets[0]) {
+      applySelectedImageAsset(target, result.assets[0], shouldReplace);
+    }
+  };
+
+  const pickHighlightPhoto = (shouldReplace = false) =>
+    chooseComposerImage('highlight', 'library', shouldReplace);
+
+  const showImageSourceOptions = (target: ImageComposerTarget, shouldReplace = false) => {
+    Alert.alert('사진 + 글', '사진을 어디에서 가져올까요?', [
+      {
+        text: '카메라',
+        onPress: () => {
+          void chooseComposerImage(target, 'camera', shouldReplace);
+        },
+      },
+      {
+        text: '갤러리',
+        onPress: () => {
+          void chooseComposerImage(target, 'library', shouldReplace);
+        },
+      },
+      { text: '취소', style: 'cancel' },
+    ]);
+  };
+
+  const openPhotoRecordOptions = () => {
+    openComposerAfterConfirm(() => {
+      resetComposerState();
+      setErrorMessage(null);
+      showImageSourceOptions('highlight');
+    });
+  };
+
+  const setCroppedComposerAsset = useCallback((target: ImageComposerTarget, asset: ComposerImageAsset, shouldReplace = false) => {
+    if (target === 'highlight') {
+      if (shouldReplace || editingNoteId) {
+        replaceHighlightComposerAsset(asset);
+        setComposer('highlight');
+      } else {
+        openHighlightComposer(asset);
+      }
+      return;
+    }
+
+    if (shouldReplace || editingNoteId) {
+      replacePhotoComposerAsset(asset);
+      setComposer('photo');
+    } else {
+      openPhotoComposer(asset);
+    }
+  }, [editingNoteId]);
+
+  useFocusEffect(
+    useCallback(() => {
+      const result = consumeReadingImageCropResult(pendingCropTokenRef.current);
+
+      if (!result) return;
+
+      pendingCropTokenRef.current = null;
+      setCroppedComposerAsset(result.target, result.asset, result.shouldReplace);
+    }, [setCroppedComposerAsset]),
+  );
+
+  const getHighlightPoint = useCallback(
+    (event: GestureResponderEvent) => {
+      const width = Math.max(1, highlightCanvasSize.width);
+      const height = Math.max(1, highlightCanvasSize.height);
+      const x = Math.min(1, Math.max(0, event.nativeEvent.locationX / width));
+      const y = Math.min(1, Math.max(0, event.nativeEvent.locationY / height));
+      return { x, y };
+    },
+    [highlightCanvasSize.height, highlightCanvasSize.width],
+  );
+
+  const updateDraftHighlight = useCallback((point: HighlightPoint) => {
+    const draftStroke = highlightDraftStrokeRef.current;
+    if (!draftStroke) return;
+
+    const nextStroke = addPointToHighlightStroke(draftStroke, point);
+    highlightDraftStrokeRef.current = nextStroke;
+    setDraftHighlightStroke(nextStroke);
+  }, []);
+
+  const finishDraftHighlight = useCallback((point: HighlightPoint) => {
+    const draftStroke = highlightDraftStrokeRef.current;
+    highlightDraftStrokeRef.current = null;
+    setIsHighlightDrawing(false);
+
+    if (!draftStroke) {
+      setDraftHighlightStroke(null);
+      return;
+    }
+
+    const nextStroke = addPointToHighlightStroke(draftStroke, point);
+    setDraftHighlightStroke(null);
+
+    if (nextStroke.points.length < 2) {
+      return;
+    }
+
+    setHighlightStrokes((current) => [...current, nextStroke]);
+  }, []);
+
+  const highlightResponder = useMemo(
+    () =>
+      PanResponder.create({
+        onStartShouldSetPanResponder: () =>
+          composer === 'highlight' && Boolean(highlightAsset),
+        onMoveShouldSetPanResponder: () =>
+          composer === 'highlight' && Boolean(highlightAsset),
+        onStartShouldSetPanResponderCapture: () =>
+          composer === 'highlight' && Boolean(highlightAsset),
+        onMoveShouldSetPanResponderCapture: () =>
+          composer === 'highlight' && Boolean(highlightAsset),
+        onShouldBlockNativeResponder: () => true,
+        onPanResponderTerminationRequest: () => false,
+        onPanResponderGrant: (event) => {
+          const point = getHighlightPoint(event);
+          const stroke = createHighlightStroke(point, highlightPenColor);
+          highlightDraftStrokeRef.current = stroke;
+          setDraftHighlightStroke(stroke);
+          setIsHighlightDrawing(true);
+        },
+        onPanResponderMove: (event) => {
+          updateDraftHighlight(getHighlightPoint(event));
+        },
+        onPanResponderRelease: (event) => {
+          finishDraftHighlight(getHighlightPoint(event));
+        },
+        onPanResponderTerminate: (event) => {
+          finishDraftHighlight(getHighlightPoint(event));
+        },
+      }),
+    [composer, finishDraftHighlight, getHighlightPoint, highlightAsset, highlightPenColor, updateDraftHighlight],
+  );
+
+  const undoHighlightStroke = () => {
+    setHighlightStrokes((current) => current.slice(0, -1));
+  };
+
+  const clearHighlightStrokes = () => {
+    setHighlightStrokes([]);
+    setDraftHighlightStroke(null);
+    setHighlightPenColor(defaultHighlightPenColor);
+    highlightDraftStrokeRef.current = null;
+  };
+
+  const saveHighlightNote = async () => {
+    if (!session?.user.id || !bookId || !highlightAsset?.uri) {
+      setErrorMessage('기록에 남길 사진을 선택해주세요.');
+      return;
+    }
+
+    const notePage = getOptionalNotePage();
+    if (typeof notePage === 'undefined') return;
+
+    setIsSavingNote(true);
+    setErrorMessage(null);
+
+    try {
+      const existingNote = editingNoteId ? notes.find((note) => note.id === editingNoteId) : null;
+      const uploadAsset = highlightAsset;
+      const nextHighlightStrokes = highlightStrokes;
+      const uploaded =
+        !editingNoteId || highlightAssetChanged
+          ? await uploadImageAsset({
+              kind: 'post-media',
+              entityId: `reading-${bookId}`,
+              uri: uploadAsset.uri,
+              ownerId: session.user.id,
+              mimeType: uploadAsset.mimeType,
+              width: uploadAsset.width,
+              height: uploadAsset.height,
+              fileName: uploadAsset.fileName,
+            })
+          : null;
+      const input = {
+        body: createHighlightNoteBody({
+          aspectRatio: getAssetAspectRatio(uploadAsset),
+          strokes: nextHighlightStrokes,
+          text: photoBody.trim() || null,
+        }),
+        pageLabel: notePage === null ? null : String(notePage),
+        currentPageSnapshot: existingNote?.currentPageSnapshot ?? displayCurrentPage,
+        progressPercentSnapshot: existingNote?.progressPercentSnapshot ?? displayProgressPercent,
+        totalPagesSnapshot: existingNote?.totalPagesSnapshot ?? totalPageValue,
+        mediaPath: uploaded?.objectPath ?? existingNote?.mediaPath ?? null,
+        mediaUrl: uploaded?.mediaUrl ?? existingNote?.mediaUrl ?? null,
+        visibility: noteVisibility,
+      };
+
+      if (editingNoteId) {
+        const note = await updateReadingLifeNote(session.user.id, editingNoteId, input);
+        setNotes((current) => current.map((currentNote) => (currentNote.id === note.id ? note : currentNote)));
+      } else {
+        const note = await createReadingLifeNote({
+          readingBookId: bookId,
+          profileId: session.user.id,
+          kind: 'photo',
+          ...input,
+        });
+        setNotes((current) => [note, ...current]);
+      }
+      resetComposerState();
+    } catch (error) {
+      setErrorMessage(getErrorMessage(error, '사진 기록을 저장하지 못했습니다.'));
+    } finally {
+      setIsSavingNote(false);
+    }
+  };
+
   const saveTextNote = async () => {
     if (!session?.user.id || !bookId || !book) return;
 
@@ -525,21 +956,29 @@ export default function ReadingLifeBookScreen() {
     setErrorMessage(null);
 
     try {
-      const note = await createReadingLifeNote({
-        readingBookId: bookId,
-        profileId: session.user.id,
-        kind: 'quote',
+      const existingNote = editingNoteId ? notes.find((note) => note.id === editingNoteId) : null;
+      const input = {
         body: noteText.trim(),
         pageLabel: notePage === null ? null : String(notePage),
-        currentPageSnapshot: displayCurrentPage,
-        progressPercentSnapshot: displayProgressPercent,
-        totalPagesSnapshot: totalPageValue,
+        currentPageSnapshot: existingNote?.currentPageSnapshot ?? displayCurrentPage,
+        progressPercentSnapshot: existingNote?.progressPercentSnapshot ?? displayProgressPercent,
+        totalPagesSnapshot: existingNote?.totalPagesSnapshot ?? totalPageValue,
         visibility: noteVisibility,
-      });
-      setNotes((current) => [note, ...current]);
-      setNoteText('');
-      setPageLabel('');
-      setComposer('closed');
+      };
+
+      if (editingNoteId) {
+        const note = await updateReadingLifeNote(session.user.id, editingNoteId, input);
+        setNotes((current) => current.map((currentNote) => (currentNote.id === note.id ? note : currentNote)));
+      } else {
+        const note = await createReadingLifeNote({
+          readingBookId: bookId,
+          profileId: session.user.id,
+          kind: 'quote',
+          ...input,
+        });
+        setNotes((current) => [note, ...current]);
+      }
+      resetComposerState();
     } catch (error) {
       setErrorMessage(getErrorMessage(error, '글 기록을 저장하지 못했습니다.'));
     } finally {
@@ -547,10 +986,16 @@ export default function ReadingLifeBookScreen() {
     }
   };
 
-  const saveCheckpointNote = async () => {
+  const saveCheckpointNote = useCallback(async (pageOverride?: number) => {
     if (!session?.user.id || !bookId || !book) return;
 
-    if (displayCurrentPage <= 0) {
+    const checkpointPage = typeof pageOverride === 'number' ? pageOverride : displayCurrentPage;
+    const checkpointProgressPercent =
+      totalPageValue && checkpointPage > 0
+        ? calculateReadingProgressPercent(checkpointPage, totalPageValue)
+        : displayProgressPercent;
+
+    if (checkpointPage <= 0) {
       setErrorMessage('먼저 현재 읽은 페이지를 기록해주세요.');
       return;
     }
@@ -563,11 +1008,12 @@ export default function ReadingLifeBookScreen() {
         readingBookId: bookId,
         profileId: session.user.id,
         kind: 'quote',
-        body: '읽은 위치를 남겼어요.',
-        currentPageSnapshot: displayCurrentPage,
-        progressPercentSnapshot: displayProgressPercent,
+        body: '오늘은 여기까지 읽었어요.',
+        pageLabel: String(checkpointPage),
+        currentPageSnapshot: checkpointPage,
+        progressPercentSnapshot: checkpointProgressPercent,
         totalPagesSnapshot: totalPageValue,
-        visibility: noteVisibility,
+        visibility: 'private',
       });
       setNotes((current) => [note, ...current]);
       setComposer('closed');
@@ -576,38 +1022,22 @@ export default function ReadingLifeBookScreen() {
     } finally {
       setIsSavingNote(false);
     }
-  };
+  }, [
+    book,
+    bookId,
+    displayCurrentPage,
+    displayProgressPercent,
+    session?.user.id,
+    totalPageValue,
+  ]);
 
-  const takePhoto = async () => {
-    const permission = await ImagePicker.requestCameraPermissionsAsync();
+  useEffect(() => {
+    saveCheckpointNoteRef.current = (page?: number) => {
+      void saveCheckpointNote(page);
+    };
+  }, [saveCheckpointNote]);
 
-    if (!permission.granted) {
-      setErrorMessage('카메라 권한이 필요합니다.');
-      return;
-    }
-
-    const result = await ImagePicker.launchCameraAsync({
-      allowsEditing: true,
-      aspect: [4, 5],
-      quality: 0.86,
-    });
-
-    if (!result.canceled && result.assets[0]) {
-      openPhotoComposer(result.assets[0]);
-    }
-  };
-
-  const pickPhoto = async () => {
-    const result = await ImagePicker.launchImageLibraryAsync({
-      allowsEditing: true,
-      aspect: [4, 5],
-      quality: 0.86,
-    });
-
-    if (!result.canceled && result.assets[0]) {
-      openPhotoComposer(result.assets[0]);
-    }
-  };
+  const pickPhoto = (shouldReplace = false) => chooseComposerImage('photo', 'library', shouldReplace);
 
   const savePhotoNote = async () => {
     if (!session?.user.id || !bookId || !photoAsset?.uri) {
@@ -622,39 +1052,118 @@ export default function ReadingLifeBookScreen() {
     setErrorMessage(null);
 
     try {
-      const uploaded = await uploadImageAsset({
-        kind: 'post-media',
-        entityId: `reading-${bookId}`,
-        uri: photoAsset.uri,
-        ownerId: session.user.id,
-        mimeType: photoAsset.mimeType,
-        width: photoAsset.width,
-        height: photoAsset.height,
-        fileName: photoAsset.fileName,
-      });
-      const note = await createReadingLifeNote({
-        readingBookId: bookId,
-        profileId: session.user.id,
-        kind: 'photo',
+      const existingNote = editingNoteId ? notes.find((note) => note.id === editingNoteId) : null;
+      const uploadAsset = photoAsset;
+      const uploaded =
+        !editingNoteId || photoAssetChanged
+          ? await uploadImageAsset({
+              kind: 'post-media',
+              entityId: `reading-${bookId}`,
+              uri: uploadAsset.uri,
+              ownerId: session.user.id,
+              mimeType: uploadAsset.mimeType,
+              width: uploadAsset.width,
+              height: uploadAsset.height,
+              fileName: uploadAsset.fileName,
+            })
+          : null;
+      const input = {
         body: photoBody.trim() || null,
         pageLabel: notePage === null ? null : String(notePage),
-        currentPageSnapshot: displayCurrentPage,
-        progressPercentSnapshot: displayProgressPercent,
-        totalPagesSnapshot: totalPageValue,
-        mediaPath: uploaded.objectPath,
-        mediaUrl: uploaded.mediaUrl,
+        currentPageSnapshot: existingNote?.currentPageSnapshot ?? displayCurrentPage,
+        progressPercentSnapshot: existingNote?.progressPercentSnapshot ?? displayProgressPercent,
+        totalPagesSnapshot: existingNote?.totalPagesSnapshot ?? totalPageValue,
+        mediaPath: uploaded?.objectPath ?? existingNote?.mediaPath ?? null,
+        mediaUrl: uploaded?.mediaUrl ?? existingNote?.mediaUrl ?? null,
         visibility: noteVisibility,
-      });
-      setNotes((current) => [note, ...current]);
-      setPhotoBody('');
-      setPhotoAsset(null);
-      setPageLabel('');
-      setComposer('closed');
+      };
+
+      if (editingNoteId) {
+        const note = await updateReadingLifeNote(session.user.id, editingNoteId, input);
+        setNotes((current) => current.map((currentNote) => (currentNote.id === note.id ? note : currentNote)));
+      } else {
+        const note = await createReadingLifeNote({
+          readingBookId: bookId,
+          profileId: session.user.id,
+          kind: 'photo',
+          ...input,
+        });
+        setNotes((current) => [note, ...current]);
+      }
+      resetComposerState();
     } catch (error) {
       setErrorMessage(getErrorMessage(error, '사진 기록을 저장하지 못했습니다.'));
     } finally {
       setIsSavingNote(false);
     }
+  };
+
+  const startEditNote = (note: ReadingLifeNote) => {
+    const highlightData = parseHighlightNoteBody(note.body);
+    const hasHighlightData = hasHighlightNoteData(highlightData);
+    const isAnnotatedPhoto = isHighlightPhotoNoteBody(note.body);
+
+    resetComposerState();
+    setEditingNoteId(note.id);
+    setNoteVisibility(note.visibility);
+    setPageLabel(note.pageLabel ?? '');
+    setErrorMessage(null);
+
+    if (note.mediaUrl) {
+      const imageAsset: ComposerImageAsset = {
+        uri: note.mediaUrl,
+        width: highlightData.aspectRatio ? highlightData.aspectRatio * 1000 : null,
+        height: highlightData.aspectRatio ? 1000 : null,
+        mimeType: 'image/jpeg',
+      };
+
+      if (isAnnotatedPhoto || hasHighlightData) {
+        setComposer('highlight');
+        setHighlightAsset(imageAsset);
+        setHighlightAssetChanged(false);
+        setHighlightStrokes(highlightData.strokes);
+        setHighlightPenColor(highlightData.strokes[0]?.color ?? defaultHighlightPenColor);
+        setPhotoBody(highlightData.text ?? '');
+        setDraftHighlightStroke(null);
+        highlightDraftStrokeRef.current = null;
+        return;
+      }
+
+      setComposer('photo');
+      setPhotoAsset(imageAsset);
+      setPhotoAssetChanged(false);
+      setPhotoBody(note.body ?? '');
+      return;
+    }
+
+    setComposer('text');
+    setNoteText(getVisibleNoteBody(note.body) ?? note.quoteText ?? '');
+  };
+
+  const deleteNote = async (note: ReadingLifeNote) => {
+    if (!session?.user.id) return;
+
+    setDeletingNoteId(note.id);
+    setErrorMessage(null);
+
+    try {
+      await deleteReadingLifeNote(session.user.id, note.id);
+      setNotes((current) => current.filter((currentNote) => currentNote.id !== note.id));
+      if (editingNoteId === note.id) {
+        resetComposerState();
+      }
+    } catch (error) {
+      setErrorMessage(getErrorMessage(error, '기록을 삭제하지 못했습니다.'));
+    } finally {
+      setDeletingNoteId(null);
+    }
+  };
+
+  const confirmDeleteNote = (note: ReadingLifeNote) => {
+    Alert.alert('이 기록을 삭제할까요?', '삭제한 기록은 되돌릴 수 없습니다.', [
+      { text: '취소', style: 'cancel' },
+      { text: '삭제', style: 'destructive', onPress: () => deleteNote(note) },
+    ]);
   };
 
   const pageInputField = (
@@ -685,6 +1194,7 @@ export default function ReadingLifeBookScreen() {
       <ScrollView
         alwaysBounceVertical
         contentContainerStyle={styles.content}
+        scrollEnabled={!isHighlightDrawing}
         showsVerticalScrollIndicator={false}
         style={styles.scroll}
       >
@@ -836,7 +1346,7 @@ export default function ReadingLifeBookScreen() {
             <View style={styles.memoPanel}>
               <View style={styles.memoHeader}>
                 <View>
-                  <Text style={styles.memoTitle}>책갈피</Text>
+                  <Text style={styles.memoTitle}>나의 기록</Text>
                   <Text style={styles.memoSubtitle}>{notes.length}개의 기록 조각</Text>
                 </View>
                 <View style={styles.memoTools}>
@@ -856,24 +1366,37 @@ export default function ReadingLifeBookScreen() {
               </View>
 
               <View style={styles.captureDock}>
-                <Pressable onPress={openTextComposer} style={[styles.captureAction, styles.captureActionPrimary]}>
-                  <Text style={[styles.captureActionMark, styles.captureActionMarkPrimary]}>✎</Text>
-                  <Text style={[styles.captureActionTitle, styles.captureActionTitlePrimary]}>글</Text>
-                  <Text style={[styles.captureActionText, styles.captureActionTextPrimary]}>문장과 생각</Text>
-                </Pressable>
-                <Pressable onPress={openComposerChoice} style={styles.captureAction}>
-                  <Text style={styles.captureActionMark}>◉</Text>
-                  <Text style={styles.captureActionTitle}>사진</Text>
-                  <Text style={styles.captureActionText}>장면 남기기</Text>
+                <Pressable
+                  accessibilityRole="button"
+                  disabled={isSavingNote}
+                  onPress={openPhotoRecordOptions}
+                  style={({ pressed }) => [
+                    styles.captureAction,
+                    styles.captureActionPhoto,
+                    pressed ? styles.captureActionPressed : null,
+                    isSavingNote ? styles.captureActionDisabled : null,
+                  ]}
+                >
+                  <View style={styles.captureActionGloss} />
+                  <View style={[styles.captureActionIcon, styles.captureActionIconPhoto]}>
+                    <Text style={[styles.captureActionMark, styles.captureActionMarkPhoto]}>◉</Text>
+                  </View>
+                  <Text style={[styles.captureActionTitle, styles.captureActionTitlePhoto]}>사진 + 글</Text>
                 </Pressable>
                 <Pressable
-                  disabled={isSavingNote}
-                  onPress={saveCheckpointNote}
-                  style={[styles.captureAction, isSavingNote ? styles.captureActionDisabled : null]}
+                  accessibilityRole="button"
+                  onPress={openTextComposer}
+                  style={({ pressed }) => [
+                    styles.captureAction,
+                    styles.captureActionWriting,
+                    pressed ? styles.captureActionPressed : null,
+                  ]}
                 >
-                  <Text style={styles.captureActionMark}>⌁</Text>
-                  <Text style={styles.captureActionTitle}>읽은 위치</Text>
-                  <Text style={styles.captureActionText}>{displayCurrentPage > 0 ? `${displayCurrentPage}쪽 저장` : '위치 저장'}</Text>
+                  <View style={styles.captureActionGloss} />
+                  <View style={[styles.captureActionIcon, styles.captureActionIconWriting]}>
+                    <Text style={[styles.captureActionMark, styles.captureActionMarkWriting]}>✎</Text>
+                  </View>
+                  <Text style={[styles.captureActionTitle, styles.captureActionTitleWriting]}>글</Text>
                 </Pressable>
               </View>
 
@@ -885,123 +1408,6 @@ export default function ReadingLifeBookScreen() {
                   style={styles.searchInput}
                   value={noteSearchQuery}
                 />
-              ) : null}
-
-              {composer !== 'closed' ? (
-                <View style={styles.composerBubble}>
-                  {composer === 'choice' ? (
-                    <View style={styles.captureChoices}>
-                      <Pressable onPress={takePhoto} style={styles.captureChoice}>
-                        <Text style={styles.captureChoiceTitle}>카메라</Text>
-                        <Text style={styles.captureChoiceText}>지금 찍기</Text>
-                      </Pressable>
-                      <Pressable onPress={pickPhoto} style={styles.captureChoice}>
-                        <Text style={styles.captureChoiceTitle}>갤러리</Text>
-                        <Text style={styles.captureChoiceText}>사진 고르기</Text>
-                      </Pressable>
-                    </View>
-                  ) : null}
-
-                  {composer === 'text' ? (
-                    <View style={styles.composerBox}>
-                      {pageInputField}
-                      <TextInput
-                        multiline
-                        onChangeText={setNoteText}
-                        placeholder="남겨두고 싶은 문장이나 생각"
-                        placeholderTextColor="#9A927F"
-                        style={[styles.input, styles.bodyInput]}
-                        value={noteText}
-                      />
-                      <View style={styles.visibilityRow}>
-                        <Pressable
-                          onPress={() => setNoteVisibility('private')}
-                          style={[styles.visibilityChoice, noteVisibility === 'private' ? styles.visibilityChoiceActive : null]}
-                        >
-                          <Text
-                            style={[
-                              styles.visibilityChoiceText,
-                              noteVisibility === 'private' ? styles.visibilityChoiceTextActive : null,
-                            ]}
-                          >
-                            나만 보기
-                          </Text>
-                        </Pressable>
-                        <Pressable
-                          onPress={() => setNoteVisibility('public')}
-                          style={[styles.visibilityChoice, noteVisibility === 'public' ? styles.visibilityChoiceActive : null]}
-                        >
-                          <Text
-                            style={[
-                              styles.visibilityChoiceText,
-                              noteVisibility === 'public' ? styles.visibilityChoiceTextActive : null,
-                            ]}
-                          >
-                            공개
-                          </Text>
-                        </Pressable>
-                      </View>
-                      <Pressable disabled={isSavingNote} onPress={saveTextNote} style={styles.primaryAction}>
-                        {isSavingNote ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.primaryActionText}>남기기</Text>}
-                      </Pressable>
-                    </View>
-                  ) : null}
-
-                  {composer === 'photo' ? (
-                    <View style={styles.composerBox}>
-                      <Pressable onPress={pickPhoto} style={styles.photoPicker}>
-                        {photoAsset?.uri ? (
-                          <Image resizeMode="cover" source={{ uri: photoAsset.uri }} style={styles.photoPreview} />
-                        ) : (
-                          <>
-                            <Text style={styles.photoPickerIcon}>＋</Text>
-                            <Text style={styles.photoPickerText}>사진 선택</Text>
-                          </>
-                        )}
-                      </Pressable>
-                      {pageInputField}
-                      <TextInput
-                        multiline
-                        onChangeText={setPhotoBody}
-                        placeholder="사진과 함께 남길 생각"
-                        placeholderTextColor="#9A927F"
-                        style={[styles.input, styles.bodyInput]}
-                        value={photoBody}
-                      />
-                      <View style={styles.visibilityRow}>
-                        <Pressable
-                          onPress={() => setNoteVisibility('private')}
-                          style={[styles.visibilityChoice, noteVisibility === 'private' ? styles.visibilityChoiceActive : null]}
-                        >
-                          <Text
-                            style={[
-                              styles.visibilityChoiceText,
-                              noteVisibility === 'private' ? styles.visibilityChoiceTextActive : null,
-                            ]}
-                          >
-                            나만 보기
-                          </Text>
-                        </Pressable>
-                        <Pressable
-                          onPress={() => setNoteVisibility('public')}
-                          style={[styles.visibilityChoice, noteVisibility === 'public' ? styles.visibilityChoiceActive : null]}
-                        >
-                          <Text
-                            style={[
-                              styles.visibilityChoiceText,
-                              noteVisibility === 'public' ? styles.visibilityChoiceTextActive : null,
-                            ]}
-                          >
-                            공개
-                          </Text>
-                        </Pressable>
-                      </View>
-                      <Pressable disabled={isSavingNote} onPress={savePhotoNote} style={styles.primaryAction}>
-                        {isSavingNote ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.primaryActionText}>남기기</Text>}
-                      </Pressable>
-                    </View>
-                  ) : null}
-                </View>
               ) : null}
 
               <View style={styles.noteStream}>
@@ -1017,6 +1423,11 @@ export default function ReadingLifeBookScreen() {
                 ) : null}
                 {visibleNotes.map((note, index) => {
                   const pageBadge = formatNotePageBadge(note);
+                  const noteHighlightData = parseHighlightNoteBody(note.body);
+                  const visibleNoteBody = getVisibleNoteBody(note.body);
+                  const hasHighlightData = hasHighlightNoteData(noteHighlightData);
+                  const isAnnotatedPhoto = isHighlightPhotoNoteBody(note.body);
+                  const shouldRespectPhotoAspect = isAnnotatedPhoto && Boolean(noteHighlightData.aspectRatio);
 
                   return (
                     <View key={note.id} style={styles.noteTimelineRow}>
@@ -1033,17 +1444,52 @@ export default function ReadingLifeBookScreen() {
                           ) : (
                             <View />
                           )}
-                          <Text style={styles.noteVisibility}>
-                            {[formatNoteDate(note.createdAt), note.visibility === 'public' ? '공개' : '비공개']
-                              .filter(Boolean)
-                              .join(' · ')}
-                          </Text>
+                          <View style={styles.noteMetaActions}>
+                            <Text style={styles.noteVisibility}>
+                              {[formatNoteDate(note.createdAt), note.visibility === 'public' ? '공개' : '비공개']
+                                .filter(Boolean)
+                                .join(' · ')}
+                            </Text>
+                            <View style={styles.noteActionRow}>
+                              <Pressable onPress={() => startEditNote(note)} style={styles.noteActionButton}>
+                                <Text style={styles.noteActionText}>수정</Text>
+                              </Pressable>
+                              <Pressable
+                                disabled={deletingNoteId === note.id}
+                                onPress={() => confirmDeleteNote(note)}
+                                style={[styles.noteActionButton, styles.noteActionDelete]}
+                              >
+                                <Text style={[styles.noteActionText, styles.noteActionDeleteText]}>
+                                  {deletingNoteId === note.id ? '삭제 중' : '삭제'}
+                                </Text>
+                              </Pressable>
+                            </View>
+                          </View>
                         </View>
                         {note.mediaUrl ? (
-                          <Image resizeMode="cover" source={{ uri: note.mediaUrl }} style={styles.noteImage} />
+                          <Pressable
+                            onPress={() => setPreviewImage({ highlightData: noteHighlightData, uri: note.mediaUrl ?? '' })}
+                            style={[
+                              styles.noteImageFrame,
+                              shouldRespectPhotoAspect
+                                ? { aspectRatio: noteHighlightData.aspectRatio ?? 1, height: undefined }
+                                : null,
+                            ]}
+                          >
+                            <Image
+                              resizeMode={shouldRespectPhotoAspect ? 'contain' : 'cover'}
+                              source={{ uri: note.mediaUrl }}
+                              style={styles.noteImage}
+                            />
+                            {hasHighlightData ? <HighlightOverlay data={noteHighlightData} /> : null}
+                          </Pressable>
                         ) : null}
-                        {note.quoteText ? <Text style={styles.noteQuote}>“{note.quoteText}”</Text> : null}
-                        {note.body ? <Text style={styles.noteBody}>{note.body}</Text> : null}
+                        {note.quoteText ? (
+                          <View style={styles.noteQuoteHighlight}>
+                            <Text style={styles.noteQuote}>“{note.quoteText}”</Text>
+                          </View>
+                        ) : null}
+                        {visibleNoteBody ? <Text style={styles.noteBody}>{visibleNoteBody}</Text> : null}
                       </View>
                     </View>
                   );
@@ -1069,14 +1515,342 @@ export default function ReadingLifeBookScreen() {
 
         {errorMessage ? <Text style={styles.errorText}>{errorMessage}</Text> : null}
       </ScrollView>
-      {undoProgress ? (
-        <View style={styles.undoToast}>
-          <Text style={styles.undoToastText}>{undoProgress.toPage}쪽으로 기록했어요</Text>
-          <Pressable onPress={undoShuttleProgress} style={styles.undoToastButton}>
-            <Text style={styles.undoToastButtonText}>되돌리기</Text>
-          </Pressable>
-        </View>
-      ) : null}
+      <Modal
+        animationType="slide"
+        onRequestClose={closeComposerWithConfirm}
+        presentationStyle="pageSheet"
+        visible={composer !== 'closed'}
+      >
+        <SafeAreaView style={styles.composerModal}>
+          <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+            style={styles.composerKeyboardView}
+          >
+            <View style={styles.composerModalTop}>
+              <View>
+                <Text style={styles.composerModalEyebrow}>
+                  {editingNoteId ? 'EDIT BOOKMARK' : 'NEW BOOKMARK'}
+                </Text>
+                <Text style={styles.composerModalTitle}>
+                  {composer === 'highlight'
+                      ? '사진 + 글'
+                      : composer === 'photo'
+                        ? '사진 + 글'
+                        : '글 기록'}
+                </Text>
+              </View>
+              <Pressable onPress={closeComposerWithConfirm} style={styles.composerModalClose}>
+                <Text style={styles.composerModalCloseText}>닫기</Text>
+              </Pressable>
+            </View>
+
+            <ScrollView
+              contentContainerStyle={styles.composerModalContent}
+              keyboardShouldPersistTaps="handled"
+              scrollEnabled={!isHighlightDrawing}
+              showsVerticalScrollIndicator={false}
+            >
+              {composer === 'text' ? (
+                <View style={styles.composerBox}>
+                  {pageInputField}
+                  <TextInput
+                    multiline
+                    onChangeText={setNoteText}
+                    placeholder="남겨두고 싶은 문장이나 생각"
+                    placeholderTextColor="#9A927F"
+                    style={[styles.input, styles.bodyInput]}
+                    value={noteText}
+                  />
+                  <View style={styles.visibilityRow}>
+                    <Pressable
+                      onPress={() => setNoteVisibility('private')}
+                      style={[styles.visibilityChoice, noteVisibility === 'private' ? styles.visibilityChoiceActive : null]}
+                    >
+                      <Text
+                        style={[
+                          styles.visibilityChoiceText,
+                          noteVisibility === 'private' ? styles.visibilityChoiceTextActive : null,
+                        ]}
+                      >
+                        나만 보기
+                      </Text>
+                    </Pressable>
+                    <Pressable
+                      onPress={() => setNoteVisibility('public')}
+                      style={[styles.visibilityChoice, noteVisibility === 'public' ? styles.visibilityChoiceActive : null]}
+                    >
+                      <Text
+                        style={[
+                          styles.visibilityChoiceText,
+                          noteVisibility === 'public' ? styles.visibilityChoiceTextActive : null,
+                        ]}
+                      >
+                        공개
+                      </Text>
+                    </Pressable>
+                  </View>
+                  <Pressable disabled={isSavingNote} onPress={saveTextNote} style={styles.primaryAction}>
+                    {isSavingNote ? (
+                      <ActivityIndicator color="#FFFFFF" />
+                    ) : (
+                      <Text style={styles.primaryActionText}>{editingNoteId ? '수정 저장' : '남기기'}</Text>
+                    )}
+                  </Pressable>
+                </View>
+              ) : null}
+
+              {composer === 'photo' ? (
+                <View style={styles.composerBox}>
+                  {photoAsset?.uri ? (
+                    <Pressable onPress={() => pickPhoto(true)} style={styles.photoPicker}>
+                      <Image resizeMode="cover" source={{ uri: photoAsset.uri }} style={styles.photoPreview} />
+                    </Pressable>
+                  ) : (
+                    <Pressable onPress={() => pickPhoto(true)} style={styles.photoPicker}>
+                      <>
+                        <Text style={styles.photoPickerIcon}>＋</Text>
+                        <Text style={styles.photoPickerText}>사진 선택</Text>
+                      </>
+                    </Pressable>
+                  )}
+                  <View style={styles.imageToolRow}>
+                    <Pressable onPress={() => chooseComposerImage('photo', 'camera', true)} style={styles.imageToolButton}>
+                      <Text style={styles.imageToolText}>다시 찍기</Text>
+                    </Pressable>
+                    <Pressable onPress={() => pickPhoto(true)} style={styles.imageToolButton}>
+                      <Text style={styles.imageToolText}>갤러리</Text>
+                    </Pressable>
+                  </View>
+                  {pageInputField}
+                  <TextInput
+                    multiline
+                    onChangeText={setPhotoBody}
+                    placeholder="사진과 함께 남길 생각"
+                    placeholderTextColor="#9A927F"
+                    style={[styles.input, styles.bodyInput]}
+                    value={photoBody}
+                  />
+                  <View style={styles.visibilityRow}>
+                    <Pressable
+                      onPress={() => setNoteVisibility('private')}
+                      style={[styles.visibilityChoice, noteVisibility === 'private' ? styles.visibilityChoiceActive : null]}
+                    >
+                      <Text
+                        style={[
+                          styles.visibilityChoiceText,
+                          noteVisibility === 'private' ? styles.visibilityChoiceTextActive : null,
+                        ]}
+                      >
+                        나만 보기
+                      </Text>
+                    </Pressable>
+                    <Pressable
+                      onPress={() => setNoteVisibility('public')}
+                      style={[styles.visibilityChoice, noteVisibility === 'public' ? styles.visibilityChoiceActive : null]}
+                    >
+                      <Text
+                        style={[
+                          styles.visibilityChoiceText,
+                          noteVisibility === 'public' ? styles.visibilityChoiceTextActive : null,
+                        ]}
+                      >
+                        공개
+                      </Text>
+                    </Pressable>
+                  </View>
+                  <Pressable disabled={isSavingNote} onPress={savePhotoNote} style={styles.primaryAction}>
+                    {isSavingNote ? (
+                      <ActivityIndicator color="#FFFFFF" />
+                    ) : (
+                      <Text style={styles.primaryActionText}>{editingNoteId ? '수정 저장' : '남기기'}</Text>
+                    )}
+                  </Pressable>
+                </View>
+              ) : null}
+
+              {composer === 'highlight' ? (
+                <View style={styles.composerBox}>
+                  {highlightAsset?.uri ? (
+                    <>
+                      <View
+                        collapsable={false}
+                        onLayout={(event) => setHighlightCanvasSize(event.nativeEvent.layout)}
+                        renderToHardwareTextureAndroid
+                        style={[
+                          styles.highlightEditor,
+                          highlightAssetAspectRatio ? { aspectRatio: highlightAssetAspectRatio } : null,
+                        ]}
+                        {...highlightResponder.panHandlers}
+                      >
+                        <Image resizeMode="contain" source={{ uri: highlightAsset.uri }} style={styles.highlightEditorImage} />
+                        <View
+                          pointerEvents="none"
+                          style={styles.highlightDrawLayer}
+                        >
+                          <HighlightOverlay
+                            data={{
+                              aspectRatio: highlightAssetAspectRatio,
+                              rects: [],
+                              strokes: [...highlightStrokes, ...(draftHighlightStroke ? [draftHighlightStroke] : [])],
+                              text: null,
+                            }}
+                          />
+                        </View>
+                      </View>
+                      <Text style={styles.highlightGuideText}>
+                        사진 위를 손가락으로 쓸면 형광펜처럼 남아요. 칠하지 않고 사진만 저장해도 됩니다.
+                      </Text>
+                      <View style={styles.highlightColorRow}>
+                        <Text style={styles.highlightColorLabel}>색상</Text>
+                        <View style={styles.highlightColorChoices}>
+                          {highlightPenColors.map((color) => {
+                            const isSelected = highlightPenColor === color.hex;
+
+                            return (
+                              <Pressable
+                                accessibilityLabel={`${color.label} 형광펜`}
+                                key={color.id}
+                                onPress={() => setHighlightPenColor(color.hex)}
+                                style={[
+                                  styles.highlightColorChoice,
+                                  isSelected ? styles.highlightColorChoiceActive : null,
+                                ]}
+                              >
+                                <View
+                                  style={[
+                                    styles.highlightColorSwatch,
+                                    { backgroundColor: color.hex },
+                                  ]}
+                                />
+                              </Pressable>
+                            );
+                          })}
+                        </View>
+                      </View>
+                    </>
+                  ) : (
+                    <Pressable onPress={() => pickHighlightPhoto(true)} style={styles.photoPicker}>
+                      <>
+                        <Text style={styles.photoPickerIcon}>＋</Text>
+                        <Text style={styles.photoPickerText}>사진 선택</Text>
+                      </>
+                    </Pressable>
+                  )}
+
+                  <View style={styles.highlightToolRow}>
+                    <Pressable
+                      disabled={highlightStrokes.length === 0}
+                      onPress={undoHighlightStroke}
+                      style={[styles.highlightTool, highlightStrokes.length === 0 ? styles.captureActionDisabled : null]}
+                    >
+                      <Text style={styles.highlightToolText}>되돌리기</Text>
+                    </Pressable>
+                    <Pressable
+                      disabled={highlightStrokes.length === 0}
+                      onPress={clearHighlightStrokes}
+                      style={[styles.highlightTool, highlightStrokes.length === 0 ? styles.captureActionDisabled : null]}
+                    >
+                      <Text style={styles.highlightToolText}>지우기</Text>
+                    </Pressable>
+                  </View>
+                  {pageInputField}
+                  <TextInput
+                    multiline
+                    onChangeText={setPhotoBody}
+                    placeholder="사진과 함께 남길 글"
+                    placeholderTextColor="#9A927F"
+                    style={[styles.input, styles.bodyInput]}
+                    value={photoBody}
+                  />
+                  <View style={styles.visibilityRow}>
+                    <Pressable
+                      onPress={() => setNoteVisibility('private')}
+                      style={[styles.visibilityChoice, noteVisibility === 'private' ? styles.visibilityChoiceActive : null]}
+                    >
+                      <Text
+                        style={[
+                          styles.visibilityChoiceText,
+                          noteVisibility === 'private' ? styles.visibilityChoiceTextActive : null,
+                        ]}
+                      >
+                        나만 보기
+                      </Text>
+                    </Pressable>
+                    <Pressable
+                      onPress={() => setNoteVisibility('public')}
+                      style={[styles.visibilityChoice, noteVisibility === 'public' ? styles.visibilityChoiceActive : null]}
+                    >
+                      <Text
+                        style={[
+                          styles.visibilityChoiceText,
+                          noteVisibility === 'public' ? styles.visibilityChoiceTextActive : null,
+                        ]}
+                      >
+                        공개
+                      </Text>
+                    </Pressable>
+                  </View>
+                  <Pressable
+                    disabled={isSavingNote || !highlightAsset?.uri}
+                    onPress={saveHighlightNote}
+                    style={[
+                      styles.primaryAction,
+                      isSavingNote || !highlightAsset?.uri
+                        ? styles.captureActionDisabled
+                        : null,
+                    ]}
+                  >
+                    {isSavingNote ? (
+                      <ActivityIndicator color="#FFFFFF" />
+                    ) : (
+                      <Text style={styles.primaryActionText}>{editingNoteId ? '수정 저장' : '사진 저장'}</Text>
+                    )}
+                  </Pressable>
+                </View>
+              ) : null}
+
+              {errorMessage ? <Text style={styles.errorText}>{errorMessage}</Text> : null}
+            </ScrollView>
+          </KeyboardAvoidingView>
+        </SafeAreaView>
+      </Modal>
+      <Modal
+        animationType="fade"
+        onRequestClose={() => setPreviewImage(null)}
+        transparent
+        visible={Boolean(previewImage)}
+      >
+        <SafeAreaView style={styles.imageViewer}>
+          <View style={styles.imageViewerTop}>
+            <Text style={styles.imageViewerTitle}>기록 보기</Text>
+            <Pressable onPress={() => setPreviewImage(null)} style={styles.imageViewerClose}>
+              <Text style={styles.imageViewerCloseText}>닫기</Text>
+            </Pressable>
+          </View>
+          <ScrollView
+            contentContainerStyle={styles.imageViewerContent}
+            maximumZoomScale={3}
+            minimumZoomScale={1}
+            showsVerticalScrollIndicator={false}
+          >
+            {previewImage ? (
+              <View
+                style={[
+                  styles.imageViewerFrame,
+                  previewImage.highlightData.aspectRatio
+                    ? { aspectRatio: previewImage.highlightData.aspectRatio }
+                    : null,
+                ]}
+              >
+                <Image resizeMode="contain" source={{ uri: previewImage.uri }} style={styles.imageViewerImage} />
+                {hasHighlightNoteData(previewImage.highlightData) ? (
+                  <HighlightOverlay data={previewImage.highlightData} />
+                ) : null}
+              </View>
+            ) : null}
+          </ScrollView>
+        </SafeAreaView>
+      </Modal>
       <BottomNavigation active="reading-life" />
     </SafeAreaView>
   );
@@ -1121,11 +1895,247 @@ function formatNoteDate(value: string) {
 }
 
 function formatNotePageBadge(note: ReadingLifeNote) {
-  if (note.pageLabel) return `${note.pageLabel}쪽`;
-  if (note.currentPageSnapshot > 0) return `당시 ${note.currentPageSnapshot}쪽`;
-  if (note.progressPercentSnapshot > 0) return `당시 ${note.progressPercentSnapshot}%`;
+  if (note.pageLabel) return `${note.pageLabel}쪽 기록`;
+  if (note.currentPageSnapshot > 0) return `${note.currentPageSnapshot}쪽 기록`;
+  if (note.progressPercentSnapshot > 0) return `${note.progressPercentSnapshot}% 기록`;
 
   return '';
+}
+
+function createHighlightStroke(point: HighlightPoint, color: HighlightPenColor): HighlightStroke {
+  return {
+    color,
+    id: `stroke-${Date.now()}`,
+    points: [point],
+    size: highlightStrokeSize,
+  };
+}
+
+function addPointToHighlightStroke(stroke: HighlightStroke, point: HighlightPoint): HighlightStroke {
+  const lastPoint = stroke.points[stroke.points.length - 1];
+  if (!lastPoint) {
+    return {
+      ...stroke,
+      points: [point],
+    };
+  }
+
+  const distance = Math.hypot(point.x - lastPoint.x, point.y - lastPoint.y);
+  if (distance < 0.0015) {
+    return stroke;
+  }
+
+  const steps = Math.max(1, Math.ceil(distance / 0.0045));
+  const nextPoints = [...stroke.points];
+
+  for (let index = 1; index <= steps; index += 1) {
+    const ratio = index / steps;
+    nextPoints.push({
+      x: lastPoint.x + (point.x - lastPoint.x) * ratio,
+      y: lastPoint.y + (point.y - lastPoint.y) * ratio,
+    });
+  }
+
+  return {
+    ...stroke,
+    points: nextPoints.slice(-1400),
+  };
+}
+
+function createHighlightNoteBody(data: { aspectRatio: number | null; strokes: HighlightStroke[]; text?: string | null }) {
+  return `${highlightNotePrefix}${JSON.stringify(data)}`;
+}
+
+function parseHighlightNoteBody(body: string | null): HighlightNoteData {
+  if (!body) {
+    return emptyHighlightNoteData();
+  }
+
+  if (body.startsWith(highlightNotePrefix)) {
+    try {
+      const payload = JSON.parse(body.slice(highlightNotePrefix.length)) as {
+        aspectRatio?: unknown;
+        rects?: unknown[];
+        strokes?: unknown[];
+        text?: unknown;
+      };
+
+      return {
+        aspectRatio: isPositiveNumber(payload.aspectRatio) ? payload.aspectRatio : null,
+        rects: (payload.rects ?? []).filter(isValidHighlightRect),
+        strokes: (payload.strokes ?? []).filter(isValidHighlightStroke),
+        text: normalizeOptionalText(payload.text),
+      };
+    } catch {
+      return emptyHighlightNoteData();
+    }
+  }
+
+  if (body.startsWith(legacyHighlightNotePrefix)) {
+    try {
+      const payload = JSON.parse(body.slice(legacyHighlightNotePrefix.length)) as { rects?: unknown[] };
+      return {
+        aspectRatio: null,
+        rects: (payload.rects ?? []).filter(isValidHighlightRect),
+        strokes: [],
+        text: null,
+      };
+    } catch {
+      return emptyHighlightNoteData();
+    }
+  }
+
+  return emptyHighlightNoteData();
+}
+
+function emptyHighlightNoteData(): HighlightNoteData {
+  return {
+    aspectRatio: null,
+    rects: [],
+    strokes: [],
+    text: null,
+  };
+}
+
+function hasHighlightNoteData(data: HighlightNoteData) {
+  return data.rects.length > 0 || data.strokes.length > 0;
+}
+
+function isHighlightPhotoNoteBody(body: string | null) {
+  return Boolean(
+    body?.startsWith(highlightNotePrefix) || body?.startsWith(legacyHighlightNotePrefix),
+  );
+}
+
+function getVisibleNoteBody(body: string | null) {
+  if (!body) return null;
+  if (body.startsWith(highlightNotePrefix) || body.startsWith(legacyHighlightNotePrefix)) {
+    return parseHighlightNoteBody(body).text;
+  }
+  return body;
+}
+
+function normalizeOptionalText(value: unknown) {
+  if (typeof value !== 'string') return null;
+
+  const trimmedValue = value.trim();
+  return trimmedValue.length > 0 ? trimmedValue : null;
+}
+
+function isValidHighlightRect(value: unknown): value is HighlightRect {
+  if (typeof value !== 'object' || value === null) {
+    return false;
+  }
+
+  const rect = value as Partial<HighlightRect>;
+
+  return (
+    typeof rect.id === 'string' &&
+    isNormalizedNumber(rect.x) &&
+    isNormalizedNumber(rect.y) &&
+    isNormalizedNumber(rect.width) &&
+    isNormalizedNumber(rect.height)
+  );
+}
+
+function isValidHighlightStroke(value: unknown): value is HighlightStroke {
+  if (typeof value !== 'object' || value === null) {
+    return false;
+  }
+
+  const stroke = value as Partial<HighlightStroke>;
+
+  return (
+    typeof stroke.id === 'string' &&
+    isHighlightPenColor(stroke.color) &&
+    typeof stroke.size === 'number' &&
+    Number.isFinite(stroke.size) &&
+    stroke.size > 0 &&
+    stroke.size <= 40 &&
+    Array.isArray(stroke.points) &&
+    stroke.points.length > 0 &&
+    stroke.points.every(isValidHighlightPoint)
+  );
+}
+
+function isHighlightPenColor(value: unknown): value is HighlightPenColor {
+  return typeof value === 'string' && highlightPenColors.some((color) => color.hex === value);
+}
+
+function isValidHighlightPoint(value: unknown): value is HighlightPoint {
+  if (typeof value !== 'object' || value === null) {
+    return false;
+  }
+
+  const point = value as Partial<HighlightPoint>;
+  return isNormalizedNumber(point.x) && isNormalizedNumber(point.y);
+}
+
+function isNormalizedNumber(value: unknown) {
+  return typeof value === 'number' && Number.isFinite(value) && value >= 0 && value <= 1;
+}
+
+function isPositiveNumber(value: unknown): value is number {
+  return typeof value === 'number' && Number.isFinite(value) && value > 0;
+}
+
+function getAssetAspectRatio(asset: ComposerImageAsset | null) {
+  if (!asset?.width || !asset.height || asset.width <= 0 || asset.height <= 0) {
+    return null;
+  }
+
+  return asset.width / asset.height;
+}
+
+function HighlightOverlay({ data }: { data: HighlightNoteData }) {
+  return (
+    <View pointerEvents="none" style={styles.highlightOverlay}>
+      <Svg pointerEvents="none" preserveAspectRatio="none" style={styles.highlightSvg} viewBox="0 0 1000 1000">
+        {data.rects.map((rect) => (
+          <Rect
+            key={rect.id}
+            fill={defaultHighlightPenColor}
+            height={rect.height * highlightSvgViewBoxSize}
+            opacity={highlightLegacyRectOpacity}
+            rx={8}
+            width={rect.width * highlightSvgViewBoxSize}
+            x={rect.x * highlightSvgViewBoxSize}
+            y={rect.y * highlightSvgViewBoxSize}
+          />
+        ))}
+        {data.strokes.map((stroke) => {
+          const strokePath = getHighlightStrokePath(stroke.points);
+          const strokeWidth = Math.max(42, stroke.size * 3.05);
+
+          return strokePath ? (
+            <Path
+              d={strokePath}
+              fill="none"
+              key={stroke.id}
+              opacity={highlightStrokeOpacity}
+              stroke={stroke.color}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={strokeWidth}
+            />
+          ) : null;
+        })}
+      </Svg>
+    </View>
+  );
+}
+
+function getHighlightStrokePath(points: HighlightPoint[]) {
+  if (points.length === 0) return '';
+
+  const [firstPoint, ...restPoints] = points;
+  const firstX = firstPoint.x * highlightSvgViewBoxSize;
+  const firstY = firstPoint.y * highlightSvgViewBoxSize;
+
+  return restPoints.reduce(
+    (path, point) => `${path} L ${point.x * highlightSvgViewBoxSize} ${point.y * highlightSvgViewBoxSize}`,
+    `M ${firstX} ${firstY}`,
+  );
 }
 
 const styles = StyleSheet.create({
@@ -1461,58 +2471,90 @@ const styles = StyleSheet.create({
   },
   captureDock: {
     flexDirection: 'row',
-    gap: 9,
-    marginTop: 15,
+    gap: 12,
+    marginTop: 16,
   },
   captureAction: {
-    backgroundColor: 'rgba(247,241,229,0.76)',
-    borderColor: 'rgba(16,61,43,0.08)',
-    borderRadius: 20,
-    borderWidth: 1,
+    alignItems: 'center',
+    borderRadius: 24,
+    borderWidth: 1.5,
     flex: 1,
-    minHeight: 96,
-    paddingHorizontal: 12,
-    paddingVertical: 13,
+    justifyContent: 'center',
+    minHeight: 90,
+    overflow: 'hidden',
+    paddingHorizontal: 15,
+    paddingVertical: 15,
+    position: 'relative',
     shadowColor: '#213728',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.04,
-    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.1,
+    shadowRadius: 16,
   },
-  captureActionPrimary: {
-    backgroundColor: '#103D2B',
-    borderColor: 'rgba(216,190,136,0.32)',
+  captureActionPhoto: {
+    backgroundColor: '#D8BE88',
+    borderColor: 'rgba(16,61,43,0.28)',
+    elevation: 4,
+  },
+  captureActionWriting: {
+    backgroundColor: '#D8BE88',
+    borderColor: 'rgba(16,61,43,0.28)',
+    elevation: 4,
+  },
+  captureActionPressed: {
+    opacity: 0.9,
+    transform: [{ scale: 0.98 }],
+  },
+  captureActionGloss: {
+    backgroundColor: 'rgba(255,255,255,0.28)',
+    height: 4,
+    left: 16,
+    position: 'absolute',
+    right: 16,
+    top: 0,
   },
   captureActionDisabled: {
     opacity: 0.52,
   },
+  captureActionIcon: {
+    alignItems: 'center',
+    borderRadius: 999,
+    borderWidth: 1,
+    height: 42,
+    justifyContent: 'center',
+    width: 42,
+  },
+  captureActionIconPhoto: {
+    backgroundColor: '#103D2B',
+    borderColor: 'rgba(16,61,43,0.28)',
+  },
+  captureActionIconWriting: {
+    backgroundColor: '#103D2B',
+    borderColor: 'rgba(16,61,43,0.28)',
+  },
   captureActionMark: {
-    color: '#103D2B',
     fontSize: 22,
     fontWeight: '900',
-    lineHeight: 26,
+    lineHeight: 25,
   },
-  captureActionMarkPrimary: {
-    color: '#D8BE88',
+  captureActionMarkPhoto: {
+    color: '#FFFFFF',
+  },
+  captureActionMarkWriting: {
+    color: '#FFFFFF',
   },
   captureActionTitle: {
-    color: '#103D2B',
-    fontSize: 15,
+    fontSize: 16,
     fontWeight: '900',
-    lineHeight: 19,
-    marginTop: 8,
+    letterSpacing: 0,
+    lineHeight: 20,
+    marginTop: 10,
+    textAlign: 'center',
   },
-  captureActionText: {
-    color: '#6D766F',
-    fontSize: 11,
-    fontWeight: '800',
-    lineHeight: 15,
-    marginTop: 4,
+  captureActionTitlePhoto: {
+    color: '#103D2B',
   },
-  captureActionTitlePrimary: {
-    color: '#F7F1E5',
-  },
-  captureActionTextPrimary: {
-    color: 'rgba(247,241,229,0.72)',
+  captureActionTitleWriting: {
+    color: '#103D2B',
   },
   searchInput: {
     backgroundColor: 'rgba(247,241,229,0.78)',
@@ -1526,6 +2568,57 @@ const styles = StyleSheet.create({
     marginTop: 12,
     paddingHorizontal: 16,
   },
+  composerModal: {
+    backgroundColor: '#EEF1DF',
+    flex: 1,
+  },
+  composerKeyboardView: {
+    flex: 1,
+  },
+  composerModalTop: {
+    alignItems: 'center',
+    borderBottomColor: 'rgba(16,61,43,0.08)',
+    borderBottomWidth: 1,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingBottom: 14,
+    paddingTop: 12,
+  },
+  composerModalEyebrow: {
+    color: '#8B7653',
+    fontSize: 10,
+    fontWeight: '900',
+    letterSpacing: 0,
+  },
+  composerModalTitle: {
+    color: '#14251B',
+    fontSize: 24,
+    fontWeight: '900',
+    lineHeight: 29,
+    marginTop: 2,
+  },
+  composerModalClose: {
+    alignItems: 'center',
+    backgroundColor: '#F7F1E5',
+    borderColor: 'rgba(16,61,43,0.08)',
+    borderRadius: 999,
+    borderWidth: 1,
+    height: 40,
+    justifyContent: 'center',
+    paddingHorizontal: 15,
+  },
+  composerModalCloseText: {
+    color: '#103D2B',
+    fontSize: 13,
+    fontWeight: '900',
+  },
+  composerModalContent: {
+    flexGrow: 1,
+    paddingHorizontal: 20,
+    paddingBottom: 42,
+    paddingTop: 18,
+  },
   composerBubble: {
     backgroundColor: 'rgba(247,241,229,0.72)',
     borderColor: 'rgba(16,61,43,0.08)',
@@ -1533,33 +2626,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     marginTop: 12,
     padding: 14,
-  },
-  captureChoices: {
-    flexDirection: 'row',
-    gap: 9,
-  },
-  captureChoice: {
-    backgroundColor: '#EFE7D7',
-    borderColor: 'rgba(16,61,43,0.08)',
-    borderRadius: 18,
-    borderWidth: 1,
-    flex: 1,
-    minHeight: 88,
-    justifyContent: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 12,
-  },
-  captureChoiceTitle: {
-    color: '#103D2B',
-    fontSize: 15,
-    fontWeight: '900',
-  },
-  captureChoiceText: {
-    color: '#6D766F',
-    fontSize: 11,
-    fontWeight: '800',
-    lineHeight: 16,
-    marginTop: 6,
   },
   visibilityRow: {
     flexDirection: 'row',
@@ -1696,6 +2762,139 @@ const styles = StyleSheet.create({
     height: '100%',
     width: '100%',
   },
+  imageToolRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  imageToolButton: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(16,61,43,0.08)',
+    borderColor: 'rgba(16,61,43,0.08)',
+    borderRadius: 999,
+    borderWidth: 1,
+    height: 36,
+    justifyContent: 'center',
+    paddingHorizontal: 13,
+  },
+  imageToolText: {
+    color: '#103D2B',
+    fontSize: 12,
+    fontWeight: '900',
+  },
+  highlightEditor: {
+    backgroundColor: '#E8DEC9',
+    borderRadius: 20,
+    minHeight: 220,
+    overflow: 'hidden',
+    position: 'relative',
+    width: '100%',
+  },
+  highlightEditorImage: {
+    height: '100%',
+    width: '100%',
+  },
+  highlightGuideText: {
+    color: '#6D766F',
+    fontSize: 12,
+    fontWeight: '800',
+    lineHeight: 18,
+    marginTop: -2,
+    paddingHorizontal: 2,
+  },
+  highlightColorRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: -4,
+  },
+  highlightColorLabel: {
+    color: '#6D766F',
+    fontSize: 12,
+    fontWeight: '900',
+  },
+  highlightColorChoices: {
+    flexDirection: 'row',
+    gap: 9,
+  },
+  highlightColorChoice: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(16,61,43,0.07)',
+    borderColor: 'transparent',
+    borderRadius: 999,
+    borderWidth: 2,
+    height: 36,
+    justifyContent: 'center',
+    width: 36,
+  },
+  highlightColorChoiceActive: {
+    borderColor: '#103D2B',
+    backgroundColor: 'rgba(247,241,229,0.72)',
+  },
+  highlightColorSwatch: {
+    borderRadius: 999,
+    height: 22,
+    width: 22,
+  },
+  highlightDrawLayer: {
+    bottom: 0,
+    left: 0,
+    position: 'absolute',
+    right: 0,
+    top: 0,
+    zIndex: 4,
+  },
+  highlightOverlay: {
+    bottom: 0,
+    left: 0,
+    position: 'absolute',
+    right: 0,
+    top: 0,
+  },
+  highlightSvg: {
+    bottom: 0,
+    left: 0,
+    position: 'absolute',
+    right: 0,
+    top: 0,
+  },
+  highlightToolRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  highlightTool: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(16,61,43,0.08)',
+    borderRadius: 999,
+    flex: 1,
+    height: 38,
+    justifyContent: 'center',
+  },
+  highlightToolText: {
+    color: '#103D2B',
+    fontSize: 12,
+    fontWeight: '900',
+  },
+  highlightActionRow: {
+    flexDirection: 'row',
+    gap: 9,
+  },
+  secondaryAction: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(16,61,43,0.1)',
+    borderRadius: 999,
+    height: 46,
+    justifyContent: 'center',
+    paddingHorizontal: 16,
+  },
+  secondaryActionText: {
+    color: '#103D2B',
+    fontSize: 13,
+    fontWeight: '900',
+  },
+  highlightSaveAction: {
+    flex: 1,
+  },
   errorText: {
     color: '#A43D20',
     fontSize: 13,
@@ -1763,27 +2962,71 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(143,106,66,0.12)',
   },
   noteHead: {
-    alignItems: 'center',
+    alignItems: 'flex-start',
     flexDirection: 'row',
+    gap: 10,
     justifyContent: 'space-between',
+  },
+  noteMetaActions: {
+    alignItems: 'flex-end',
+    flex: 1,
+    gap: 7,
   },
   noteVisibility: {
     color: '#9A8D78',
     fontSize: 11,
     fontWeight: '900',
   },
-  noteImage: {
+  noteActionRow: {
+    flexDirection: 'row',
+    gap: 6,
+  },
+  noteActionButton: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(16,61,43,0.08)',
+    borderRadius: 999,
+    height: 28,
+    justifyContent: 'center',
+    paddingHorizontal: 10,
+  },
+  noteActionDelete: {
+    backgroundColor: 'rgba(125,47,34,0.08)',
+  },
+  noteActionText: {
+    color: '#103D2B',
+    fontSize: 11,
+    fontWeight: '900',
+  },
+  noteActionDeleteText: {
+    color: '#7D2F22',
+  },
+  noteImageFrame: {
     borderRadius: 20,
     height: 224,
     marginTop: 14,
+    overflow: 'hidden',
+    position: 'relative',
     width: '100%',
+  },
+  noteImage: {
+    borderRadius: 20,
+    height: '100%',
+    width: '100%',
+  },
+  noteQuoteHighlight: {
+    backgroundColor: 'rgba(247,208,82,0.34)',
+    borderLeftColor: '#D8BE88',
+    borderLeftWidth: 4,
+    borderRadius: 14,
+    marginTop: 14,
+    paddingHorizontal: 13,
+    paddingVertical: 12,
   },
   noteQuote: {
     color: '#26372B',
     fontSize: 17,
     fontWeight: '800',
     lineHeight: 27,
-    marginTop: 14,
   },
   notePageBadge: {
     alignSelf: 'flex-start',
@@ -1846,43 +3089,54 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '900',
   },
-  undoToast: {
-    alignItems: 'center',
-    backgroundColor: 'rgba(16,61,43,0.96)',
-    borderColor: 'rgba(216,190,136,0.34)',
-    borderRadius: 22,
-    borderWidth: 1,
-    bottom: 108,
-    elevation: 10,
-    flexDirection: 'row',
-    gap: 12,
-    justifyContent: 'space-between',
-    left: 20,
-    paddingHorizontal: 16,
-    paddingVertical: 13,
-    position: 'absolute',
-    right: 20,
-    shadowColor: '#102519',
-    shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.2,
-    shadowRadius: 24,
-    zIndex: 30,
-  },
-  undoToastText: {
-    color: '#F7F1E5',
+  imageViewer: {
+    backgroundColor: 'rgba(10,16,12,0.96)',
     flex: 1,
-    fontSize: 13,
-    fontWeight: '800',
   },
-  undoToastButton: {
-    backgroundColor: '#D8BE88',
-    borderRadius: 999,
-    paddingHorizontal: 13,
-    paddingVertical: 8,
+  imageViewerTop: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingHorizontal: 18,
+    paddingTop: 8,
+    paddingBottom: 10,
   },
-  undoToastButtonText: {
-    color: '#103D2B',
-    fontSize: 12,
+  imageViewerTitle: {
+    color: '#F7F1E5',
+    fontSize: 15,
     fontWeight: '900',
+  },
+  imageViewerClose: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(247,241,229,0.12)',
+    borderColor: 'rgba(247,241,229,0.18)',
+    borderRadius: 999,
+    borderWidth: 1,
+    height: 40,
+    justifyContent: 'center',
+    paddingHorizontal: 16,
+  },
+  imageViewerCloseText: {
+    color: '#F7F1E5',
+    fontSize: 13,
+    fontWeight: '900',
+  },
+  imageViewerContent: {
+    alignItems: 'center',
+    flexGrow: 1,
+    justifyContent: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 20,
+  },
+  imageViewerFrame: {
+    backgroundColor: '#0F1511',
+    borderRadius: 18,
+    overflow: 'hidden',
+    position: 'relative',
+    width: '100%',
+  },
+  imageViewerImage: {
+    height: '100%',
+    width: '100%',
   },
 });

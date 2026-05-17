@@ -75,6 +75,18 @@ export type CreateReadingLifeNoteInput = {
   visibility?: ReadingVisibility;
 };
 
+export type UpdateReadingLifeNoteInput = {
+  quoteText?: string | null;
+  body?: string | null;
+  pageLabel?: string | null;
+  currentPageSnapshot?: number | null;
+  progressPercentSnapshot?: number | null;
+  totalPagesSnapshot?: number | null;
+  mediaPath?: string | null;
+  mediaUrl?: string | null;
+  visibility?: ReadingVisibility;
+};
+
 type ReadingBookRow = {
   id: string;
   profile_id: string;
@@ -392,6 +404,59 @@ export async function createReadingLifeNote(input: CreateReadingLifeNoteInput) {
   }
 
   return mapReadingNote(data);
+}
+
+export async function updateReadingLifeNote(
+  profileId: string,
+  noteId: string,
+  input: UpdateReadingLifeNoteInput,
+) {
+  const updates: Partial<ReadingNoteRow> = {
+    updated_at: new Date().toISOString(),
+  };
+
+  if ('quoteText' in input) updates.quote_text = input.quoteText?.trim() || null;
+  if ('body' in input) updates.body = input.body?.trim() || null;
+  if ('pageLabel' in input) updates.page_label = input.pageLabel?.trim() || null;
+  if ('currentPageSnapshot' in input) {
+    updates.current_page_snapshot = sanitizeNonNegativeInteger(input.currentPageSnapshot ?? 0);
+  }
+  if ('progressPercentSnapshot' in input) {
+    updates.progress_percent_snapshot = Math.min(100, Math.max(0, Math.round(input.progressPercentSnapshot ?? 0)));
+  }
+  if ('totalPagesSnapshot' in input) {
+    updates.total_pages_snapshot =
+      typeof input.totalPagesSnapshot === 'number' ? sanitizePositiveInteger(input.totalPagesSnapshot) : null;
+  }
+  if ('mediaPath' in input) updates.media_path = input.mediaPath ?? null;
+  if ('mediaUrl' in input) updates.media_url = input.mediaUrl ?? null;
+  if ('visibility' in input) updates.visibility = input.visibility ?? 'private';
+
+  const { data, error } = await supabase
+    .from('reading_notes')
+    .update(updates)
+    .eq('profile_id', profileId)
+    .eq('id', noteId)
+    .select(readingNoteSelect)
+    .single<ReadingNoteRow>();
+
+  if (error) {
+    throw error;
+  }
+
+  return mapReadingNote(data);
+}
+
+export async function deleteReadingLifeNote(profileId: string, noteId: string) {
+  const { error } = await supabase
+    .from('reading_notes')
+    .delete()
+    .eq('profile_id', profileId)
+    .eq('id', noteId);
+
+  if (error) {
+    throw error;
+  }
 }
 
 function mapReadingBook(row: ReadingBookRow): ReadingLifeBook {
