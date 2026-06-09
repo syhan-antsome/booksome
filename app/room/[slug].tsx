@@ -30,6 +30,8 @@ import {
 } from '../../src/services/rooms';
 
 type RoomTab = 'talk' | 'reading' | 'info';
+type PostComposerKind = 'impression' | 'quote' | 'question';
+type PostFilter = 'all' | PostComposerKind;
 
 export default function RoomScreen() {
   const { slug } = useLocalSearchParams<{ slug: string }>();
@@ -44,7 +46,10 @@ export default function RoomScreen() {
   const [commentingPostId, setCommentingPostId] = useState<string | null>(null);
   const [actionMessage, setActionMessage] = useState<string | null>(null);
   const [postBody, setPostBody] = useState('');
-  const [postKind, setPostKind] = useState<'impression' | 'question'>('impression');
+  const [postKind, setPostKind] = useState<PostComposerKind>('impression');
+  const [postQuoteText, setPostQuoteText] = useState('');
+  const [postChapterLabel, setPostChapterLabel] = useState('');
+  const [postFilter, setPostFilter] = useState<PostFilter>('all');
   const [isAnsweringPrompt, setIsAnsweringPrompt] = useState(false);
   const [commentDrafts, setCommentDrafts] = useState<Record<string, string>>({});
   const [posts, setPosts] = useState<RoomPost[]>([]);
@@ -202,7 +207,16 @@ export default function RoomScreen() {
       return;
     }
 
-    if (!postBody.trim()) {
+    const trimmedBody = postBody.trim();
+    const trimmedQuote = postQuoteText.trim();
+    const trimmedChapter = postChapterLabel.trim();
+
+    if (postKind === 'quote' && !trimmedQuote) {
+      setActionMessage('함께 읽고 싶은 책 속 문장을 적어보세요.');
+      return;
+    }
+
+    if (postKind !== 'quote' && !trimmedBody) {
       setActionMessage(postKind === 'question' ? '떠오른 질문을 한 줄로 적어보세요.' : '책이 남긴 생각을 한 줄로 적어보세요.');
       return;
     }
@@ -215,12 +229,16 @@ export default function RoomScreen() {
         roomId: remoteRoom.id,
         authorId: session.user.id,
         kind: postKind,
-        body: postBody,
+        body: trimmedBody || '이 문장을 함께 읽고 싶어요.',
+        quoteText: postKind === 'quote' ? trimmedQuote : null,
+        chapterLabel: trimmedChapter || null,
       });
       setPostBody('');
+      setPostQuoteText('');
+      setPostChapterLabel('');
       setIsAnsweringPrompt(false);
       await refreshRoom();
-      setActionMessage(postKind === 'question' ? '질문을 남겼습니다.' : '감상을 남겼습니다.');
+      setActionMessage(postKind === 'question' ? '질문을 남겼습니다.' : postKind === 'quote' ? '문장을 남겼습니다.' : '감상을 남겼습니다.');
     } catch (error) {
       setActionMessage(getErrorMessage(error, '글 작성에 실패했습니다.'));
     } finally {
@@ -272,6 +290,19 @@ export default function RoomScreen() {
   const heroSource: ImageSourcePropType = coverUrl ? { uri: coverUrl } : (roomFallbackImage as ImageSourcePropType);
   const isMember = Boolean(room.viewerRole);
   const isCompact = width < 430;
+  const postCounts = useMemo(
+    () => ({
+      all: posts.length,
+      impression: posts.filter((post) => post.kind === 'impression').length,
+      quote: posts.filter((post) => post.kind === 'quote').length,
+      question: posts.filter((post) => post.kind === 'question').length,
+    }),
+    [posts],
+  );
+  const visiblePosts = useMemo(
+    () => (postFilter === 'all' ? posts : posts.filter((post) => post.kind === postFilter)),
+    [postFilter, posts],
+  );
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -385,33 +416,43 @@ export default function RoomScreen() {
                 <Text style={styles.composerState}>{isMember ? '참여 중' : '참여 필요'}</Text>
               </View>
               <View style={styles.segmented}>
-                <Pressable
-                  onPress={() => setPostKind('impression')}
-                  style={[styles.segmentButton, postKind === 'impression' ? styles.segmentButtonActive : null]}
-                >
-                  <Text style={[styles.segmentText, postKind === 'impression' ? styles.segmentTextActive : null]}>
-                    감상
-                  </Text>
-                </Pressable>
-                <Pressable
-                  onPress={() => setPostKind('question')}
-                  style={[styles.segmentButton, postKind === 'question' ? styles.segmentButtonActive : null]}
-                >
-                  <Text style={[styles.segmentText, postKind === 'question' ? styles.segmentTextActive : null]}>
-                    질문
-                  </Text>
-                </Pressable>
+                {[
+                  { key: 'impression', label: '감상' },
+                  { key: 'quote', label: '문장' },
+                  { key: 'question', label: '질문' },
+                ].map((item) => (
+                  <Pressable
+                    key={item.key}
+                    onPress={() => setPostKind(item.key as PostComposerKind)}
+                    style={[styles.segmentButton, postKind === item.key ? styles.segmentButtonActive : null]}
+                  >
+                    <Text style={[styles.segmentText, postKind === item.key ? styles.segmentTextActive : null]}>
+                      {item.label}
+                    </Text>
+                  </Pressable>
+                ))}
               </View>
+              <TextInput
+                onChangeText={setPostChapterLabel}
+                placeholder="쪽 / 챕터 / 장면"
+                placeholderTextColor="#8F877B"
+                style={styles.chapterInput}
+                value={postChapterLabel}
+              />
+              {postKind === 'quote' ? (
+                <TextInput
+                  multiline
+                  onChangeText={setPostQuoteText}
+                  placeholder={isMember ? '함께 읽고 싶은 책 속 문장' : '참여 후 책 속 문장을 남길 수 있습니다.'}
+                  placeholderTextColor="#CBBDA7"
+                  style={styles.quoteInput}
+                  value={postQuoteText}
+                />
+              ) : null}
               <TextInput
                 multiline
                 onChangeText={setPostBody}
-                placeholder={
-                  isMember
-                    ? isAnsweringPrompt
-                      ? '방장의 첫 질문에 대한 생각을 적어보세요.'
-                      : '이 책이 지금 남긴 생각을 적어보세요.'
-                    : '참여 후 감상과 질문을 남길 수 있습니다.'
-                }
+                placeholder={getPostBodyPlaceholder(postKind, isMember, isAnsweringPrompt)}
                 placeholderTextColor="#8F877B"
                 style={styles.postInput}
                 value={postBody}
@@ -429,19 +470,52 @@ export default function RoomScreen() {
                 </View>
                 <Text style={styles.sectionCount}>{posts.length}</Text>
               </View>
-              {posts.length > 0 ? (
-                posts.map((post) => (
+              <View style={styles.postFilterBar}>
+                {[
+                  { key: 'all', label: '전체', count: postCounts.all },
+                  { key: 'impression', label: '감상', count: postCounts.impression },
+                  { key: 'quote', label: '문장', count: postCounts.quote },
+                  { key: 'question', label: '질문', count: postCounts.question },
+                ].map((item) => (
+                  <Pressable
+                    key={item.key}
+                    onPress={() => setPostFilter(item.key as PostFilter)}
+                    style={[styles.postFilterButton, postFilter === item.key ? styles.postFilterButtonActive : null]}
+                  >
+                    <Text style={[styles.postFilterText, postFilter === item.key ? styles.postFilterTextActive : null]}>
+                      {item.label}
+                    </Text>
+                    <Text style={[styles.postFilterCount, postFilter === item.key ? styles.postFilterCountActive : null]}>
+                      {item.count}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+              {visiblePosts.length > 0 ? (
+                visiblePosts.map((post) => (
                   <View key={post.id} style={styles.postCard}>
                     <View
                       style={[
                         styles.postSpine,
-                        post.kind === 'question' ? styles.postSpineQuestion : styles.postSpineImpression,
+                        post.kind === 'question'
+                          ? styles.postSpineQuestion
+                          : post.kind === 'quote'
+                            ? styles.postSpineQuote
+                            : styles.postSpineImpression,
                       ]}
                     />
                     <View style={styles.postMetaRow}>
-                      <Text style={styles.postKind}>{post.kind === 'question' ? '질문' : '감상'}</Text>
+                      <View style={styles.postMetaLeft}>
+                        <Text style={styles.postKind}>{getPostKindLabel(post.kind)}</Text>
+                        {post.chapterLabel ? <Text style={styles.postChapter}>{post.chapterLabel}</Text> : null}
+                      </View>
                       <Text style={styles.postAuthor}>{post.authorName ?? 'Reader'}</Text>
                     </View>
+                    {post.quoteText ? (
+                      <View style={styles.postQuoteBox}>
+                        <Text style={styles.postQuoteText}>“{post.quoteText}”</Text>
+                      </View>
+                    ) : null}
                     <Text style={styles.postBody}>{post.body}</Text>
                     <View style={styles.postActions}>
                       <Pressable
@@ -491,7 +565,7 @@ export default function RoomScreen() {
                 ))
               ) : (
                 <View style={styles.emptyPanel}>
-                  <Text style={styles.emptyText}>아직 첫 감상이 기다리고 있습니다.</Text>
+                  <Text style={styles.emptyText}>{getEmptyPostText(postFilter)}</Text>
                 </View>
               )}
             </View>
@@ -561,6 +635,28 @@ function getErrorMessage(error: unknown, fallback: string) {
   }
 
   return fallback;
+}
+
+function getPostKindLabel(kind: RoomPost['kind']) {
+  if (kind === 'question') return '질문';
+  if (kind === 'quote') return '문장';
+  if (kind === 'notice') return '공지';
+  return '감상';
+}
+
+function getPostBodyPlaceholder(kind: PostComposerKind, isMember: boolean, isAnsweringPrompt: boolean) {
+  if (!isMember) return '참여 후 감상, 문장, 질문을 남길 수 있습니다.';
+  if (isAnsweringPrompt) return '방장의 첫 질문에 대한 생각을 적어보세요.';
+  if (kind === 'question') return '이 책이 나에게 남긴 질문을 적어보세요.';
+  if (kind === 'quote') return '이 문장이 왜 마음에 남았는지 적어보세요.';
+  return '이 책이 지금 남긴 생각을 적어보세요.';
+}
+
+function getEmptyPostText(filter: PostFilter) {
+  if (filter === 'question') return '아직 열린 질문이 없습니다.';
+  if (filter === 'quote') return '아직 함께 읽을 문장이 없습니다.';
+  if (filter === 'impression') return '아직 첫 감상이 기다리고 있습니다.';
+  return '아직 첫 대화가 기다리고 있습니다.';
 }
 
 const styles = StyleSheet.create({
@@ -995,7 +1091,7 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   segmented: {
-    alignSelf: 'flex-start',
+    alignSelf: 'stretch',
     backgroundColor: 'rgba(32,27,22,0.08)',
     borderRadius: 18,
     flexDirection: 'row',
@@ -1006,6 +1102,7 @@ const styles = StyleSheet.create({
   segmentButton: {
     alignItems: 'center',
     borderRadius: 14,
+    flex: 1,
     minHeight: 38,
     justifyContent: 'center',
     paddingHorizontal: 15,
@@ -1020,6 +1117,33 @@ const styles = StyleSheet.create({
   },
   segmentTextActive: {
     color: '#FFFFFF',
+  },
+  chapterInput: {
+    backgroundColor: 'rgba(255,255,255,0.64)',
+    borderColor: 'rgba(32,27,22,0.08)',
+    borderRadius: 18,
+    borderWidth: 1,
+    color: '#201B16',
+    fontSize: 14,
+    fontWeight: '800',
+    height: 46,
+    marginBottom: 10,
+    paddingHorizontal: 15,
+  },
+  quoteInput: {
+    backgroundColor: '#2A2119',
+    borderColor: 'rgba(244,211,138,0.24)',
+    borderRadius: 24,
+    borderWidth: 1,
+    color: '#FFF8EA',
+    fontSize: 17,
+    fontWeight: '800',
+    lineHeight: 26,
+    marginBottom: 10,
+    minHeight: 98,
+    paddingHorizontal: 18,
+    paddingVertical: 16,
+    textAlignVertical: 'top',
   },
   postInput: {
     backgroundColor: '#FFFFFF',
@@ -1074,6 +1198,42 @@ const styles = StyleSheet.create({
     paddingHorizontal: 11,
     paddingVertical: 7,
   },
+  postFilterBar: {
+    flexDirection: 'row',
+    gap: 7,
+    marginBottom: 14,
+  },
+  postFilterButton: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.44)',
+    borderColor: 'rgba(32,27,22,0.07)',
+    borderRadius: 17,
+    borderWidth: 1,
+    flex: 1,
+    minHeight: 52,
+    justifyContent: 'center',
+  },
+  postFilterButtonActive: {
+    backgroundColor: '#201B16',
+    borderColor: '#201B16',
+  },
+  postFilterText: {
+    color: '#7E7469',
+    fontSize: 12,
+    fontWeight: '900',
+  },
+  postFilterTextActive: {
+    color: '#FFFFFF',
+  },
+  postFilterCount: {
+    color: '#A08F7C',
+    fontSize: 11,
+    fontWeight: '900',
+    marginTop: 2,
+  },
+  postFilterCountActive: {
+    color: '#F4D38A',
+  },
   postCard: {
     backgroundColor: 'rgba(255,255,255,0.52)',
     borderColor: 'rgba(32,27,22,0.08)',
@@ -1096,6 +1256,9 @@ const styles = StyleSheet.create({
   postSpineQuestion: {
     backgroundColor: '#7DAF9C',
   },
+  postSpineQuote: {
+    backgroundColor: '#F4D38A',
+  },
   postSpineImpression: {
     backgroundColor: '#BF8E63',
   },
@@ -1105,16 +1268,43 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginBottom: 10,
   },
+  postMetaLeft: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    flexShrink: 1,
+    gap: 8,
+  },
   postKind: {
     color: '#116653',
     fontSize: 12,
     fontWeight: '900',
     overflow: 'hidden',
   },
+  postChapter: {
+    color: '#8E7F70',
+    flexShrink: 1,
+    fontSize: 12,
+    fontWeight: '800',
+  },
   postAuthor: {
     color: '#8E7F70',
     fontSize: 12,
     fontWeight: '700',
+  },
+  postQuoteBox: {
+    backgroundColor: '#221A14',
+    borderColor: 'rgba(244,211,138,0.24)',
+    borderRadius: 22,
+    borderWidth: 1,
+    marginBottom: 13,
+    paddingHorizontal: 16,
+    paddingVertical: 15,
+  },
+  postQuoteText: {
+    color: '#FFF4D6',
+    fontSize: 17,
+    fontWeight: '900',
+    lineHeight: 28,
   },
   postBody: {
     color: '#201B16',

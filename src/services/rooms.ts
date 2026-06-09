@@ -36,6 +36,8 @@ export type RoomPost = {
   id: string;
   kind: 'impression' | 'question' | 'quote' | 'notice';
   body: string;
+  quoteText: string | null;
+  chapterLabel: string | null;
   authorName: string | null;
   createdAt: string;
   reactionCount: number;
@@ -70,8 +72,10 @@ export type CreateRoomInput = {
 export type CreateRoomPostInput = {
   roomId: string;
   authorId: string;
-  kind: 'impression' | 'question';
+  kind: 'impression' | 'question' | 'quote';
   body: string;
+  quoteText?: string | null;
+  chapterLabel?: string | null;
 };
 
 export type CreateRoomCommentInput = {
@@ -196,9 +200,9 @@ export async function getRoomDetail(slug: string, viewerId?: string): Promise<Ro
 export async function listRoomPosts(roomId: string, viewerId?: string): Promise<RoomPost[]> {
   const { data, error } = await supabase
     .from('posts')
-    .select('id, kind, body, created_at, profiles:author_id(display_name)')
+    .select('id, kind, body, quote_text, chapter_label, created_at, profiles:author_id(display_name)')
     .eq('room_id', roomId)
-    .in('kind', ['impression', 'question'])
+    .in('kind', ['impression', 'question', 'quote'])
     .order('created_at', { ascending: false })
     .limit(20);
 
@@ -210,6 +214,8 @@ export async function listRoomPosts(roomId: string, viewerId?: string): Promise<
     id: string;
     kind: RoomPost['kind'];
     body: string;
+    quote_text: string | null;
+    chapter_label: string | null;
     created_at: string;
     profiles?: { display_name?: string | null } | { display_name?: string | null }[] | null;
   };
@@ -281,6 +287,8 @@ export async function listRoomPosts(roomId: string, viewerId?: string): Promise<
       id: post.id,
       kind: post.kind,
       body: post.body,
+      quoteText: post.quote_text,
+      chapterLabel: post.chapter_label,
       authorName: profile?.display_name ?? null,
       createdAt: post.created_at,
       reactionCount: reactionCounts.get(post.id) ?? 0,
@@ -298,6 +306,8 @@ export async function createRoomPost(input: CreateRoomPostInput) {
       author_id: input.authorId,
       kind: input.kind,
       body: input.body.trim(),
+      quote_text: input.quoteText?.trim() || null,
+      chapter_label: input.chapterLabel?.trim() || null,
     })
     .select('id')
     .single();
