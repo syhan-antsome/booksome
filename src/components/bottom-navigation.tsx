@@ -1,5 +1,6 @@
 import { Link } from 'expo-router';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { Keyboard, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useAuth } from '../providers/auth-provider';
@@ -23,6 +24,25 @@ const items: {
 export function BottomNavigation({ active }: { active: BottomNavKey }) {
   const { session } = useAuth();
   const insets = useSafeAreaInsets();
+  const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
+
+  useEffect(() => {
+    const showSubscription = Keyboard.addListener('keyboardDidShow', () => {
+      setIsKeyboardVisible(true);
+    });
+    const hideSubscription = Keyboard.addListener('keyboardDidHide', () => {
+      setIsKeyboardVisible(false);
+    });
+
+    return () => {
+      showSubscription.remove();
+      hideSubscription.remove();
+    };
+  }, []);
+
+  if (isKeyboardVisible) {
+    return null;
+  }
 
   return (
     <View style={[styles.shell, { paddingBottom: Math.max(insets.bottom, 8) }]}>
