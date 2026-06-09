@@ -1,7 +1,7 @@
 import type { Session } from '@supabase/supabase-js';
 import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 
-import { supabase } from '../lib/supabase';
+import { clearPersistedSupabaseSession, supabase } from '../lib/supabase';
 import {
   bootstrapProfile,
   getActiveSession,
@@ -38,6 +38,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           if (isMounted) setProfile(nextProfile);
         }
       })
+      .catch(async (error) => {
+        console.warn('Failed to restore Supabase session.', error instanceof Error ? error.message : error);
+        await clearPersistedSupabaseSession();
+        if (!isMounted) return;
+
+        setSession(null);
+        setProfile(null);
+      })
       .finally(() => {
         if (isMounted) setIsLoading(false);
       });
@@ -57,6 +65,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       bootstrapProfile(nextSession)
         .then((nextProfile) => {
           setProfile(nextProfile);
+        })
+        .catch(async (error) => {
+          console.warn('Failed to bootstrap profile.', error instanceof Error ? error.message : error);
+          await clearPersistedSupabaseSession();
+          setProfile(null);
         })
         .finally(() => {
           setIsLoading(false);
