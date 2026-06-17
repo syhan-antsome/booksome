@@ -105,7 +105,7 @@ export default function RoomsScreen() {
                 <Text style={styles.introTitle}>책 한 권이 여는 자리</Text>
               </View>
               <Link asChild href={session ? '/create-room' : '/auth'}>
-                <Pressable accessibilityLabel="책장에 책 놓기" style={styles.createShelfButton}>
+                <Pressable accessibilityLabel="책장 찾기" style={styles.createShelfButton}>
                   <Text style={styles.createShelfIcon}>＋</Text>
                 </Pressable>
               </Link>

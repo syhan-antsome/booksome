@@ -61,12 +61,17 @@ export type CreateRoomInput = {
   publisher?: string | null;
   publishedDate?: string | null;
   sourcePayload?: Record<string, unknown> | null;
-  roomTitle: string;
-  roomSubtitle: string;
-  roomDescription: string;
-  firstQuestion: string;
-  founderId: string;
+  roomTitle?: string;
+  roomSubtitle?: string;
+  roomDescription?: string;
+  firstQuestion?: string;
   coverPath?: string | null;
+};
+
+export type CreateRoomResult = {
+  id: string;
+  slug: string;
+  created?: boolean;
 };
 
 export type CreateRoomPostInput = {
@@ -374,9 +379,9 @@ export async function createRoom(input: CreateRoomInput) {
     p_published_date: input.publishedDate || null,
     p_source_payload: input.sourcePayload ?? null,
     p_room_title: (input.roomTitle || input.bookTitle).trim(),
-    p_room_subtitle: input.roomSubtitle.trim() || null,
-    p_room_description: input.roomDescription.trim() || null,
-    p_first_question: input.firstQuestion.trim(),
+    p_room_subtitle: input.roomSubtitle?.trim() || null,
+    p_room_description: input.roomDescription?.trim() || null,
+    p_first_question: input.firstQuestion?.trim() || null,
     p_cover_path: input.coverPath ?? null,
   };
 
@@ -401,6 +406,13 @@ export async function createRoom(input: CreateRoomInput) {
       const fallback = await supabase.rpc('create_reading_room', fallbackPayload).single();
 
       if (fallback.error) {
+        if (!payload.p_first_question && isFirstQuestionRequiredError(fallback.error.message)) {
+          return createRoom({
+            ...input,
+            firstQuestion: '이 책은 당신에게 어떤 질문을 남겼나요?',
+          });
+        }
+
         if (isRpcSignatureError(fallback.error.message)) {
           const legacyPayload = {
             p_book_title: payload.p_book_title,
@@ -414,22 +426,36 @@ export async function createRoom(input: CreateRoomInput) {
           const legacyFallback = await supabase.rpc('create_reading_room', legacyPayload).single();
 
           if (legacyFallback.error) {
+            if (!payload.p_first_question && isFirstQuestionRequiredError(legacyFallback.error.message)) {
+              return createRoom({
+                ...input,
+                firstQuestion: '이 책은 당신에게 어떤 질문을 남겼나요?',
+              });
+            }
+
             throw legacyFallback.error;
           }
 
-          return legacyFallback.data as { id: string; slug: string };
+          return legacyFallback.data as CreateRoomResult;
         }
 
         throw fallback.error;
       }
 
-      return fallback.data as { id: string; slug: string };
+      return fallback.data as CreateRoomResult;
+    }
+
+    if (!payload.p_first_question && isFirstQuestionRequiredError(error.message)) {
+      return createRoom({
+        ...input,
+        firstQuestion: '이 책은 당신에게 어떤 질문을 남겼나요?',
+      });
     }
 
     throw error;
   }
 
-  return data as { id: string; slug: string };
+  return data as CreateRoomResult;
 }
 
 function isRpcSignatureError(message?: string) {
@@ -438,6 +464,10 @@ function isRpcSignatureError(message?: string) {
       message?.includes('function public.create_reading_room') ||
       message?.includes('schema cache')
   );
+}
+
+function isFirstQuestionRequiredError(message?: string) {
+  return Boolean(message?.includes('첫 질문은 꼭 필요합니다'));
 }
 
 export async function joinRoom(roomId: string) {

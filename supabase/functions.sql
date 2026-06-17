@@ -3,6 +3,7 @@
 
 drop function if exists public.create_reading_room(text, text, text, text, text, text, text);
 drop function if exists public.create_reading_room(text, text, text, text, text, text, text, text);
+drop function if exists public.create_reading_room(text, text, text, text, text, text, jsonb, text, text, text, text, text);
 
 create or replace function public.create_reading_room(
   p_book_title text,
@@ -18,7 +19,7 @@ create or replace function public.create_reading_room(
   p_first_question text default null,
   p_cover_path text default null
 )
-returns table(id uuid, slug text)
+returns table(id uuid, slug text, created boolean)
 language plpgsql
 security definer
 set search_path = public
@@ -28,7 +29,12 @@ declare
   new_work_id uuid;
   new_edition_id uuid;
   new_room_id uuid;
+  existing_room_id uuid;
+  existing_room_slug text;
+  new_room_slug text;
   clean_isbn13 text := nullif(regexp_replace(coalesce(p_isbn13, ''), '[^0-9Xx]', '', 'g'), '');
+  clean_book_title text := nullif(regexp_replace(lower(trim(coalesce(p_book_title, ''))), '[[:space:]]+', ' ', 'g'), '');
+  clean_author text := nullif(regexp_replace(lower(trim(coalesce(p_author, ''))), '[[:space:]]+', ' ', 'g'), '');
   clean_external_cover_url text := nullif(trim(coalesce(p_external_cover_url, '')), '');
   clean_publisher text := nullif(trim(coalesce(p_publisher, '')), '');
   clean_published_date date;
@@ -60,10 +66,6 @@ begin
     clean_published_date := to_date(trim(p_published_date), 'YYYYMMDD');
   end if;
 
-  if nullif(trim(coalesce(p_first_question, '')), '') is null then
-    raise exception '첫 질문은 꼭 필요합니다.';
-  end if;
-
   slug_base := lower(coalesce(nullif(trim(p_room_title), ''), trim(p_book_title)));
   slug_base := regexp_replace(slug_base, '[^a-z0-9]+', '-', 'g');
   slug_base := regexp_replace(slug_base, '(^-+|-+$)', '', 'g');
@@ -79,6 +81,90 @@ begin
     from public.book_editions
     where book_editions.isbn13 = clean_isbn13
     limit 1;
+  end if;
+
+  if clean_isbn13 is not null and new_edition_id is not null then
+    update public.book_editions
+    set
+      publisher = coalesce(public.book_editions.publisher, clean_publisher),
+      published_date = coalesce(public.book_editions.published_date, clean_published_date),
+      external_cover_url = coalesce(public.book_editions.external_cover_url, clean_external_cover_url),
+      source = coalesce(public.book_editions.source, 'naver'),
+      source_payload = coalesce(public.book_editions.source_payload, p_source_payload)
+    where public.book_editions.id = new_edition_id;
+  end if;
+
+  if new_work_id is null then
+    select book_works.id
+    into new_work_id
+    from public.book_works
+    where regexp_replace(lower(trim(book_works.title)), '[[:space:]]+', ' ', 'g') = clean_book_title
+      and regexp_replace(lower(trim(book_works.author)), '[[:space:]]+', ' ', 'g') = clean_author
+    order by book_works.created_at
+    limit 1;
+  end if;
+
+  if clean_isbn13 is not null and new_work_id is not null and new_edition_id is null then
+    insert into public.book_editions (
+      work_id,
+      isbn13,
+      title,
+      author,
+      publisher,
+      published_date,
+      language,
+      cover_path,
+      external_cover_url,
+      source,
+      source_payload
+    )
+    values (
+      new_work_id,
+      clean_isbn13,
+      trim(p_book_title),
+      trim(p_author),
+      clean_publisher,
+      clean_published_date,
+      'ko',
+      p_cover_path,
+      clean_external_cover_url,
+      'naver',
+      p_source_payload
+    )
+    on conflict (isbn13) do update
+    set
+      publisher = coalesce(public.book_editions.publisher, excluded.publisher),
+      published_date = coalesce(public.book_editions.published_date, excluded.published_date),
+      external_cover_url = coalesce(public.book_editions.external_cover_url, excluded.external_cover_url),
+      source = coalesce(public.book_editions.source, excluded.source),
+      source_payload = coalesce(public.book_editions.source_payload, excluded.source_payload)
+    returning book_editions.id into new_edition_id;
+  end if;
+
+  if new_work_id is not null then
+    select rooms.id, rooms.slug
+    into existing_room_id, existing_room_slug
+    from public.rooms
+    where rooms.work_id = new_work_id
+    order by rooms.created_at
+    limit 1;
+
+    if existing_room_id is not null then
+      insert into public.room_members (
+        room_id,
+        profile_id,
+        role
+      )
+      values (
+        existing_room_id,
+        current_profile_id,
+        'member'
+      )
+      on conflict on constraint room_members_pkey do nothing;
+
+      return query select existing_room_id, existing_room_slug, false;
+      return;
+    end if;
   end if;
 
   loop
@@ -136,17 +222,6 @@ begin
     returning book_editions.id into new_edition_id;
   end if;
 
-  if clean_isbn13 is not null and new_edition_id is not null then
-    update public.book_editions
-    set
-      publisher = coalesce(public.book_editions.publisher, clean_publisher),
-      published_date = coalesce(public.book_editions.published_date, clean_published_date),
-      external_cover_url = coalesce(public.book_editions.external_cover_url, clean_external_cover_url),
-      source = coalesce(public.book_editions.source, 'naver'),
-      source_payload = coalesce(public.book_editions.source_payload, p_source_payload)
-    where public.book_editions.id = new_edition_id;
-  end if;
-
   insert into public.rooms (
     work_id,
     edition_id,
@@ -171,7 +246,7 @@ begin
     current_profile_id,
     'public'
   )
-  returning rooms.id into new_room_id;
+  returning rooms.id, rooms.slug into new_room_id, new_room_slug;
 
   insert into public.room_members (
     room_id,
@@ -184,20 +259,22 @@ begin
     'founder'
   );
 
-  insert into public.posts (
-    room_id,
-    author_id,
-    kind,
-    body,
-    pinned
-  )
-  values (
-    new_room_id,
-    current_profile_id,
-    'question',
-    trim(p_first_question),
-    true
-  );
+  if nullif(trim(coalesce(p_first_question, '')), '') is not null then
+    insert into public.posts (
+      room_id,
+      author_id,
+      kind,
+      body,
+      pinned
+    )
+    values (
+      new_room_id,
+      current_profile_id,
+      'question',
+      trim(p_first_question),
+      true
+    );
+  end if;
 
   if p_cover_path is not null then
     update public.media_assets
@@ -207,7 +284,7 @@ begin
       and room_id is null;
   end if;
 
-  return query select new_room_id, candidate_slug;
+  return query select new_room_id, new_room_slug, true;
 end;
 $$;
 

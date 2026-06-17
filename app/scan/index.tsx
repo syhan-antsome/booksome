@@ -114,7 +114,7 @@ export default function ScanScreen() {
             <Text style={styles.tipTitle}>MVP note</Text>
             <Text style={styles.tipCopy}>
               {isRoomContext
-                ? '스캔된 ISBN은 북룸 생성 화면의 책 정보에 임시로 적용됩니다.'
+                ? '스캔된 ISBN으로 이미 열린 책장을 먼저 찾습니다.'
                 : isMarketContext
                   ? '스캔된 책 정보는 책가게 등록 화면에 자동으로 채워집니다.'
                 : '스캔된 책은 나의 독서생활에 저장되고, 이후 진행률과 메모를 이어서 붙일 수 있습니다.'}
@@ -131,7 +131,7 @@ function normalizeIsbn(value: string) {
 }
 
 function getScanSubtitle(isRoomContext: boolean, isMarketContext: boolean) {
-  if (isRoomContext) return '바코드로 북룸의 책을 설정합니다.';
+  if (isRoomContext) return '바코드로 책장을 찾습니다.';
   if (isMarketContext) return '바코드로 책가게 등록 정보를 채웁니다.';
   return '스캔한 책을 나의 독서생활에 담습니다.';
 }

@@ -16,7 +16,7 @@ BookSome is a mobile-first social reading app where every book can become a read
 - App-first launch for App Store and Google Play
 - Web preview and shared links as supporting surfaces
 - Book Room discovery as the first core experience
-- Host-led rooms, questions, quotes, reading groups, and local meetups
+- Book-centered rooms, questions, quotes, reader traces, and local meetups
 - Supabase Auth with profile bootstrap on first sign-in
 
 ## MVP Native Capabilities
@@ -90,6 +90,13 @@ If an existing database needs reading note progress snapshots, run:
 supabase/add-reading-note-progress-snapshots.sql
 ```
 
+If an existing database needs the Bookroom v2 rule that a book work can have only one shared Bookroom, first merge duplicate rooms if any, then run:
+
+```text
+supabase/enforce-one-room-per-work.sql
+supabase/functions.sql
+```
+
 The app first tries to read `room_discovery_cards` from Supabase. If the schema has not been applied yet, the Discover screen falls back to local preview data.
 
 ## Cloudflare Media API
@@ -100,7 +107,7 @@ The current BookSome media Worker is deployed at:
 https://booksome-media-api.booksome-api.workers.dev
 ```
 
-The create-room flow now uses this Worker for Room cover uploads:
+User-uploaded media flows use this Worker for R2 uploads:
 
 ```text
 App image picker

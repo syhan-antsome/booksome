@@ -297,6 +297,7 @@ group by r.id, bw.author, host_profile.display_name, pinned.body, next_session.t
 
 create index if not exists book_editions_isbn13_idx on public.book_editions(isbn13);
 create index if not exists rooms_work_id_idx on public.rooms(work_id);
+create unique index if not exists rooms_one_per_work_idx on public.rooms(work_id);
 create index if not exists room_members_profile_id_idx on public.room_members(profile_id);
 create index if not exists posts_room_id_created_at_idx on public.posts(room_id, created_at desc);
 create index if not exists comments_post_id_created_at_idx on public.comments(post_id, created_at asc);

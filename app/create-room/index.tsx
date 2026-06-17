@@ -1,4 +1,3 @@
-import * as ImagePicker from 'expo-image-picker';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
 import {
@@ -17,8 +16,6 @@ import { AuthRequired } from '../../src/components/auth-required';
 import { ScreenHeader } from '../../src/components/screen-header';
 import { useAuth } from '../../src/providers/auth-provider';
 import { lookupBookByIsbn, type BookSearchItem } from '../../src/services/books';
-import { uploadImageAsset } from '../../src/services/media';
-import type { UploadedMediaAsset } from '../../src/services/media';
 import { createRoom } from '../../src/services/rooms';
 
 export default function CreateRoomScreen() {
@@ -28,19 +25,11 @@ export default function CreateRoomScreen() {
   const [author, setAuthor] = useState('');
   const [isbn13, setIsbn13] = useState('');
   const [selectedBook, setSelectedBook] = useState<BookSearchItem | null>(null);
-  const [roomTitle, setRoomTitle] = useState('');
-  const [roomSubtitle, setRoomSubtitle] = useState('');
-  const [roomDescription, setRoomDescription] = useState('');
   const [firstQuestion, setFirstQuestion] = useState('');
-  const [coverAsset, setCoverAsset] = useState<ImagePicker.ImagePickerAsset | null>(null);
-  const [coverUri, setCoverUri] = useState<string | null>(null);
-  const [uploadedCover, setUploadedCover] = useState<UploadedMediaAsset | null>(null);
-  const [uploadError, setUploadError] = useState<string | null>(null);
-  const [isUploading, setIsUploading] = useState(false);
   const [isLookingUpBook, setIsLookingUpBook] = useState(false);
   const [bookLookupError, setBookLookupError] = useState<string | null>(null);
-  const [isCreating, setIsCreating] = useState(false);
-  const [createError, setCreateError] = useState<string | null>(null);
+  const [isEntering, setIsEntering] = useState(false);
+  const [entryError, setEntryError] = useState<string | null>(null);
 
   useEffect(() => {
     const scannedIsbn = Array.isArray(params.isbn13) ? params.isbn13[0] : params.isbn13;
@@ -67,8 +56,6 @@ export default function CreateRoomScreen() {
       setSelectedBook(book);
       setBookTitle((value) => value || book.title);
       setAuthor((value) => value || book.author);
-      setRoomTitle((value) => value || book.title);
-      setRoomDescription((value) => value || book.description);
     } catch (error) {
       setBookLookupError(getErrorMessage(error, '도서 정보를 불러오지 못했습니다.'));
     } finally {
@@ -76,74 +63,18 @@ export default function CreateRoomScreen() {
     }
   };
 
-  const pickCover = async () => {
-    const result = await ImagePicker.launchImageLibraryAsync({
-      allowsEditing: true,
-      aspect: [4, 5],
-      quality: 0.86,
-    });
-
-    if (!result.canceled) {
-      const asset = result.assets[0] ?? null;
-      setCoverAsset(asset);
-      setCoverUri(asset?.uri ?? null);
-      setUploadedCover(null);
-      setUploadError(null);
-    }
-  };
-
-  const uploadCover = async () => {
-    if (!session || !coverAsset?.uri) return;
-
-    setIsUploading(true);
-    setUploadError(null);
-
-    try {
-      const media = await uploadSelectedCover();
-      setUploadedCover(media);
-    } catch (error) {
-      setUploadError(getErrorMessage(error, '커버 업로드에 실패했습니다.'));
-    } finally {
-      setIsUploading(false);
-    }
-  };
-
-  const uploadSelectedCover = async () => {
-    if (!session || !coverAsset?.uri) {
-      throw new Error('업로드할 커버 이미지가 없습니다.');
-    }
-
-    return uploadImageAsset({
-      kind: 'room-cover',
-      entityId: `draft-${session.user.id}`,
-      uri: coverAsset.uri,
-      ownerId: session.user.id,
-      mimeType: coverAsset.mimeType,
-      width: coverAsset.width,
-      height: coverAsset.height,
-      fileName: coverAsset.fileName,
-    });
-  };
-
-  const createReadingRoom = async () => {
+  const enterBookroom = async () => {
     if (!session) return;
 
-    if (!bookTitle.trim() || !author.trim() || !firstQuestion.trim()) {
-      setCreateError('책 제목, 저자, 첫 질문은 꼭 필요합니다.');
+    if (!bookTitle.trim() || !author.trim()) {
+      setEntryError('책 제목과 저자는 꼭 필요합니다.');
       return;
     }
 
-    setIsCreating(true);
-    setCreateError(null);
+    setIsEntering(true);
+    setEntryError(null);
 
     try {
-      const cover =
-        uploadedCover ?? (coverAsset?.uri ? await uploadSelectedCover() : null);
-
-      if (cover) {
-        setUploadedCover(cover);
-      }
-
       const room = await createRoom({
         bookTitle,
         author,
@@ -164,19 +95,18 @@ export default function CreateRoomScreen() {
               description: selectedBook.description,
             }
           : null,
-        roomTitle: roomTitle || bookTitle,
-        roomSubtitle,
-        roomDescription,
+        roomTitle: bookTitle,
+        roomSubtitle: author,
+        roomDescription: selectedBook?.description ?? '',
         firstQuestion,
-        founderId: session.user.id,
-        coverPath: cover?.objectPath ?? null,
+        coverPath: null,
       });
 
       router.replace(`/room/${room.slug}`);
     } catch (error) {
-      setCreateError(getErrorMessage(error, '책장을 열지 못했습니다.'));
+      setEntryError(getErrorMessage(error, '책장에 들어가지 못했습니다.'));
     } finally {
-      setIsCreating(false);
+      setIsEntering(false);
     }
   };
 
@@ -184,16 +114,16 @@ export default function CreateRoomScreen() {
     <SafeAreaView style={styles.safeArea}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <ScreenHeader
-          eyebrow="Open Bookroom"
-          subtitle="책 한 권을 중심으로 문장, 질문, 감상을 모읍니다."
-          title="책장에 책 놓기"
+          eyebrow="Find Bookroom"
+          subtitle="책을 찾으면 이미 열린 책장으로 들어갑니다."
+          title="책장 찾기"
           tone="forest"
         />
 
         {!session ? (
           <AuthRequired
-            title="로그인 후 책장을 열 수 있습니다."
-            copy="처음 남긴 질문과 문장을 내 계정에 연결합니다."
+            title="로그인 후 책장에 머물 수 있습니다."
+            copy="내가 남긴 문장과 질문을 내 책자리로 이어갑니다."
           />
         ) : null}
 
@@ -205,7 +135,7 @@ export default function CreateRoomScreen() {
                 <View style={styles.scanChoiceCopy}>
                   <Text style={styles.scanChoiceTitle}>ISBN으로 책 찾기</Text>
                   <Text style={styles.scanChoiceText}>
-                    바코드를 스캔하면 책 고유번호를 책장에 연결합니다.
+                    바코드를 스캔하면 이미 열린 책장을 먼저 찾습니다.
                   </Text>
                 </View>
                 <Pressable
@@ -252,7 +182,7 @@ export default function CreateRoomScreen() {
                       {selectedBook.author}
                       {selectedBook.publisher ? ` · ${selectedBook.publisher}` : ''}
                     </Text>
-                    <Text style={styles.selectedBookNote}>이 책 정보가 북룸에 저장됩니다.</Text>
+                    <Text style={styles.selectedBookNote}>이미 열린 책장이 있으면 바로 그곳으로 이동합니다.</Text>
                   </View>
                 </View>
               ) : null}
@@ -272,90 +202,30 @@ export default function CreateRoomScreen() {
                 value={author}
               />
 
-              <Text style={[styles.label, styles.spacedLabel]}>책장</Text>
-              <TextInput
-                onChangeText={setRoomTitle}
-                placeholder="책장 이름"
-                placeholderTextColor="#A49B8D"
-                style={styles.input}
-                value={roomTitle}
-              />
-              <TextInput
-                onChangeText={setRoomSubtitle}
-                placeholder="짧은 책장 설명"
-                placeholderTextColor="#A49B8D"
-                style={styles.input}
-                value={roomSubtitle}
-              />
-              <TextInput
-                multiline
-                onChangeText={setRoomDescription}
-                placeholder="이 책을 어떤 마음으로 열었나요?"
-                placeholderTextColor="#A49B8D"
-                style={[styles.input, styles.textArea]}
-                value={roomDescription}
-              />
+              <Text style={[styles.label, styles.spacedLabel]}>첫 흔적</Text>
               <TextInput
                 multiline
                 onChangeText={setFirstQuestion}
-                placeholder="이 책이 남긴 첫 질문"
+                placeholder="이 책이 남긴 질문이 있다면 남겨보세요. 비워도 책장에 머물 수 있습니다."
                 placeholderTextColor="#A49B8D"
                 style={[styles.input, styles.textArea]}
                 value={firstQuestion}
               />
             </View>
 
-            <Pressable onPress={pickCover} style={styles.coverPicker}>
-              {coverUri ? (
-                <Image source={{ uri: coverUri }} style={styles.coverImage} />
-              ) : (
-                <>
-                  <Text style={styles.coverTitle}>책장 커버 선택</Text>
-                  <Text style={styles.coverCopy}>사진 보관함에서 커버 이미지를 불러옵니다.</Text>
-                </>
-              )}
-            </Pressable>
-
-            {coverUri ? (
-              <Pressable
-                disabled={isUploading}
-                onPress={uploadCover}
-                style={[styles.uploadButton, isUploading ? styles.uploadButtonDisabled : null]}
-              >
-                {isUploading ? <ActivityIndicator color="#FFFFFF" /> : null}
-                <Text style={styles.uploadButtonText}>
-                  {uploadedCover ? '커버 다시 업로드' : '커버 업로드'}
-                </Text>
-              </Pressable>
-            ) : null}
-
-            {uploadedCover ? (
-              <View style={styles.statusPanel}>
-                <Text style={styles.statusTitle}>업로드 완료</Text>
-                <Text style={styles.statusCopy}>{uploadedCover.objectPath}</Text>
-              </View>
-            ) : null}
-
-            {uploadError ? (
-              <View style={[styles.statusPanel, styles.errorPanel]}>
-                <Text style={styles.errorTitle}>업로드 실패</Text>
-                <Text style={styles.errorCopy}>{uploadError}</Text>
-              </View>
-            ) : null}
-
             <Pressable
-              disabled={isCreating}
-              onPress={createReadingRoom}
-              style={[styles.createButton, isCreating ? styles.uploadButtonDisabled : null]}
+              disabled={isEntering}
+              onPress={enterBookroom}
+              style={[styles.createButton, isEntering ? styles.uploadButtonDisabled : null]}
             >
-              {isCreating ? <ActivityIndicator color="#FFFFFF" /> : null}
-              <Text style={styles.createButtonText}>책장 열기</Text>
+              {isEntering ? <ActivityIndicator color="#FFFFFF" /> : null}
+              <Text style={styles.createButtonText}>이 책장에 머물기</Text>
             </Pressable>
 
-            {createError ? (
+            {entryError ? (
               <View style={[styles.statusPanel, styles.errorPanel]}>
-                <Text style={styles.errorTitle}>생성 실패</Text>
-                <Text style={styles.errorCopy}>{createError}</Text>
+                <Text style={styles.errorTitle}>입장 실패</Text>
+                <Text style={styles.errorCopy}>{entryError}</Text>
               </View>
             ) : null}
           </>
@@ -388,34 +258,6 @@ const styles = StyleSheet.create({
   content: {
     padding: 20,
     paddingBottom: 42,
-  },
-  header: {
-    alignSelf: 'flex-start',
-    marginBottom: 18,
-  },
-  title: {
-    color: '#142326',
-    fontSize: 33,
-    fontWeight: '900',
-    letterSpacing: 0,
-    lineHeight: 40,
-  },
-  copy: {
-    color: '#5E6766',
-    fontSize: 16,
-    fontWeight: '600',
-    lineHeight: 25,
-    marginTop: 12,
-  },
-  coverPicker: {
-    alignItems: 'center',
-    backgroundColor: '#113F35',
-    borderRadius: 30,
-    height: 330,
-    justifyContent: 'center',
-    marginTop: 30,
-    overflow: 'hidden',
-    padding: 28,
   },
   formPanel: {
     backgroundColor: '#FFFFFF',
@@ -577,28 +419,8 @@ const styles = StyleSheet.create({
     minHeight: 92,
     textAlignVertical: 'top',
   },
-  coverImage: {
-    height: '100%',
-    width: '100%',
-  },
-  uploadButton: {
-    alignItems: 'center',
-    backgroundColor: '#116653',
-    borderRadius: 18,
-    flexDirection: 'row',
-    gap: 10,
-    justifyContent: 'center',
-    marginTop: 14,
-    minHeight: 54,
-    paddingHorizontal: 18,
-  },
   uploadButtonDisabled: {
     opacity: 0.68,
-  },
-  uploadButtonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '900',
   },
   createButton: {
     alignItems: 'center',
@@ -624,18 +446,6 @@ const styles = StyleSheet.create({
     marginTop: 14,
     padding: 16,
   },
-  statusTitle: {
-    color: '#116653',
-    fontSize: 15,
-    fontWeight: '900',
-  },
-  statusCopy: {
-    color: '#33514A',
-    fontSize: 13,
-    fontWeight: '700',
-    lineHeight: 19,
-    marginTop: 6,
-  },
   errorPanel: {
     backgroundColor: '#FFF0EA',
     borderColor: '#F3C2AE',
@@ -651,19 +461,6 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     lineHeight: 19,
     marginTop: 6,
-  },
-  coverTitle: {
-    color: '#FFFFFF',
-    fontSize: 26,
-    fontWeight: '900',
-  },
-  coverCopy: {
-    color: 'rgba(255,255,255,0.72)',
-    fontSize: 15,
-    fontWeight: '700',
-    lineHeight: 23,
-    marginTop: 10,
-    textAlign: 'center',
   },
   label: {
     color: '#116653',
