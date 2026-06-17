@@ -21,9 +21,9 @@ import { useAuth } from '../../src/providers/auth-provider';
 import { getMediaUrl } from '../../src/services/media';
 import { listFeaturedRooms, type RoomSummary } from '../../src/services/rooms';
 
-const bookroomSignboardSource: ImageSourcePropType =
-  typeof bookroomSignboardImage === 'string' ? { uri: bookroomSignboardImage } : bookroomSignboardImage;
+type RoomFilter = 'all' | 'reading' | 'question' | 'new';
 const bookroomSignboardRatio = 803 / 1400;
+const bookroomSignboardSource = bookroomSignboardImage as ImageSourcePropType;
 
 export default function RoomsScreen() {
   const { session } = useAuth();
@@ -45,6 +45,7 @@ export default function RoomsScreen() {
       })
       .catch(() => {
         if (!isMounted) return;
+        setRemoteRooms([]);
       })
       .finally(() => {
         if (isMounted) {
@@ -68,147 +69,172 @@ export default function RoomsScreen() {
     [activeFilter, query, rooms],
   );
   const heroRoom = rooms[0];
-  const joinedRooms = session ? rooms.slice(0, 2) : [];
-  const recommendedRooms = rooms.slice(0, 4);
+  const traceRooms = rooms.slice(0, 5);
+  const questionRooms = useMemo(
+    () => [...rooms].sort((a, b) => b.question.length - a.question.length).slice(0, 4),
+    [rooms],
+  );
+  const totalReaders = rooms.reduce((total, room) => total + parseMembers(room.members), 0);
+  const questionCount = rooms.filter((room) => room.question).length;
+  const signboardHeight = Math.round(width * bookroomSignboardRatio);
+  const heroHeight = Math.max(460, Math.min(560, width * 1.12));
   const filterItems: { key: RoomFilter; label: string }[] = [
     { key: 'all', label: '전체' },
-    { key: 'active', label: '활동중' },
-    { key: 'new', label: '새 방' },
-    { key: 'popular', label: '인기' },
+    { key: 'reading', label: '머무는 책' },
+    { key: 'question', label: '질문' },
+    { key: 'new', label: '새 책장' },
   ];
-  const bookroomHeroHeight = Math.round(width * bookroomSignboardRatio);
 
   return (
     <SafeAreaView style={styles.safeArea}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <View style={[styles.bookroomHero, { height: bookroomHeroHeight }]}>
-          <Image resizeMode="contain" source={bookroomSignboardSource} style={styles.bookroomHeroImage} />
+        <View style={[styles.signboardStage, { height: signboardHeight }]}>
+          <Image resizeMode="cover" source={bookroomSignboardSource} style={styles.signboardImage} />
           <LinearGradient
-            colors={['rgba(247, 241, 229, 0)', 'rgba(247, 241, 229, 0.38)', '#F7F1E5']}
-            locations={[0, 0.48, 1]}
+            colors={['rgba(243,242,236,0)', '#F3F2EC']}
+            locations={[0.62, 1]}
             pointerEvents="none"
-            style={styles.bookroomHeroGradient}
-          />
-
-          <View style={styles.bookroomHeroTop}>
-            <Link asChild href={session ? '/create-room' : '/auth'}>
-              <Pressable accessibilityLabel="북룸 만들기" style={styles.bookroomHeroAction}>
-                <Text style={styles.bookroomHeroActionText}>＋</Text>
-              </Pressable>
-            </Link>
-          </View>
-        </View>
-
-        <View style={styles.bookroomIntro}>
-          <Text style={styles.bookroomEyebrow}>BOOKSOME BOOKROOM</Text>
-          <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.86} style={styles.bookroomIntroText}>
-            같은 책으로 만나는 대화
-          </Text>
-        </View>
-
-        <View style={styles.searchBox}>
-          <Text style={styles.searchIcon}>⌕</Text>
-          <TextInput
-            autoCapitalize="none"
-            onChangeText={setQuery}
-            placeholder="책, 저자, 방 이름 검색"
-            placeholderTextColor="rgba(20,37,27,0.44)"
-            style={styles.searchInput}
-            value={query}
+            style={styles.signboardFade}
           />
         </View>
 
         {heroRoom ? (
-          <Link asChild href={`/room/${heroRoom.slug}`}>
-            <Pressable style={styles.spotlight}>
-              <RoomSpotlightMedia room={heroRoom} />
-              <View style={styles.spotlightScrim} />
-              <View style={styles.spotlightCopy}>
-                <Text style={styles.spotlightKicker}>오늘의 북룸</Text>
-                <Text style={styles.spotlightTitle} numberOfLines={2}>
-                  {heroRoom.title}
-                </Text>
-                <Text style={styles.spotlightMeta} numberOfLines={1}>
-                  {heroRoom.author} · {heroRoom.members}명
-                </Text>
+          <View style={[styles.hero, { height: heroHeight }]}>
+            <HeroMedia room={heroRoom} />
+            <LinearGradient
+              colors={['rgba(8,18,15,0.18)', 'rgba(8,18,15,0.5)', '#0C211B']}
+              locations={[0, 0.47, 1]}
+              pointerEvents="none"
+              style={styles.heroShade}
+            />
+
+            <View style={styles.heroTop}>
+              <View>
+                <Text style={styles.appName}>BookSome</Text>
+                <Text style={styles.appSection}>Bookroom</Text>
               </View>
-            </Pressable>
-          </Link>
+              <Link asChild href={session ? '/create-room' : '/auth'}>
+                <Pressable accessibilityLabel="책장에 책 놓기" style={styles.createIconButton}>
+                  <Text style={styles.createIconText}>＋</Text>
+                </Pressable>
+              </Link>
+            </View>
+
+            <View style={styles.heroBookLayer}>
+              <View style={styles.heroPosterShadow} />
+              <BookCover room={heroRoom} style={styles.heroPoster} />
+            </View>
+
+            <View style={styles.heroCopy}>
+              <Text style={styles.heroKicker}>책이 열어둔 자리</Text>
+              <Text numberOfLines={2} adjustsFontSizeToFit minimumFontScale={0.82} style={styles.heroTitle}>
+                {heroRoom.title}
+              </Text>
+              <Text style={styles.heroAuthor}>{heroRoom.author}</Text>
+              <Text numberOfLines={2} style={styles.heroQuestion}>
+                “{heroRoom.question}”
+              </Text>
+              <View style={styles.heroMetaRow}>
+                <TraceBadge value={heroRoom.members} label="지나간 독자" />
+                <TraceBadge value={`${heroRoom.progress}%`} label="읽기 온도" />
+                <TraceBadge value="첫" label="질문" />
+              </View>
+              <Link asChild href={`/room/${heroRoom.slug}`}>
+                <Pressable style={styles.heroAction}>
+                  <Text style={styles.heroActionText}>이 책장 보기</Text>
+                  <Text style={styles.heroActionArrow}>›</Text>
+                </Pressable>
+              </Link>
+            </View>
+          </View>
         ) : null}
 
-        <View style={styles.portalGrid}>
-          <View style={styles.portalTileDark}>
-            <Text style={styles.portalValue}>{rooms.length}</Text>
-            <Text style={styles.portalLabel}>열린 북룸</Text>
+        <View style={styles.searchStage}>
+          <View style={styles.searchHeader}>
+            <Text style={styles.searchTitle}>책장을 찾기</Text>
+            <Text style={styles.searchMeta}>{isLoadingRooms ? '불러오는 중' : `${rooms.length}권`}</Text>
           </View>
-          <View style={styles.portalTile}>
-            <Text style={styles.portalValueDark}>{joinedRooms.length}</Text>
-            <Text style={styles.portalLabelDark}>참여 중</Text>
-          </View>
-          <View style={styles.portalTile}>
-            <Text style={styles.portalValueDark}>3</Text>
-            <Text style={styles.portalLabelDark}>오늘 질문</Text>
+          <View style={styles.searchBox}>
+            <Text style={styles.searchIcon}>⌕</Text>
+            <TextInput
+              autoCapitalize="none"
+              onChangeText={setQuery}
+              placeholder="책 제목, 저자, 질문으로 찾기"
+              placeholderTextColor="rgba(33,42,37,0.42)"
+              style={styles.searchInput}
+              value={query}
+            />
           </View>
         </View>
 
-        {joinedRooms.length > 0 ? (
-          <>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>내 북룸</Text>
-              <Text style={styles.sectionMeta}>이어 읽기</Text>
-            </View>
-            <ScrollView
-              contentContainerStyle={styles.joinedRail}
-              horizontal
-              showsHorizontalScrollIndicator={false}
-            >
-              {joinedRooms.map((room) => (
-                <Link asChild href={`/room/${room.slug}`} key={room.slug}>
-                  <Pressable style={styles.joinedCard}>
-                    <Text style={styles.joinedTitle} numberOfLines={1}>
-                      {room.title}
-                    </Text>
-                    <View style={styles.joinedProgressTrack}>
-                      <View style={[styles.joinedProgressFill, { width: `${Math.max(8, room.progress)}%` }]} />
-                    </View>
-                    <Text style={styles.joinedMeta}>{room.progress}% 진행</Text>
-                  </Pressable>
-                </Link>
-              ))}
-            </ScrollView>
-          </>
-        ) : null}
+        <View style={styles.indexStrip}>
+          <View style={styles.indexItem}>
+            <Text style={styles.indexValue}>{rooms.length}</Text>
+            <Text style={styles.indexLabel}>열린 책장</Text>
+          </View>
+          <View style={styles.indexDivider} />
+          <View style={styles.indexItem}>
+            <Text style={styles.indexValue}>{formatReaderCount(totalReaders)}</Text>
+            <Text style={styles.indexLabel}>지나간 독자</Text>
+          </View>
+          <View style={styles.indexDivider} />
+          <View style={styles.indexItem}>
+            <Text style={styles.indexValue}>{questionCount}</Text>
+            <Text style={styles.indexLabel}>남은 질문</Text>
+          </View>
+        </View>
 
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>추천 북룸</Text>
-          <Text style={styles.sectionMeta}>이미지 카드</Text>
+          <View>
+            <Text style={styles.sectionEyebrow}>Trace shelf</Text>
+            <Text style={styles.sectionTitle}>지금 문장이 머무는 책</Text>
+          </View>
+          <Text style={styles.sectionMeta}>책별 흔적</Text>
         </View>
 
         <ScrollView
-          contentContainerStyle={styles.recommendRail}
+          contentContainerStyle={styles.traceRail}
           horizontal
           showsHorizontalScrollIndicator={false}
         >
-          {recommendedRooms.map((room) => {
-            const coverUrl = getRoomImageUrl(room);
-
-            return (
-              <Link asChild href={`/room/${room.slug}`} key={room.slug}>
-                <Pressable style={styles.recommendCard}>
-                  {coverUrl ? (
-                    <Image resizeMode="cover" source={{ uri: coverUrl }} style={styles.recommendImage} />
-                  ) : (
-                    <View style={[styles.recommendFallback, { backgroundColor: room.accent }]} />
-                  )}
-                  <View style={styles.recommendScrim} />
-                  <Text style={styles.recommendTitle} numberOfLines={2}>
-                    {room.title}
-                  </Text>
-                </Pressable>
-              </Link>
-            );
-          })}
+          {traceRooms.map((room) => (
+            <Link asChild href={`/room/${room.slug}`} key={room.slug}>
+              <Pressable style={styles.traceBook}>
+                <BookCover room={room} style={styles.traceCover} />
+                <Text numberOfLines={2} style={styles.traceTitle}>
+                  {room.title}
+                </Text>
+                <Text numberOfLines={1} style={styles.traceAuthor}>
+                  {room.author}
+                </Text>
+                <View style={styles.traceLine} />
+                <Text style={styles.traceReaders}>{room.members}명이 머문 책</Text>
+              </Pressable>
+            </Link>
+          ))}
         </ScrollView>
+
+        <View style={styles.questionPanel}>
+          <View style={styles.questionPanelHeader}>
+            <Text style={styles.questionPanelTitle}>책이 남긴 질문</Text>
+            <Text style={styles.questionPanelMeta}>읽은 뒤에 남는 것들</Text>
+          </View>
+          {questionRooms.map((room, index) => (
+            <Link asChild href={`/room/${room.slug}`} key={room.slug}>
+              <Pressable style={styles.questionRow}>
+                <Text style={styles.questionNumber}>{String(index + 1).padStart(2, '0')}</Text>
+                <View style={styles.questionCopy}>
+                  <Text numberOfLines={2} style={styles.questionText}>
+                    {room.question}
+                  </Text>
+                  <Text numberOfLines={1} style={styles.questionBook}>
+                    {room.title} · {room.author}
+                  </Text>
+                </View>
+              </Pressable>
+            </Link>
+          ))}
+        </View>
 
         <View style={styles.filterRail}>
           {filterItems.map((item) => {
@@ -227,46 +253,45 @@ export default function RoomsScreen() {
         </View>
 
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>전체 북룸</Text>
-          <Text style={styles.sectionMeta}>{isLoadingRooms ? '불러오는 중' : `${filteredRooms.length}개`}</Text>
+          <View>
+            <Text style={styles.sectionEyebrow}>All books</Text>
+            <Text style={styles.sectionTitle}>모든 책장</Text>
+          </View>
+          <Text style={styles.sectionMeta}>{filteredRooms.length}권</Text>
         </View>
 
         <View style={styles.roomList}>
-          {filteredRooms.map((room) => {
-            const coverUrl = getRoomImageUrl(room);
-
-            return (
-              <Link asChild href={`/room/${room.slug}`} key={room.slug}>
-                <Pressable style={styles.roomItem}>
-                  {coverUrl ? (
-                    <Image resizeMode="cover" source={{ uri: coverUrl }} style={styles.roomImage} />
-                  ) : (
-                    <View style={[styles.roomFallback, { backgroundColor: room.accent }]} />
-                  )}
-                  <View style={styles.roomScrim} />
-                  <View style={styles.roomCopy}>
-                    <Text style={styles.roomTitle} numberOfLines={1}>
-                      {room.title}
-                    </Text>
-                    <Text style={styles.roomAuthor} numberOfLines={1}>
-                      {room.author} · {room.members}명
-                    </Text>
-                    <Text style={styles.roomQuestion} numberOfLines={2}>
-                      {room.question}
-                    </Text>
+          {filteredRooms.map((room) => (
+            <Link asChild href={`/room/${room.slug}`} key={room.slug}>
+              <Pressable style={styles.bookRow}>
+                <BookCover room={room} style={styles.bookRowCover} />
+                <View style={styles.bookRowCopy}>
+                  <Text numberOfLines={1} style={styles.bookRowTitle}>
+                    {room.title}
+                  </Text>
+                  <Text numberOfLines={1} style={styles.bookRowAuthor}>
+                    {room.author}
+                  </Text>
+                  <Text numberOfLines={2} style={styles.bookRowQuestion}>
+                    {room.question}
+                  </Text>
+                  <View style={styles.bookRowMeta}>
+                    <Text style={styles.bookRowMetaText}>{room.members} readers</Text>
+                    <Text style={styles.bookRowDot}>·</Text>
+                    <Text style={styles.bookRowMetaText}>{room.progress}%</Text>
                   </View>
-                  <View style={styles.roomArrow}>
-                    <Text style={styles.roomArrowText}>›</Text>
-                  </View>
-                </Pressable>
-              </Link>
-            );
-          })}
+                </View>
+                <View style={styles.bookRowArrow}>
+                  <Text style={styles.bookRowArrowText}>›</Text>
+                </View>
+              </Pressable>
+            </Link>
+          ))}
         </View>
 
         {filteredRooms.length === 0 ? (
           <View style={styles.emptyBox}>
-            <Text style={styles.emptyTitle}>검색 결과가 없어요</Text>
+            <Text style={styles.emptyTitle}>아직 열린 책장이 없어요</Text>
             <Text style={styles.emptyCopy}>다른 책 제목이나 저자 이름으로 다시 찾아보세요.</Text>
           </View>
         ) : null}
@@ -276,17 +301,38 @@ export default function RoomsScreen() {
   );
 }
 
-function RoomSpotlightMedia({ room }: { room: FeaturedRoom }) {
+function HeroMedia({ room }: { room: FeaturedRoom }) {
   const coverUrl = getRoomImageUrl(room);
 
   if (coverUrl) {
-    return <Image resizeMode="cover" source={{ uri: coverUrl }} style={styles.spotlightImage} />;
+    return <Image resizeMode="cover" source={{ uri: coverUrl }} style={styles.heroImage} />;
   }
 
-  return <View style={[styles.spotlightFallback, { backgroundColor: room.accent }]} />;
+  return <View style={[styles.heroFallback, { backgroundColor: room.accent }]} />;
 }
 
-type RoomFilter = 'all' | 'active' | 'new' | 'popular';
+function BookCover({ room, style }: { room: FeaturedRoom; style: object }) {
+  const coverUrl = getRoomImageUrl(room);
+
+  if (coverUrl) {
+    return <Image resizeMode="cover" source={{ uri: coverUrl }} style={style} />;
+  }
+
+  return (
+    <View style={[style, styles.coverFallback, { backgroundColor: room.accent }]}>
+      <Text style={styles.coverFallbackText}>BOOK</Text>
+    </View>
+  );
+}
+
+function TraceBadge({ value, label }: { value: string; label: string }) {
+  return (
+    <View style={styles.traceBadge}>
+      <Text style={styles.traceBadgeValue}>{value}</Text>
+      <Text style={styles.traceBadgeLabel}>{label}</Text>
+    </View>
+  );
+}
 
 function filterRooms(rooms: FeaturedRoom[], query: string, filter: RoomFilter) {
   const normalizedQuery = query.trim().toLowerCase();
@@ -301,16 +347,16 @@ function filterRooms(rooms: FeaturedRoom[], query: string, filter: RoomFilter) {
     );
   }
 
-  if (filter === 'active') {
+  if (filter === 'reading') {
     return nextRooms.filter((room) => room.progress > 0 && room.progress < 100);
+  }
+
+  if (filter === 'question') {
+    return nextRooms.filter((room) => Boolean(room.question));
   }
 
   if (filter === 'new') {
     return [...nextRooms].reverse();
-  }
-
-  if (filter === 'popular') {
-    return [...nextRooms].sort((a, b) => parseMembers(b.members) - parseMembers(a.members));
   }
 
   return nextRooms;
@@ -324,12 +370,20 @@ function parseMembers(value: string) {
   return Number(value.replace(/,/g, '')) || 0;
 }
 
+function formatReaderCount(value: number) {
+  if (value >= 1000) {
+    return `${(value / 1000).toFixed(value >= 10000 ? 0 : 1)}k`;
+  }
+
+  return String(value);
+}
+
 function toFeaturedRoom(room: RoomSummary): FeaturedRoom {
   return {
     slug: room.slug,
     title: room.title,
     author: room.subtitle ?? 'BookSome',
-    host: room.host_name ?? 'Host',
+    host: room.host_name ?? '첫 독자',
     members: room.member_count.toLocaleString(),
     accent: room.accent_color,
     progress: room.progress_percent,
@@ -358,225 +412,267 @@ function getRoomCoverUrl(coverPath: string) {
 
 const styles = StyleSheet.create({
   safeArea: {
-    backgroundColor: '#F7F1E5',
+    backgroundColor: '#F3F2EC',
     flex: 1,
   },
   content: {
-    padding: 20,
-    paddingBottom: 124,
+    paddingBottom: 128,
   },
-  bookroomHero: {
-    marginHorizontal: -20,
-    marginTop: -20,
+  signboardStage: {
+    backgroundColor: '#F3F2EC',
     overflow: 'hidden',
     position: 'relative',
   },
-  bookroomHeroImage: {
+  signboardImage: {
     height: '100%',
     width: '100%',
   },
-  bookroomHeroGradient: {
+  signboardFade: {
     bottom: -1,
-    height: 118,
+    height: 88,
     left: 0,
     position: 'absolute',
     right: 0,
   },
-  bookroomHeroTop: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
+  hero: {
+    backgroundColor: '#0C211B',
+    borderBottomLeftRadius: 34,
+    borderBottomRightRadius: 34,
+    borderTopLeftRadius: 34,
+    borderTopRightRadius: 34,
+    marginHorizontal: 16,
+    marginBottom: 22,
+    marginTop: -4,
+    overflow: 'hidden',
+    paddingHorizontal: 22,
+    position: 'relative',
+  },
+  heroImage: {
+    bottom: 0,
     left: 0,
-    paddingHorizontal: 20,
-    paddingTop: 12,
+    opacity: 0.78,
     position: 'absolute',
     right: 0,
     top: 0,
-    zIndex: 3,
   },
-  bookroomHeroAction: {
+  heroFallback: {
+    bottom: 0,
+    left: 0,
+    position: 'absolute',
+    right: 0,
+    top: 0,
+  },
+  heroShade: {
+    bottom: 0,
+    left: 0,
+    position: 'absolute',
+    right: 0,
+    top: 0,
+  },
+  heroTop: {
     alignItems: 'center',
-    backgroundColor: 'rgba(247, 241, 229, 0.92)',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingTop: 18,
+    position: 'relative',
+    zIndex: 2,
+  },
+  appName: {
+    color: '#FFFFFF',
+    fontSize: 24,
+    fontWeight: '900',
+    letterSpacing: 0,
+  },
+  appSection: {
+    color: 'rgba(255,255,255,0.68)',
+    fontSize: 12,
+    fontWeight: '900',
+    marginTop: 2,
+    textTransform: 'uppercase',
+  },
+  createIconButton: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.92)',
     borderRadius: 22,
     height: 44,
     justifyContent: 'center',
     width: 44,
   },
-  bookroomHeroActionText: {
-    color: '#103D2B',
+  createIconText: {
+    color: '#0C211B',
     fontSize: 25,
     fontWeight: '900',
     lineHeight: 28,
   },
-  bookroomIntro: {
-    marginTop: 8,
-    paddingBottom: 8,
+  heroBookLayer: {
+    alignItems: 'center',
+    position: 'absolute',
+    right: 22,
+    top: 118,
+    width: 132,
+    zIndex: 1,
   },
-  bookroomEyebrow: {
-    color: '#8F6A42',
-    fontSize: 11,
+  heroPoster: {
+    borderRadius: 4,
+    height: 190,
+    width: 124,
+  },
+  heroPosterShadow: {
+    backgroundColor: 'rgba(0,0,0,0.24)',
+    borderRadius: 12,
+    bottom: -14,
+    height: 32,
+    position: 'absolute',
+    width: 112,
+  },
+  heroCopy: {
+    bottom: 30,
+    left: 22,
+    position: 'absolute',
+    right: 22,
+    zIndex: 2,
+  },
+  heroKicker: {
+    color: '#E8C982',
+    fontSize: 12,
+    fontWeight: '900',
+    marginBottom: 10,
+  },
+  heroTitle: {
+    color: '#FFFFFF',
+    fontSize: 40,
     fontWeight: '900',
     letterSpacing: 0,
+    lineHeight: 44,
+    maxWidth: 210,
   },
-  bookroomIntroText: {
-    color: '#14251B',
+  heroAuthor: {
+    color: 'rgba(255,255,255,0.74)',
+    fontSize: 15,
+    fontWeight: '900',
+    marginTop: 8,
+  },
+  heroQuestion: {
+    color: '#F5EAD3',
+    fontSize: 16,
+    fontWeight: '800',
+    lineHeight: 24,
+    marginTop: 24,
+    maxWidth: 330,
+  },
+  heroMetaRow: {
+    borderBottomColor: 'rgba(255,255,255,0.14)',
+    borderBottomWidth: 1,
+    borderTopColor: 'rgba(255,255,255,0.14)',
+    borderTopWidth: 1,
+    flexDirection: 'row',
+    gap: 14,
+    marginTop: 22,
+    paddingVertical: 13,
+  },
+  traceBadge: {
+    flex: 1,
+  },
+  traceBadgeValue: {
+    color: '#FFFFFF',
     fontSize: 18,
     fontWeight: '900',
-    lineHeight: 24,
-    marginTop: 6,
   },
-  header: {
+  traceBadgeLabel: {
+    color: 'rgba(255,255,255,0.58)',
+    fontSize: 10,
+    fontWeight: '900',
+    marginTop: 3,
+  },
+  heroAction: {
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    backgroundColor: '#F3F2EC',
+    borderRadius: 24,
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 22,
+    minHeight: 48,
+    paddingHorizontal: 18,
+  },
+  heroActionText: {
+    color: '#0C211B',
+    fontSize: 15,
+    fontWeight: '900',
+  },
+  heroActionArrow: {
+    color: '#9F3E39',
+    fontSize: 24,
+    fontWeight: '900',
+    lineHeight: 26,
+  },
+  searchStage: {
+    paddingHorizontal: 20,
+  },
+  searchHeader: {
     alignItems: 'center',
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 22,
   },
-  createButton: {
-    alignItems: 'center',
-    backgroundColor: '#103D2B',
-    borderRadius: 23,
-    height: 46,
-    justifyContent: 'center',
-    width: 46,
-  },
-  createButtonText: {
-    color: '#F7F1E5',
-    fontSize: 25,
+  searchTitle: {
+    color: '#17241F',
+    fontSize: 18,
     fontWeight: '900',
-    lineHeight: 28,
   },
-  kicker: {
-    color: '#8F6A42',
+  searchMeta: {
+    color: '#A14A3F',
     fontSize: 12,
     fontWeight: '900',
-    letterSpacing: 0,
-    marginBottom: 8,
-  },
-  title: {
-    color: '#14251B',
-    fontSize: 38,
-    fontWeight: '900',
-    letterSpacing: 0,
-    lineHeight: 42,
-  },
-  copy: {
-    color: '#667167',
-    fontSize: 15,
-    fontWeight: '700',
-    lineHeight: 23,
-    marginTop: 12,
   },
   searchBox: {
     alignItems: 'center',
     backgroundColor: '#FFFFFF',
-    borderRadius: 24,
+    borderColor: 'rgba(23,36,31,0.08)',
+    borderRadius: 22,
+    borderWidth: 1,
     flexDirection: 'row',
     gap: 10,
-    marginTop: 18,
-    paddingHorizontal: 16,
-    paddingVertical: 4,
+    marginTop: 12,
+    paddingHorizontal: 15,
   },
   searchIcon: {
-    color: '#103D2B',
+    color: '#17241F',
     fontSize: 20,
     fontWeight: '900',
   },
   searchInput: {
-    color: '#14251B',
+    color: '#17241F',
     flex: 1,
     fontSize: 15,
     fontWeight: '800',
-    minHeight: 44,
+    minHeight: 48,
   },
-  spotlight: {
-    backgroundColor: '#103D2B',
-    borderRadius: 34,
-    height: 238,
-    marginTop: 20,
-    overflow: 'hidden',
-    position: 'relative',
-  },
-  spotlightImage: {
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
-    right: 0,
-    top: 0,
-  },
-  spotlightFallback: {
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
-    right: 0,
-    top: 0,
-  },
-  spotlightScrim: {
-    backgroundColor: 'rgba(4, 14, 8, 0.42)',
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
-    right: 0,
-    top: 0,
-  },
-  spotlightCopy: {
-    bottom: 24,
-    left: 22,
-    position: 'absolute',
-    right: 24,
-  },
-  spotlightKicker: {
-    color: '#F2DDA7',
-    fontSize: 12,
-    fontWeight: '900',
-    marginBottom: 8,
-  },
-  spotlightTitle: {
-    color: '#FFFFFF',
-    fontSize: 33,
-    fontWeight: '900',
-    letterSpacing: 0,
-    lineHeight: 37,
-  },
-  spotlightMeta: {
-    color: 'rgba(255,255,255,0.78)',
-    fontSize: 14,
-    fontWeight: '900',
-    marginTop: 9,
-  },
-  portalGrid: {
-    borderBottomColor: 'rgba(16,61,43,0.12)',
+  indexStrip: {
+    alignSelf: 'center',
+    borderBottomColor: 'rgba(23,36,31,0.12)',
     borderBottomWidth: 1,
-    borderTopColor: 'rgba(16,61,43,0.12)',
+    borderTopColor: 'rgba(23,36,31,0.12)',
     borderTopWidth: 1,
     flexDirection: 'row',
-    marginTop: 14,
+    marginTop: 24,
+    width: '100%',
   },
-  portalTileDark: {
+  indexItem: {
+    alignItems: 'center',
     flex: 1,
-    paddingVertical: 16,
+    paddingVertical: 18,
   },
-  portalTile: {
-    flex: 1,
-    paddingVertical: 16,
+  indexDivider: {
+    backgroundColor: 'rgba(23,36,31,0.12)',
+    width: 1,
   },
-  portalValue: {
-    color: '#103D2B',
-    fontSize: 27,
+  indexValue: {
+    color: '#17241F',
+    fontSize: 25,
     fontWeight: '900',
   },
-  portalLabel: {
-    color: '#74806F',
-    fontSize: 11,
-    fontWeight: '900',
-    marginTop: 4,
-  },
-  portalValueDark: {
-    color: '#103D2B',
-    fontSize: 27,
-    fontWeight: '900',
-  },
-  portalLabelDark: {
-    color: '#74806F',
+  indexLabel: {
+    color: '#71776F',
     fontSize: 11,
     fontWeight: '900',
     marginTop: 4,
@@ -586,207 +682,243 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     marginBottom: 14,
-    marginTop: 28,
+    marginTop: 30,
+    paddingHorizontal: 20,
+  },
+  sectionEyebrow: {
+    color: '#A14A3F',
+    fontSize: 11,
+    fontWeight: '900',
+    marginBottom: 5,
+    textTransform: 'uppercase',
   },
   sectionTitle: {
-    color: '#14251B',
-    fontSize: 22,
+    color: '#17241F',
+    fontSize: 23,
     fontWeight: '900',
+    letterSpacing: 0,
   },
   sectionMeta: {
-    color: '#8F6A42',
+    color: '#737B73',
     fontSize: 12,
     fontWeight: '900',
   },
-  joinedRail: {
-    gap: 12,
-    paddingRight: 20,
+  traceRail: {
+    gap: 16,
+    paddingHorizontal: 20,
+    paddingRight: 34,
   },
-  joinedCard: {
-    borderBottomColor: 'rgba(16,61,43,0.14)',
-    borderBottomWidth: 1,
-    paddingVertical: 16,
-    width: 178,
+  traceBook: {
+    width: 146,
   },
-  joinedTitle: {
-    color: '#14251B',
+  traceCover: {
+    borderRadius: 4,
+    height: 208,
+    width: 140,
+  },
+  traceTitle: {
+    color: '#17241F',
     fontSize: 18,
     fontWeight: '900',
+    lineHeight: 22,
+    marginTop: 14,
   },
-  joinedProgressTrack: {
-    backgroundColor: '#E9DFC8',
-    borderRadius: 4,
-    height: 8,
-    marginTop: 16,
-    overflow: 'hidden',
-  },
-  joinedProgressFill: {
-    backgroundColor: '#103D2B',
-    height: '100%',
-  },
-  joinedMeta: {
-    color: '#74806F',
+  traceAuthor: {
+    color: '#6F766F',
     fontSize: 12,
+    fontWeight: '900',
+    marginTop: 5,
+  },
+  traceLine: {
+    backgroundColor: '#17241F',
+    height: 2,
+    marginTop: 12,
+    width: 26,
+  },
+  traceReaders: {
+    color: '#9D493E',
+    fontSize: 11,
     fontWeight: '900',
     marginTop: 9,
   },
-  recommendRail: {
-    gap: 12,
-    paddingRight: 20,
+  questionPanel: {
+    backgroundColor: '#182A32',
+    marginTop: 34,
+    paddingHorizontal: 20,
+    paddingVertical: 26,
   },
-  recommendCard: {
-    backgroundColor: '#103D2B',
-    borderRadius: 26,
-    height: 172,
-    overflow: 'hidden',
-    position: 'relative',
-    width: 140,
+  questionPanelHeader: {
+    marginBottom: 8,
   },
-  recommendImage: {
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
-    right: 0,
-    top: 0,
-  },
-  recommendFallback: {
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
-    right: 0,
-    top: 0,
-  },
-  recommendScrim: {
-    backgroundColor: 'rgba(4, 14, 8, 0.36)',
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
-    right: 0,
-    top: 0,
-  },
-  recommendTitle: {
-    bottom: 16,
+  questionPanelTitle: {
     color: '#FFFFFF',
-    fontSize: 19,
+    fontSize: 25,
     fontWeight: '900',
-    left: 14,
-    lineHeight: 23,
-    position: 'absolute',
-    right: 14,
+  },
+  questionPanelMeta: {
+    color: 'rgba(255,255,255,0.58)',
+    fontSize: 12,
+    fontWeight: '900',
+    marginTop: 5,
+  },
+  questionRow: {
+    borderBottomColor: 'rgba(255,255,255,0.14)',
+    borderBottomWidth: 1,
+    flexDirection: 'row',
+    gap: 15,
+    paddingVertical: 18,
+  },
+  questionNumber: {
+    color: '#E8C982',
+    fontSize: 14,
+    fontWeight: '900',
+    width: 28,
+  },
+  questionCopy: {
+    flex: 1,
+  },
+  questionText: {
+    color: '#FFFFFF',
+    fontSize: 17,
+    fontWeight: '900',
+    lineHeight: 24,
+  },
+  questionBook: {
+    color: 'rgba(255,255,255,0.58)',
+    fontSize: 12,
+    fontWeight: '900',
+    marginTop: 8,
   },
   filterRail: {
     flexDirection: 'row',
     gap: 8,
     marginTop: 26,
+    paddingHorizontal: 20,
   },
   filterChip: {
-    borderBottomColor: 'transparent',
-    borderBottomWidth: 2,
-    paddingHorizontal: 15,
+    backgroundColor: 'rgba(255,255,255,0.7)',
+    borderColor: 'rgba(23,36,31,0.08)',
+    borderRadius: 18,
+    borderWidth: 1,
+    paddingHorizontal: 14,
     paddingVertical: 9,
   },
   filterChipActive: {
-    borderBottomColor: '#103D2B',
+    backgroundColor: '#17241F',
+    borderColor: '#17241F',
   },
   filterText: {
-    color: '#697566',
-    fontSize: 13,
+    color: '#697169',
+    fontSize: 12,
     fontWeight: '900',
   },
   filterTextActive: {
-    color: '#103D2B',
+    color: '#FFFFFF',
   },
   roomList: {
-    gap: 10,
+    gap: 12,
+    paddingHorizontal: 20,
   },
-  roomItem: {
+  bookRow: {
+    alignItems: 'center',
     backgroundColor: '#FFFFFF',
-    borderRadius: 24,
-    height: 112,
+    borderColor: 'rgba(23,36,31,0.07)',
+    borderRadius: 8,
+    borderWidth: 1,
+    flexDirection: 'row',
+    minHeight: 132,
     overflow: 'hidden',
-    position: 'relative',
+    padding: 12,
   },
-  roomImage: {
-    borderRadius: 18,
-    bottom: 14,
-    height: 84,
-    left: 0,
-    position: 'absolute',
-    top: 14,
-    width: 84,
+  bookRowCover: {
+    borderRadius: 3,
+    height: 108,
+    width: 72,
   },
-  roomFallback: {
-    borderRadius: 18,
-    bottom: 14,
-    height: 84,
-    left: 0,
-    position: 'absolute',
-    top: 14,
-    width: 84,
+  bookRowCopy: {
+    flex: 1,
+    marginLeft: 14,
+    paddingRight: 8,
   },
-  roomScrim: {
-    display: 'none',
-  },
-  roomCopy: {
-    bottom: 16,
-    left: 102,
-    position: 'absolute',
-    right: 58,
-    top: 16,
-  },
-  roomTitle: {
-    color: '#14251B',
+  bookRowTitle: {
+    color: '#17241F',
     fontSize: 19,
     fontWeight: '900',
   },
-  roomAuthor: {
-    color: '#8F6A42',
-    fontSize: 13,
+  bookRowAuthor: {
+    color: '#9D493E',
+    fontSize: 12,
     fontWeight: '900',
     marginTop: 4,
   },
-  roomQuestion: {
-    color: '#697566',
-    fontSize: 12,
+  bookRowQuestion: {
+    color: '#59615A',
+    fontSize: 13,
     fontWeight: '700',
-    lineHeight: 17,
+    lineHeight: 18,
     marginTop: 8,
   },
-  roomArrow: {
+  bookRowMeta: {
     alignItems: 'center',
-    backgroundColor: '#EEF1DF',
+    flexDirection: 'row',
+    marginTop: 9,
+  },
+  bookRowMetaText: {
+    color: '#7D857D',
+    fontSize: 11,
+    fontWeight: '900',
+  },
+  bookRowDot: {
+    color: '#A7ADA6',
+    fontSize: 11,
+    fontWeight: '900',
+    marginHorizontal: 6,
+  },
+  bookRowArrow: {
+    alignItems: 'center',
+    backgroundColor: '#EEF0E8',
     borderRadius: 18,
     height: 36,
     justifyContent: 'center',
-    position: 'absolute',
-    right: 12,
-    top: 38,
     width: 36,
   },
-  roomArrowText: {
-    color: '#103D2B',
-    fontSize: 26,
+  bookRowArrowText: {
+    color: '#17241F',
+    fontSize: 27,
     fontWeight: '900',
-    lineHeight: 28,
+    lineHeight: 29,
+  },
+  coverFallback: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  coverFallbackText: {
+    color: 'rgba(255,255,255,0.82)',
+    fontSize: 12,
+    fontWeight: '900',
   },
   emptyBox: {
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 24,
-    marginTop: 12,
-    padding: 22,
+    borderColor: 'rgba(23,36,31,0.12)',
+    borderRadius: 8,
+    borderWidth: 1,
+    marginHorizontal: 20,
+    marginTop: 14,
+    paddingHorizontal: 18,
+    paddingVertical: 24,
   },
   emptyTitle: {
-    color: '#14251B',
+    color: '#17241F',
     fontSize: 18,
     fontWeight: '900',
   },
   emptyCopy: {
-    color: '#697566',
+    color: '#737B73',
     fontSize: 13,
     fontWeight: '700',
     lineHeight: 19,
-    marginTop: 6,
+    marginTop: 8,
     textAlign: 'center',
   },
 });
