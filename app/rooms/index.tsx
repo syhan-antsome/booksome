@@ -68,7 +68,7 @@ export default function RoomsScreen() {
     () => filterRooms(rooms, query, activeFilter),
     [activeFilter, query, rooms],
   );
-  const heroRoom = rooms[0];
+  const featuredRoom = rooms[0];
   const traceRooms = rooms.slice(0, 5);
   const questionRooms = useMemo(
     () => [...rooms].sort((a, b) => b.question.length - a.question.length).slice(0, 4),
@@ -77,7 +77,6 @@ export default function RoomsScreen() {
   const totalReaders = rooms.reduce((total, room) => total + parseMembers(room.members), 0);
   const questionCount = rooms.filter((room) => room.question).length;
   const signboardHeight = Math.round(width * bookroomSignboardRatio);
-  const heroHeight = Math.max(460, Math.min(560, width * 1.12));
   const filterItems: { key: RoomFilter; label: string }[] = [
     { key: 'all', label: '전체' },
     { key: 'reading', label: '머무는 책' },
@@ -91,60 +90,67 @@ export default function RoomsScreen() {
         <View style={[styles.signboardStage, { height: signboardHeight }]}>
           <Image resizeMode="cover" source={bookroomSignboardSource} style={styles.signboardImage} />
           <LinearGradient
-            colors={['rgba(243,242,236,0)', '#F3F2EC']}
+            colors={['rgba(250,249,244,0)', '#FAF9F4']}
             locations={[0.62, 1]}
             pointerEvents="none"
             style={styles.signboardFade}
           />
         </View>
 
-        {heroRoom ? (
-          <View style={[styles.hero, { height: heroHeight }]}>
-            <HeroMedia room={heroRoom} />
-            <LinearGradient
-              colors={['rgba(8,18,15,0.18)', 'rgba(8,18,15,0.5)', '#0C211B']}
-              locations={[0, 0.47, 1]}
-              pointerEvents="none"
-              style={styles.heroShade}
-            />
-
-            <View style={styles.heroTop}>
-              <View>
-                <Text style={styles.appName}>BookSome</Text>
-                <Text style={styles.appSection}>Bookroom</Text>
+        {featuredRoom ? (
+          <View style={styles.introStage}>
+            <View style={styles.introTopRow}>
+              <View style={styles.introHeadingBlock}>
+                <Text style={styles.introEyebrow}>BOOKROOM</Text>
+                <Text style={styles.introTitle}>책 한 권이 여는 자리</Text>
               </View>
               <Link asChild href={session ? '/create-room' : '/auth'}>
-                <Pressable accessibilityLabel="책장에 책 놓기" style={styles.createIconButton}>
-                  <Text style={styles.createIconText}>＋</Text>
+                <Pressable accessibilityLabel="책장에 책 놓기" style={styles.createShelfButton}>
+                  <Text style={styles.createShelfIcon}>＋</Text>
                 </Pressable>
               </Link>
             </View>
 
-            <View style={styles.heroBookLayer}>
-              <View style={styles.heroPosterShadow} />
-              <BookCover room={heroRoom} style={styles.heroPoster} />
-            </View>
+            <Link asChild href={`/room/${featuredRoom.slug}`}>
+              <Pressable style={styles.featuredBook}>
+                <View style={styles.featuredCoverWrap}>
+                  <BookCover room={featuredRoom} style={styles.featuredCover} />
+                </View>
+                <View style={styles.featuredCopy}>
+                  <Text style={styles.featuredKicker}>오늘 머무는 책</Text>
+                  <Text numberOfLines={2} adjustsFontSizeToFit minimumFontScale={0.84} style={styles.featuredTitle}>
+                    {featuredRoom.title}
+                  </Text>
+                  <Text numberOfLines={1} style={styles.featuredAuthor}>
+                    {featuredRoom.author}
+                  </Text>
+                  <Text numberOfLines={3} style={styles.featuredQuestion}>
+                    “{featuredRoom.question}”
+                  </Text>
+                  <View style={styles.featuredMetaLine}>
+                    <Text style={styles.featuredMetaText}>{featuredRoom.members}명의 독자</Text>
+                    <Text style={styles.featuredMetaDot}>·</Text>
+                    <Text style={styles.featuredMetaText}>{featuredRoom.progress}% 읽기 온도</Text>
+                  </View>
+                </View>
+              </Pressable>
+            </Link>
 
-            <View style={styles.heroCopy}>
-              <Text style={styles.heroKicker}>책이 열어둔 자리</Text>
-              <Text numberOfLines={2} adjustsFontSizeToFit minimumFontScale={0.82} style={styles.heroTitle}>
-                {heroRoom.title}
-              </Text>
-              <Text style={styles.heroAuthor}>{heroRoom.author}</Text>
-              <Text numberOfLines={2} style={styles.heroQuestion}>
-                “{heroRoom.question}”
-              </Text>
-              <View style={styles.heroMetaRow}>
-                <TraceBadge value={heroRoom.members} label="지나간 독자" />
-                <TraceBadge value={`${heroRoom.progress}%`} label="읽기 온도" />
-                <TraceBadge value="첫" label="질문" />
+            <View style={styles.indexStrip}>
+              <View style={styles.indexItem}>
+                <Text style={styles.indexValue}>{rooms.length}</Text>
+                <Text style={styles.indexLabel}>열린 책장</Text>
               </View>
-              <Link asChild href={`/room/${heroRoom.slug}`}>
-                <Pressable style={styles.heroAction}>
-                  <Text style={styles.heroActionText}>이 책장 보기</Text>
-                  <Text style={styles.heroActionArrow}>›</Text>
-                </Pressable>
-              </Link>
+              <View style={styles.indexDivider} />
+              <View style={styles.indexItem}>
+                <Text style={styles.indexValue}>{formatReaderCount(totalReaders)}</Text>
+                <Text style={styles.indexLabel}>지나간 독자</Text>
+              </View>
+              <View style={styles.indexDivider} />
+              <View style={styles.indexItem}>
+                <Text style={styles.indexValue}>{questionCount}</Text>
+                <Text style={styles.indexLabel}>남은 질문</Text>
+              </View>
             </View>
           </View>
         ) : null}
@@ -167,26 +173,9 @@ export default function RoomsScreen() {
           </View>
         </View>
 
-        <View style={styles.indexStrip}>
-          <View style={styles.indexItem}>
-            <Text style={styles.indexValue}>{rooms.length}</Text>
-            <Text style={styles.indexLabel}>열린 책장</Text>
-          </View>
-          <View style={styles.indexDivider} />
-          <View style={styles.indexItem}>
-            <Text style={styles.indexValue}>{formatReaderCount(totalReaders)}</Text>
-            <Text style={styles.indexLabel}>지나간 독자</Text>
-          </View>
-          <View style={styles.indexDivider} />
-          <View style={styles.indexItem}>
-            <Text style={styles.indexValue}>{questionCount}</Text>
-            <Text style={styles.indexLabel}>남은 질문</Text>
-          </View>
-        </View>
-
         <View style={styles.sectionHeader}>
           <View>
-            <Text style={styles.sectionEyebrow}>Trace shelf</Text>
+            <Text style={styles.sectionEyebrow}>TRACE SHELF</Text>
             <Text style={styles.sectionTitle}>지금 문장이 머무는 책</Text>
           </View>
           <Text style={styles.sectionMeta}>책별 흔적</Text>
@@ -254,7 +243,7 @@ export default function RoomsScreen() {
 
         <View style={styles.sectionHeader}>
           <View>
-            <Text style={styles.sectionEyebrow}>All books</Text>
+            <Text style={styles.sectionEyebrow}>ALL BOOKS</Text>
             <Text style={styles.sectionTitle}>모든 책장</Text>
           </View>
           <Text style={styles.sectionMeta}>{filteredRooms.length}권</Text>
@@ -276,7 +265,7 @@ export default function RoomsScreen() {
                     {room.question}
                   </Text>
                   <View style={styles.bookRowMeta}>
-                    <Text style={styles.bookRowMetaText}>{room.members} readers</Text>
+                    <Text style={styles.bookRowMetaText}>{room.members}명의 독자</Text>
                     <Text style={styles.bookRowDot}>·</Text>
                     <Text style={styles.bookRowMetaText}>{room.progress}%</Text>
                   </View>
@@ -301,16 +290,6 @@ export default function RoomsScreen() {
   );
 }
 
-function HeroMedia({ room }: { room: FeaturedRoom }) {
-  const coverUrl = getRoomImageUrl(room);
-
-  if (coverUrl) {
-    return <Image resizeMode="cover" source={{ uri: coverUrl }} style={styles.heroImage} />;
-  }
-
-  return <View style={[styles.heroFallback, { backgroundColor: room.accent }]} />;
-}
-
 function BookCover({ room, style }: { room: FeaturedRoom; style: object }) {
   const coverUrl = getRoomImageUrl(room);
 
@@ -321,15 +300,6 @@ function BookCover({ room, style }: { room: FeaturedRoom; style: object }) {
   return (
     <View style={[style, styles.coverFallback, { backgroundColor: room.accent }]}>
       <Text style={styles.coverFallbackText}>BOOK</Text>
-    </View>
-  );
-}
-
-function TraceBadge({ value, label }: { value: string; label: string }) {
-  return (
-    <View style={styles.traceBadge}>
-      <Text style={styles.traceBadgeValue}>{value}</Text>
-      <Text style={styles.traceBadgeLabel}>{label}</Text>
     </View>
   );
 }
@@ -382,12 +352,12 @@ function toFeaturedRoom(room: RoomSummary): FeaturedRoom {
   return {
     slug: room.slug,
     title: room.title,
-    author: room.subtitle ?? 'BookSome',
+    author: room.subtitle ?? '작가 미상',
     host: room.host_name ?? '첫 독자',
     members: room.member_count.toLocaleString(),
     accent: room.accent_color,
     progress: room.progress_percent,
-    next: room.next_event ?? '새로운 함께 읽기 일정을 준비 중입니다',
+    next: room.next_event ?? '첫 읽기 흔적을 기다리고 있습니다',
     question: room.pinned_question ?? '이 책은 당신에게 어떤 질문을 남겼나요?',
     coverPath: room.cover_path ?? null,
     coverUrl: room.external_cover_url ?? null,
@@ -412,14 +382,14 @@ function getRoomCoverUrl(coverPath: string) {
 
 const styles = StyleSheet.create({
   safeArea: {
-    backgroundColor: '#F3F2EC',
+    backgroundColor: '#FAF9F4',
     flex: 1,
   },
   content: {
     paddingBottom: 128,
   },
   signboardStage: {
-    backgroundColor: '#F3F2EC',
+    backgroundColor: '#FAF9F4',
     overflow: 'hidden',
     position: 'relative',
   },
@@ -429,184 +399,122 @@ const styles = StyleSheet.create({
   },
   signboardFade: {
     bottom: -1,
-    height: 88,
+    height: 108,
     left: 0,
     position: 'absolute',
     right: 0,
   },
-  hero: {
-    backgroundColor: '#0C211B',
-    borderBottomLeftRadius: 34,
-    borderBottomRightRadius: 34,
-    borderTopLeftRadius: 34,
-    borderTopRightRadius: 34,
-    marginHorizontal: 16,
-    marginBottom: 22,
-    marginTop: -4,
-    overflow: 'hidden',
+  introStage: {
+    marginTop: -8,
     paddingHorizontal: 22,
-    position: 'relative',
+    paddingTop: 14,
   },
-  heroImage: {
-    bottom: 0,
-    left: 0,
-    opacity: 0.78,
-    position: 'absolute',
-    right: 0,
-    top: 0,
-  },
-  heroFallback: {
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
-    right: 0,
-    top: 0,
-  },
-  heroShade: {
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
-    right: 0,
-    top: 0,
-  },
-  heroTop: {
+  introTopRow: {
     alignItems: 'center',
     flexDirection: 'row',
     justifyContent: 'space-between',
-    paddingTop: 18,
-    position: 'relative',
-    zIndex: 2,
   },
-  appName: {
-    color: '#FFFFFF',
-    fontSize: 24,
+  introHeadingBlock: {
+    flex: 1,
+    paddingRight: 16,
+  },
+  introEyebrow: {
+    color: '#A14A3F',
+    fontSize: 11,
     fontWeight: '900',
     letterSpacing: 0,
+    marginBottom: 7,
   },
-  appSection: {
-    color: 'rgba(255,255,255,0.68)',
-    fontSize: 12,
+  introTitle: {
+    color: '#17241F',
+    fontSize: 29,
     fontWeight: '900',
-    marginTop: 2,
-    textTransform: 'uppercase',
+    letterSpacing: 0,
+    lineHeight: 34,
   },
-  createIconButton: {
+  createShelfButton: {
     alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.92)',
+    backgroundColor: '#17241F',
     borderRadius: 22,
     height: 44,
     justifyContent: 'center',
     width: 44,
   },
-  createIconText: {
-    color: '#0C211B',
+  createShelfIcon: {
+    color: '#FAF9F4',
     fontSize: 25,
     fontWeight: '900',
     lineHeight: 28,
   },
-  heroBookLayer: {
-    alignItems: 'center',
-    position: 'absolute',
-    right: 22,
-    top: 118,
-    width: 132,
-    zIndex: 1,
+  featuredBook: {
+    alignItems: 'flex-end',
+    borderBottomColor: 'rgba(23,36,31,0.12)',
+    borderBottomWidth: 1,
+    flexDirection: 'row',
+    marginTop: 27,
+    paddingBottom: 24,
   },
-  heroPoster: {
-    borderRadius: 4,
-    height: 190,
-    width: 124,
+  featuredCoverWrap: {
+    shadowColor: '#1A140F',
+    shadowOffset: { height: 12, width: 0 },
+    shadowOpacity: 0.18,
+    shadowRadius: 18,
   },
-  heroPosterShadow: {
-    backgroundColor: 'rgba(0,0,0,0.24)',
-    borderRadius: 12,
-    bottom: -14,
-    height: 32,
-    position: 'absolute',
+  featuredCover: {
+    borderRadius: 3,
+    height: 168,
     width: 112,
   },
-  heroCopy: {
-    bottom: 30,
-    left: 22,
-    position: 'absolute',
-    right: 22,
-    zIndex: 2,
+  featuredCopy: {
+    flex: 1,
+    marginLeft: 20,
+    paddingBottom: 2,
   },
-  heroKicker: {
-    color: '#E8C982',
+  featuredKicker: {
+    color: '#A14A3F',
     fontSize: 12,
     fontWeight: '900',
     marginBottom: 10,
   },
-  heroTitle: {
-    color: '#FFFFFF',
-    fontSize: 40,
+  featuredTitle: {
+    color: '#17241F',
+    fontSize: 31,
     fontWeight: '900',
     letterSpacing: 0,
-    lineHeight: 44,
-    maxWidth: 210,
+    lineHeight: 35,
   },
-  heroAuthor: {
-    color: 'rgba(255,255,255,0.74)',
-    fontSize: 15,
+  featuredAuthor: {
+    color: '#9D493E',
+    fontSize: 13,
     fontWeight: '900',
-    marginTop: 8,
+    marginTop: 7,
   },
-  heroQuestion: {
-    color: '#F5EAD3',
-    fontSize: 16,
+  featuredQuestion: {
+    color: '#414C45',
+    fontSize: 15,
     fontWeight: '800',
-    lineHeight: 24,
-    marginTop: 24,
-    maxWidth: 330,
+    lineHeight: 22,
+    marginTop: 18,
   },
-  heroMetaRow: {
-    borderBottomColor: 'rgba(255,255,255,0.14)',
-    borderBottomWidth: 1,
-    borderTopColor: 'rgba(255,255,255,0.14)',
-    borderTopWidth: 1,
-    flexDirection: 'row',
-    gap: 14,
-    marginTop: 22,
-    paddingVertical: 13,
-  },
-  traceBadge: {
-    flex: 1,
-  },
-  traceBadgeValue: {
-    color: '#FFFFFF',
-    fontSize: 18,
-    fontWeight: '900',
-  },
-  traceBadgeLabel: {
-    color: 'rgba(255,255,255,0.58)',
-    fontSize: 10,
-    fontWeight: '900',
-    marginTop: 3,
-  },
-  heroAction: {
+  featuredMetaLine: {
     alignItems: 'center',
-    alignSelf: 'flex-start',
-    backgroundColor: '#F3F2EC',
-    borderRadius: 24,
     flexDirection: 'row',
-    gap: 8,
-    marginTop: 22,
-    minHeight: 48,
-    paddingHorizontal: 18,
+    flexWrap: 'wrap',
+    marginTop: 14,
   },
-  heroActionText: {
-    color: '#0C211B',
-    fontSize: 15,
+  featuredMetaText: {
+    color: '#7A8179',
+    fontSize: 11,
     fontWeight: '900',
   },
-  heroActionArrow: {
-    color: '#9F3E39',
-    fontSize: 24,
+  featuredMetaDot: {
+    color: '#A7ADA6',
+    fontSize: 11,
     fontWeight: '900',
-    lineHeight: 26,
+    marginHorizontal: 7,
   },
   searchStage: {
+    marginTop: 28,
     paddingHorizontal: 20,
   },
   searchHeader: {
@@ -628,7 +536,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: '#FFFFFF',
     borderColor: 'rgba(23,36,31,0.08)',
-    borderRadius: 22,
+    borderRadius: 10,
     borderWidth: 1,
     flexDirection: 'row',
     gap: 10,
@@ -682,7 +590,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     marginBottom: 14,
-    marginTop: 30,
+    marginTop: 34,
     paddingHorizontal: 20,
   },
   sectionEyebrow: {
@@ -743,9 +651,9 @@ const styles = StyleSheet.create({
   },
   questionPanel: {
     backgroundColor: '#182A32',
-    marginTop: 34,
+    marginTop: 38,
     paddingHorizontal: 20,
-    paddingVertical: 26,
+    paddingVertical: 30,
   },
   questionPanelHeader: {
     marginBottom: 8,
@@ -792,7 +700,7 @@ const styles = StyleSheet.create({
   filterRail: {
     flexDirection: 'row',
     gap: 8,
-    marginTop: 26,
+    marginTop: 28,
     paddingHorizontal: 20,
   },
   filterChip: {
@@ -816,19 +724,15 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
   },
   roomList: {
-    gap: 12,
     paddingHorizontal: 20,
   },
   bookRow: {
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    borderColor: 'rgba(23,36,31,0.07)',
-    borderRadius: 8,
-    borderWidth: 1,
+    borderBottomColor: 'rgba(23,36,31,0.1)',
+    borderBottomWidth: 1,
     flexDirection: 'row',
     minHeight: 132,
-    overflow: 'hidden',
-    padding: 12,
+    paddingVertical: 16,
   },
   bookRowCover: {
     borderRadius: 3,
@@ -876,8 +780,6 @@ const styles = StyleSheet.create({
   },
   bookRowArrow: {
     alignItems: 'center',
-    backgroundColor: '#EEF0E8',
-    borderRadius: 18,
     height: 36,
     justifyContent: 'center',
     width: 36,
