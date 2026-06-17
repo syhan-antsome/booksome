@@ -378,18 +378,49 @@ async function handleSearchBooks(request: Request, env: Env) {
     return json({ error: 'Query must be at least 2 characters' }, env, 400);
   }
 
-  if (!bookLookupConfig.naverClientId || !bookLookupConfig.naverClientSecret) {
+  if (
+    (!bookLookupConfig.naverClientId || !bookLookupConfig.naverClientSecret) &&
+    !bookLookupConfig.nlSeojiCertKey
+  ) {
     return json({ error: 'Book search is not configured' }, env, 500);
   }
 
+  if (bookLookupConfig.naverClientId && bookLookupConfig.naverClientSecret) {
+    try {
+      const naverResult = await lookupNaverBooksByTitle(query, bookLookupConfig, display);
+
+      if (naverResult.items.length > 0 || !bookLookupConfig.nlSeojiCertKey) {
+        return json(
+          {
+            query,
+            total: naverResult.total,
+            items: naverResult.items,
+          },
+          env,
+        );
+      }
+    } catch (error) {
+      if (!bookLookupConfig.nlSeojiCertKey) {
+        return json(
+          {
+            error: 'Book search failed',
+            message: error instanceof Error ? error.message : 'Unknown error',
+          },
+          env,
+          502,
+        );
+      }
+    }
+  }
+
   try {
-    const naverResult = await lookupNaverBooksByTitle(query, bookLookupConfig, display);
+    const seojiResult = await lookupSeojiBooksByTitle(query, bookLookupConfig, display);
 
     return json(
       {
         query,
-        total: naverResult.total,
-        items: naverResult.items,
+        total: seojiResult.total,
+        items: seojiResult.items,
       },
       env,
     );
@@ -485,6 +516,43 @@ async function lookupSeojiBookByIsbn(isbn: string, config: BookLookupConfig) {
   seojiUrl.searchParams.set('result_style', 'json');
   seojiUrl.searchParams.set('page_no', '1');
   seojiUrl.searchParams.set('page_size', '10');
+
+  const response = await fetch(seojiUrl.toString(), {
+    headers: {
+      accept: 'application/json',
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error(`NL seoji book search failed: ${response.status}`);
+  }
+
+  const payload = (await response.json()) as {
+    TOTAL_COUNT?: string;
+    docs?: SeojiBookItem[];
+  };
+  const items = (payload.docs ?? []).map(toSeojiBookSearchResult).filter((item) => item !== null);
+
+  return {
+    total: parsePositiveInteger(payload.TOTAL_COUNT) ?? items.length,
+    items,
+  };
+}
+
+async function lookupSeojiBooksByTitle(title: string, config: BookLookupConfig, display: number) {
+  if (!config.nlSeojiCertKey) {
+    return {
+      total: 0,
+      items: [],
+    };
+  }
+
+  const seojiUrl = new URL('https://www.nl.go.kr/seoji/SearchApi.do');
+  seojiUrl.searchParams.set('cert_key', config.nlSeojiCertKey);
+  seojiUrl.searchParams.set('title', title);
+  seojiUrl.searchParams.set('result_style', 'json');
+  seojiUrl.searchParams.set('page_no', '1');
+  seojiUrl.searchParams.set('page_size', String(display));
 
   const response = await fetch(seojiUrl.toString(), {
     headers: {

@@ -42,7 +42,7 @@ npx wrangler secret put NAVER_OCR_SECRET
 
 Book lookup runs through this Worker so the mobile app never contains vendor secrets.
 ISBN lookup first checks Naver Book Search, then falls back to the National Library of Korea Seoji API when Naver returns no items.
-Title search uses Naver Book Search `book_adv` with `d_titl`.
+Title search first uses Naver Book Search `book_adv` with `d_titl`, then falls back to the National Library of Korea Seoji API with `title`.
 
 Set these as Worker secrets:
 
