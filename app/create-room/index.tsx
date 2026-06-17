@@ -21,6 +21,7 @@ import { createRoom } from '../../src/services/rooms';
 export default function CreateRoomScreen() {
   const { session } = useAuth();
   const params = useLocalSearchParams<{ isbn13?: string }>();
+  const [bookSearchQuery, setBookSearchQuery] = useState('');
   const [bookTitle, setBookTitle] = useState('');
   const [author, setAuthor] = useState('');
   const [isbn13, setIsbn13] = useState('');
@@ -44,6 +45,7 @@ export default function CreateRoomScreen() {
 
   const selectBook = (book: BookSearchItem) => {
     setSelectedBook(book);
+    setBookSearchQuery(book.title);
     setBookTitle(book.title);
     setAuthor(book.author);
     setIsbn13(book.isbn);
@@ -82,7 +84,7 @@ export default function CreateRoomScreen() {
       setIsSearchingBooks(true);
       setBookSearchResults([]);
 
-      const result = await searchBooksByTitle(bookTitle);
+      const result = await searchBooksByTitle(bookSearchQuery);
       setBookSearchResults(result.items);
 
       if (result.items.length === 0) {
@@ -95,10 +97,14 @@ export default function CreateRoomScreen() {
     }
   };
 
-  const updateBookTitle = (value: string) => {
-    setBookTitle(value);
+  const updateBookSearchQuery = (value: string) => {
+    setBookSearchQuery(value);
     setBookSearchResults([]);
     setBookSearchError(null);
+  };
+
+  const updateBookTitle = (value: string) => {
+    setBookTitle(value);
 
     if (selectedBook && value !== selectedBook.title) {
       setSelectedBook(null);
@@ -182,7 +188,7 @@ export default function CreateRoomScreen() {
         {session ? (
           <>
             <View style={styles.formPanel}>
-              <Text style={styles.label}>책</Text>
+              <Text style={styles.label}>책 검색</Text>
               <View style={styles.scanChoice}>
                 <View style={styles.scanChoiceCopy}>
                   <Text style={styles.scanChoiceTitle}>ISBN으로 책 찾기</Text>
@@ -217,37 +223,16 @@ export default function CreateRoomScreen() {
                   <Text style={styles.lookupText}>도서 정보를 불러오는 중입니다</Text>
                 </View>
               ) : null}
-              {selectedBook ? (
-                <View style={styles.selectedBookPanel}>
-                  {selectedBook.imageUrl ? (
-                    <Image resizeMode="cover" source={{ uri: selectedBook.imageUrl }} style={styles.selectedBookImage} />
-                  ) : (
-                    <View style={styles.selectedBookImageFallback}>
-                      <Text style={styles.selectedBookImageText}>BOOK</Text>
-                    </View>
-                  )}
-                  <View style={styles.selectedBookCopy}>
-                    <Text style={styles.selectedBookTitle} numberOfLines={2}>
-                      {selectedBook.title}
-                    </Text>
-                    <Text style={styles.selectedBookMeta} numberOfLines={1}>
-                      {selectedBook.author}
-                      {selectedBook.publisher ? ` · ${selectedBook.publisher}` : ''}
-                    </Text>
-                    <Text style={styles.selectedBookNote}>이미 열린 책장이 있으면 바로 그곳으로 이동합니다.</Text>
-                  </View>
-                </View>
-              ) : null}
               {bookLookupError ? <Text style={styles.lookupError}>{bookLookupError}</Text> : null}
               <View style={styles.titleSearchRow}>
                 <TextInput
-                  onChangeText={updateBookTitle}
+                  onChangeText={updateBookSearchQuery}
                   onSubmitEditing={searchBooks}
-                  placeholder="책 제목"
+                  placeholder="책 제목으로 검색"
                   placeholderTextColor="#A49B8D"
                   returnKeyType="search"
                   style={[styles.input, styles.titleSearchInput]}
-                  value={bookTitle}
+                  value={bookSearchQuery}
                 />
                 <Pressable
                   disabled={isSearchingBooks}
@@ -255,7 +240,7 @@ export default function CreateRoomScreen() {
                   style={[styles.titleSearchButton, isSearchingBooks ? styles.uploadButtonDisabled : null]}
                 >
                   {isSearchingBooks ? <ActivityIndicator color="#FFFFFF" size="small" /> : null}
-                  <Text style={styles.titleSearchButtonText}>찾기</Text>
+                  <Text style={styles.titleSearchButtonText}>검색</Text>
                 </Pressable>
               </View>
               {bookSearchError ? <Text style={styles.lookupError}>{bookSearchError}</Text> : null}
@@ -290,6 +275,35 @@ export default function CreateRoomScreen() {
                   ))}
                 </View>
               ) : null}
+              <Text style={[styles.label, styles.spacedLabel]}>{selectedBook ? '선택한 책' : '직접 입력'}</Text>
+              {selectedBook ? (
+                <View style={styles.selectedBookPanel}>
+                  {selectedBook.imageUrl ? (
+                    <Image resizeMode="cover" source={{ uri: selectedBook.imageUrl }} style={styles.selectedBookImage} />
+                  ) : (
+                    <View style={styles.selectedBookImageFallback}>
+                      <Text style={styles.selectedBookImageText}>BOOK</Text>
+                    </View>
+                  )}
+                  <View style={styles.selectedBookCopy}>
+                    <Text style={styles.selectedBookTitle} numberOfLines={2}>
+                      {selectedBook.title}
+                    </Text>
+                    <Text style={styles.selectedBookMeta} numberOfLines={1}>
+                      {selectedBook.author}
+                      {selectedBook.publisher ? ` · ${selectedBook.publisher}` : ''}
+                    </Text>
+                    <Text style={styles.selectedBookNote}>이미 열린 책장이 있으면 바로 그곳으로 이동합니다.</Text>
+                  </View>
+                </View>
+              ) : null}
+              <TextInput
+                onChangeText={updateBookTitle}
+                placeholder="책 제목"
+                placeholderTextColor="#A49B8D"
+                style={styles.input}
+                value={bookTitle}
+              />
               <TextInput
                 onChangeText={updateAuthor}
                 placeholder="저자"
