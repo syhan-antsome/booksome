@@ -17,11 +17,11 @@ export const featuredRooms: FeaturedRoom[] = [
     slug: 'demian',
     title: '데미안',
     author: '헤르만 헤세',
-    host: 'Mina',
+    host: '첫 독자',
     members: '1.8k',
     accent: '#E46F58',
     progress: 64,
-    next: '오늘 밤 9:00 챕터 5 함께 읽기',
+    next: '오늘 밤 9:00 챕터 5에 남은 문장들',
     question: '내가 나답게 살기 시작한 순간은 언제였나요?',
     coverUrl: 'https://images.unsplash.com/photo-1519682337058-a94d519337bc?auto=format&fit=crop&w=900&q=80',
   },
@@ -29,7 +29,7 @@ export const featuredRooms: FeaturedRoom[] = [
     slug: 'midnight-library',
     title: 'Midnight Library',
     author: 'Matt Haig',
-    host: 'Noah',
+    host: '첫 독자',
     members: '942',
     accent: '#2F6F95',
     progress: 42,
@@ -41,7 +41,7 @@ export const featuredRooms: FeaturedRoom[] = [
     slug: 'almond',
     title: '아몬드',
     author: '손원평',
-    host: 'Jin',
+    host: '첫 독자',
     members: '726',
     accent: '#C99B32',
     progress: 78,
@@ -54,7 +54,7 @@ export const featuredRooms: FeaturedRoom[] = [
 export const nativeReadiness = [
   {
     title: 'Push',
-    label: '북룸 활동과 모임 알림',
+    label: '북룸 활동과 책장 알림',
   },
   {
     title: 'Deep Link',
@@ -62,7 +62,7 @@ export const nativeReadiness = [
   },
   {
     title: 'Share',
-    label: '질문, 감상, 모임 초대 공유',
+    label: '질문, 감상, 책장 공유',
   },
   {
     title: 'Location',

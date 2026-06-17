@@ -115,7 +115,7 @@ export default function RoomScreen() {
     }
 
     if (remoteRoom.viewerRole) {
-      setActionMessage('이미 이 북룸에 참여 중입니다.');
+      setActionMessage('이미 이 책장에 머물고 있습니다.');
       return;
     }
 
@@ -125,9 +125,9 @@ export default function RoomScreen() {
     try {
       await joinRoom(remoteRoom.id);
       await refreshRoom();
-      setActionMessage('북룸에 참여했습니다.');
+      setActionMessage('이 책장에 머물기 시작했습니다.');
     } catch (error) {
-      setActionMessage(getErrorMessage(error, '북룸 참여에 실패했습니다.'));
+      setActionMessage(getErrorMessage(error, '책장에 들어가지 못했습니다.'));
     } finally {
       setIsJoining(false);
     }
@@ -140,7 +140,7 @@ export default function RoomScreen() {
     }
 
     if (!remoteRoom?.viewerRole) {
-      setActionMessage('먼저 북룸에 참여해야 반응할 수 있습니다.');
+      setActionMessage('먼저 이 책장에 머물러야 흔적을 남길 수 있습니다.');
       return false;
     }
 
@@ -203,7 +203,7 @@ export default function RoomScreen() {
     }
 
     if (!remoteRoom.viewerRole) {
-      setActionMessage('먼저 북룸에 참여해야 글을 남길 수 있습니다.');
+      setActionMessage('먼저 이 책장에 머물러야 글을 남길 수 있습니다.');
       return;
     }
 
@@ -251,7 +251,7 @@ export default function RoomScreen() {
 
     setPostKind('impression');
     setIsAnsweringPrompt(true);
-    setActionMessage('방장의 첫 질문에 이어서 생각을 남겨보세요.');
+    setActionMessage('책의 첫 질문에 이어서 생각을 남겨보세요.');
   };
 
   const room = useMemo(() => {
@@ -262,7 +262,7 @@ export default function RoomScreen() {
         coverPath: null,
         externalCoverUrl: fallbackRoom.coverUrl ?? null,
         description: null,
-        host: fallbackRoom.host,
+        host: '첫 독자',
         members: fallbackRoom.members,
         next: fallbackRoom.next,
         question: fallbackRoom.question,
@@ -277,9 +277,9 @@ export default function RoomScreen() {
       coverPath: remoteRoom.coverPath,
       externalCoverUrl: remoteRoom.externalCoverUrl,
       description: remoteRoom.description,
-      host: remoteRoom.viewerRole === 'founder' ? 'Founder' : 'Host',
+      host: remoteRoom.viewerRole === 'founder' ? '첫 독자' : remoteRoom.viewerRole ? '머무는 독자' : '열린 책장',
       members: remoteRoom.memberCount.toLocaleString(),
-      next: remoteRoom.nextEvent ?? '첫 함께 읽기 일정을 준비해보세요.',
+      next: remoteRoom.nextEvent ?? '첫 읽기 흔적을 기다리고 있습니다.',
       question: remoteRoom.pinnedQuestion ?? '이 책은 당신에게 어떤 질문을 남겼나요?',
       title: remoteRoom.title,
       viewerRole: remoteRoom.viewerRole,
@@ -313,12 +313,12 @@ export default function RoomScreen() {
           <View style={styles.heroGlow} />
           <View style={styles.heroTopBar}>
             <BackButton />
-            <Text style={styles.topStatus}>{isLoading ? '불러오는 중' : isMember ? '참여중' : '열린 북룸'}</Text>
+            <Text style={styles.topStatus}>{isLoading ? '불러오는 중' : isMember ? '머무는 중' : '열린 책장'}</Text>
           </View>
           <View style={styles.heroOrnament} />
           <View style={[styles.heroCopy, isCompact ? styles.heroCopyCompact : null]}>
             <View style={styles.roomMarker}>
-              <Text style={styles.roomMarkerText}>BOOKSOME ROOM</Text>
+              <Text style={styles.roomMarkerText}>BOOKROOM</Text>
               <View style={styles.roomMarkerLine} />
             </View>
             <View style={styles.heroMainRow}>
@@ -333,7 +333,7 @@ export default function RoomScreen() {
             <View style={styles.heroMeta}>
               <Text style={styles.heroMetaText}>{room.host}</Text>
               <View style={styles.heroMetaDot} />
-              <Text style={styles.heroMetaText}>{room.members} readers</Text>
+              <Text style={styles.heroMetaText}>{room.members}명의 독자</Text>
             </View>
           </View>
         </View>
@@ -341,11 +341,11 @@ export default function RoomScreen() {
         {!isMember ? (
           <View style={styles.joinNote}>
             <View style={styles.joinCopy}>
-              <Text style={styles.joinTitle}>이야기에 참여해보세요</Text>
-              <Text style={styles.joinText}>함께 읽고 생각을 나눠보세요.</Text>
+              <Text style={styles.joinTitle}>이 책장에 머물러보세요</Text>
+              <Text style={styles.joinText}>감상, 문장, 질문을 이 책에 남길 수 있습니다.</Text>
             </View>
             <Pressable disabled={isJoining} onPress={handleJoinRoom} style={styles.joinButton}>
-              <Text style={styles.joinButtonText}>{isJoining ? '...' : '참여'}</Text>
+              <Text style={styles.joinButtonText}>{isJoining ? '...' : '머물기'}</Text>
             </Pressable>
           </View>
         ) : null}
@@ -357,7 +357,7 @@ export default function RoomScreen() {
         ) : null}
 
         <View style={styles.roomSheetIntro}>
-          <Text style={styles.roomSheetEyebrow}>책 한 권의 작은 라운지</Text>
+          <Text style={styles.roomSheetEyebrow}>책이 중심인 북룸</Text>
           <Text style={styles.roomSheetTitle}>질문을 따라 읽고, 문장을 따라 만납니다.</Text>
         </View>
 
@@ -393,13 +393,13 @@ export default function RoomScreen() {
                 </View>
                 <View style={styles.questionMarker}>
                   <View style={styles.questionMarkerLine} />
-                  <Text style={styles.questionMarkerText}>방장이 던진 첫 질문</Text>
+                  <Text style={styles.questionMarkerText}>책이 남긴 첫 질문</Text>
                 </View>
               </View>
               <Text style={styles.questionQuote}>“</Text>
               <Text style={styles.question}>{room.question}</Text>
               <View style={styles.questionFooter}>
-                <Text style={styles.questionIntent}>이 질문에서 북룸의 첫 대화가 시작됩니다.</Text>
+                <Text style={styles.questionIntent}>이 질문에서 이 책의 첫 대화가 시작됩니다.</Text>
                 <Pressable onPress={handleAnswerPrompt} style={styles.questionReplyButton}>
                   <Text style={styles.questionReplyText}>답해보기</Text>
                   <Text style={styles.questionReplyArrow}>↑</Text>
@@ -413,7 +413,7 @@ export default function RoomScreen() {
                   <Text style={styles.sectionLabel}>내 문장</Text>
                   <Text style={styles.composerTitle}>책장을 덮기 전 남기기</Text>
                 </View>
-                <Text style={styles.composerState}>{isMember ? '참여 중' : '참여 필요'}</Text>
+                <Text style={styles.composerState}>{isMember ? '머무는 중' : '머문 뒤 가능'}</Text>
               </View>
               <View style={styles.segmented}>
                 {[
@@ -443,7 +443,7 @@ export default function RoomScreen() {
                 <TextInput
                   multiline
                   onChangeText={setPostQuoteText}
-                  placeholder={isMember ? '함께 읽고 싶은 책 속 문장' : '참여 후 책 속 문장을 남길 수 있습니다.'}
+                  placeholder={isMember ? '함께 읽고 싶은 책 속 문장' : '책장에 머문 뒤 문장을 남길 수 있습니다.'}
                   placeholderTextColor="#CBBDA7"
                   style={styles.quoteInput}
                   value={postQuoteText}
@@ -465,8 +465,8 @@ export default function RoomScreen() {
             <View style={styles.postsSection}>
               <View style={styles.sectionHeader}>
                 <View>
-                  <Text style={styles.sectionLabel}>Room notes</Text>
-                  <Text style={styles.sectionTitle}>서로의 문장들</Text>
+                  <Text style={styles.sectionLabel}>Book traces</Text>
+                  <Text style={styles.sectionTitle}>이 책에 남은 문장들</Text>
                 </View>
                 <Text style={styles.sectionCount}>{posts.length}</Text>
               </View>
@@ -509,7 +509,7 @@ export default function RoomScreen() {
                         <Text style={styles.postKind}>{getPostKindLabel(post.kind)}</Text>
                         {post.chapterLabel ? <Text style={styles.postChapter}>{post.chapterLabel}</Text> : null}
                       </View>
-                      <Text style={styles.postAuthor}>{post.authorName ?? 'Reader'}</Text>
+                      <Text style={styles.postAuthor}>{post.authorName ?? '독자'}</Text>
                     </View>
                     {post.quoteText ? (
                       <View style={styles.postQuoteBox}>
@@ -539,7 +539,7 @@ export default function RoomScreen() {
                       <View style={styles.commentsList}>
                         {post.comments.map((comment) => (
                           <View key={comment.id} style={styles.commentItem}>
-                            <Text style={styles.commentAuthor}>{comment.authorName ?? 'Reader'}</Text>
+                            <Text style={styles.commentAuthor}>{comment.authorName ?? '독자'}</Text>
                             <Text style={styles.commentBody}>{comment.body}</Text>
                           </View>
                         ))}
@@ -548,7 +548,7 @@ export default function RoomScreen() {
                     <View style={styles.commentComposer}>
                       <TextInput
                         onChangeText={(text) => setCommentDrafts((drafts) => ({ ...drafts, [post.id]: text }))}
-                        placeholder={isMember ? '댓글을 남겨보세요.' : '참여 후 댓글을 남길 수 있습니다.'}
+                        placeholder={isMember ? '댓글을 남겨보세요.' : '책장에 머문 뒤 댓글을 남길 수 있습니다.'}
                         placeholderTextColor="#8F877B"
                         style={styles.commentInput}
                         value={commentDrafts[post.id] ?? ''}
@@ -577,7 +577,7 @@ export default function RoomScreen() {
             <View style={styles.readingLead}>
               <Text style={styles.sectionLabel}>Now</Text>
               <Text style={styles.readingTitle}>{room.next}</Text>
-              <Text style={styles.readingCopy}>함께 읽기 일정과 챕터별 토론은 이곳에서 관리됩니다.</Text>
+              <Text style={styles.readingCopy}>읽기 일정과 챕터별 대화는 이곳에 쌓입니다.</Text>
             </View>
             <View style={styles.timelineItem}>
               <Text style={styles.timelineTime}>Next</Text>
@@ -585,7 +585,7 @@ export default function RoomScreen() {
             </View>
             <View style={styles.timelineItem}>
               <Text style={styles.timelineTime}>Soon</Text>
-              <Text style={styles.timelineCopy}>읽기 체크인과 참여자 진행률을 연결할 예정입니다.</Text>
+              <Text style={styles.timelineCopy}>읽기 체크인과 독자별 진행률을 연결할 예정입니다.</Text>
             </View>
           </View>
         ) : null}
@@ -593,22 +593,22 @@ export default function RoomScreen() {
         {activeTab === 'info' ? (
           <View style={styles.tabPanel}>
             <View style={styles.infoBlock}>
-              <Text style={styles.sectionLabel}>북룸 노트</Text>
+              <Text style={styles.sectionLabel}>책장 노트</Text>
               <Text style={styles.infoTitle}>{room.title}</Text>
-              <Text style={styles.infoCopy}>{room.description ?? '아직 북룸 소개가 준비되지 않았습니다.'}</Text>
+              <Text style={styles.infoCopy}>{room.description ?? '아직 이 책장 소개가 없습니다.'}</Text>
             </View>
             <View style={styles.infoGrid}>
               <View style={styles.infoCell}>
-                <Text style={styles.infoCellLabel}>Host</Text>
+                <Text style={styles.infoCellLabel}>자리</Text>
                 <Text style={styles.infoCellValue}>{room.host}</Text>
               </View>
               <View style={styles.infoCell}>
-                <Text style={styles.infoCellLabel}>Readers</Text>
+                <Text style={styles.infoCellLabel}>독자</Text>
                 <Text style={styles.infoCellValue}>{room.members}</Text>
               </View>
               <View style={styles.infoCell}>
-                <Text style={styles.infoCellLabel}>Status</Text>
-                <Text style={styles.infoCellValue}>{isMember ? 'Joined' : 'Open'}</Text>
+                <Text style={styles.infoCellLabel}>상태</Text>
+                <Text style={styles.infoCellValue}>{isMember ? '머무는 중' : '열림'}</Text>
               </View>
             </View>
             <View style={styles.ruleBlock}>
@@ -645,8 +645,8 @@ function getPostKindLabel(kind: RoomPost['kind']) {
 }
 
 function getPostBodyPlaceholder(kind: PostComposerKind, isMember: boolean, isAnsweringPrompt: boolean) {
-  if (!isMember) return '참여 후 감상, 문장, 질문을 남길 수 있습니다.';
-  if (isAnsweringPrompt) return '방장의 첫 질문에 대한 생각을 적어보세요.';
+  if (!isMember) return '책장에 머문 뒤 감상, 문장, 질문을 남길 수 있습니다.';
+  if (isAnsweringPrompt) return '책의 첫 질문에 대한 생각을 적어보세요.';
   if (kind === 'question') return '이 책이 나에게 남긴 질문을 적어보세요.';
   if (kind === 'quote') return '이 문장이 왜 마음에 남았는지 적어보세요.';
   return '이 책이 지금 남긴 생각을 적어보세요.';

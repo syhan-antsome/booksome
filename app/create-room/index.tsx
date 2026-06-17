@@ -174,7 +174,7 @@ export default function CreateRoomScreen() {
 
       router.replace(`/room/${room.slug}`);
     } catch (error) {
-      setCreateError(getErrorMessage(error, '북룸 생성에 실패했습니다.'));
+      setCreateError(getErrorMessage(error, '책장을 열지 못했습니다.'));
     } finally {
       setIsCreating(false);
     }
@@ -184,28 +184,28 @@ export default function CreateRoomScreen() {
     <SafeAreaView style={styles.safeArea}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <ScreenHeader
-          eyebrow="Create Bookroom"
-          subtitle="좋아하는 책에 어울리는 대화 공간을 엽니다."
-          title="북룸 만들기"
+          eyebrow="Open Bookroom"
+          subtitle="책 한 권을 중심으로 문장, 질문, 감상을 모읍니다."
+          title="책장에 책 놓기"
           tone="forest"
         />
 
         {!session ? (
           <AuthRequired
-            title="북룸 생성은 로그인 후 열립니다."
-            copy="Host 역할과 운영 권한을 계정에 연결해야 북룸 개설과 관리 기능이 이어질 수 있습니다."
+            title="로그인 후 책장을 열 수 있습니다."
+            copy="처음 남긴 질문과 문장을 내 계정에 연결합니다."
           />
         ) : null}
 
         {session ? (
           <>
             <View style={styles.formPanel}>
-              <Text style={styles.label}>Book</Text>
+              <Text style={styles.label}>책</Text>
               <View style={styles.scanChoice}>
                 <View style={styles.scanChoiceCopy}>
-                  <Text style={styles.scanChoiceTitle}>ISBN으로 책 설정</Text>
+                  <Text style={styles.scanChoiceTitle}>ISBN으로 책 찾기</Text>
                   <Text style={styles.scanChoiceText}>
-                    바코드를 스캔하면 책 고유번호를 북룸에 연결합니다.
+                    바코드를 스캔하면 책 고유번호를 책장에 연결합니다.
                   </Text>
                 </View>
                 <Pressable
@@ -272,17 +272,17 @@ export default function CreateRoomScreen() {
                 value={author}
               />
 
-              <Text style={[styles.label, styles.spacedLabel]}>북룸</Text>
+              <Text style={[styles.label, styles.spacedLabel]}>책장</Text>
               <TextInput
                 onChangeText={setRoomTitle}
-                placeholder="북룸 제목"
+                placeholder="책장 이름"
                 placeholderTextColor="#A49B8D"
                 style={styles.input}
                 value={roomTitle}
               />
               <TextInput
                 onChangeText={setRoomSubtitle}
-                placeholder="짧은 부제"
+                placeholder="짧은 책장 설명"
                 placeholderTextColor="#A49B8D"
                 style={styles.input}
                 value={roomSubtitle}
@@ -290,7 +290,7 @@ export default function CreateRoomScreen() {
               <TextInput
                 multiline
                 onChangeText={setRoomDescription}
-                placeholder="북룸 소개"
+                placeholder="이 책을 어떤 마음으로 열었나요?"
                 placeholderTextColor="#A49B8D"
                 style={[styles.input, styles.textArea]}
                 value={roomDescription}
@@ -298,7 +298,7 @@ export default function CreateRoomScreen() {
               <TextInput
                 multiline
                 onChangeText={setFirstQuestion}
-                placeholder="방장이 던질 첫 질문"
+                placeholder="이 책이 남긴 첫 질문"
                 placeholderTextColor="#A49B8D"
                 style={[styles.input, styles.textArea]}
                 value={firstQuestion}
@@ -310,7 +310,7 @@ export default function CreateRoomScreen() {
                 <Image source={{ uri: coverUri }} style={styles.coverImage} />
               ) : (
                 <>
-                  <Text style={styles.coverTitle}>북룸 커버 선택</Text>
+                  <Text style={styles.coverTitle}>책장 커버 선택</Text>
                   <Text style={styles.coverCopy}>사진 보관함에서 커버 이미지를 불러옵니다.</Text>
                 </>
               )}
@@ -324,7 +324,7 @@ export default function CreateRoomScreen() {
               >
                 {isUploading ? <ActivityIndicator color="#FFFFFF" /> : null}
                 <Text style={styles.uploadButtonText}>
-                  {uploadedCover ? 'R2 업로드 다시 실행' : 'R2에 커버 업로드'}
+                  {uploadedCover ? '커버 다시 업로드' : '커버 업로드'}
                 </Text>
               </Pressable>
             ) : null}
@@ -349,7 +349,7 @@ export default function CreateRoomScreen() {
               style={[styles.createButton, isCreating ? styles.uploadButtonDisabled : null]}
             >
               {isCreating ? <ActivityIndicator color="#FFFFFF" /> : null}
-              <Text style={styles.createButtonText}>북룸 생성</Text>
+              <Text style={styles.createButtonText}>책장 열기</Text>
             </Pressable>
 
             {createError ? (
