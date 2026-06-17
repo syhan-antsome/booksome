@@ -102,6 +102,10 @@ export default {
         return handleGetMedia(request, env);
       }
 
+      if (request.method === 'GET' && url.pathname === '/v1/books/search') {
+        return handleSearchBooks(request, env);
+      }
+
       if (request.method === 'GET' && url.pathname.startsWith('/v1/books/isbn/')) {
         return handleGetBookByIsbn(request, env);
       }
@@ -364,6 +368,43 @@ async function handleGetBookByIsbn(request: Request, env: Env) {
   );
 }
 
+async function handleSearchBooks(request: Request, env: Env) {
+  const url = new URL(request.url);
+  const query = normalizeBookSearchQuery(url.searchParams.get('query') ?? url.searchParams.get('q') ?? '');
+  const display = parseBookSearchDisplay(url.searchParams.get('display'));
+  const bookLookupConfig = getBookLookupConfig(env);
+
+  if (query.length < 2) {
+    return json({ error: 'Query must be at least 2 characters' }, env, 400);
+  }
+
+  if (!bookLookupConfig.naverClientId || !bookLookupConfig.naverClientSecret) {
+    return json({ error: 'Book search is not configured' }, env, 500);
+  }
+
+  try {
+    const naverResult = await lookupNaverBooksByTitle(query, bookLookupConfig, display);
+
+    return json(
+      {
+        query,
+        total: naverResult.total,
+        items: naverResult.items,
+      },
+      env,
+    );
+  } catch (error) {
+    return json(
+      {
+        error: 'Book search failed',
+        message: error instanceof Error ? error.message : 'Unknown error',
+      },
+      env,
+      502,
+    );
+  }
+}
+
 async function lookupNaverBookByIsbn(isbn: string, config: BookLookupConfig) {
   if (!config.naverClientId || !config.naverClientSecret) {
     throw new Error('Naver book search is not configured');
@@ -373,6 +414,39 @@ async function lookupNaverBookByIsbn(isbn: string, config: BookLookupConfig) {
   naverUrl.searchParams.set('d_isbn', isbn);
   naverUrl.searchParams.set('start', '1');
   naverUrl.searchParams.set('display', '10');
+
+  const response = await fetch(naverUrl.toString(), {
+    headers: {
+      'X-Naver-Client-Id': config.naverClientId,
+      'X-Naver-Client-Secret': config.naverClientSecret,
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error(`Naver book search failed: ${response.status}`);
+  }
+
+  const payload = (await response.json()) as {
+    total?: number;
+    items?: NaverBookItem[];
+  };
+  const items = (payload.items ?? []).map(toNaverBookSearchResult).filter((item) => item !== null);
+
+  return {
+    total: payload.total ?? items.length,
+    items,
+  };
+}
+
+async function lookupNaverBooksByTitle(title: string, config: BookLookupConfig, display: number) {
+  if (!config.naverClientId || !config.naverClientSecret) {
+    throw new Error('Naver book search is not configured');
+  }
+
+  const naverUrl = new URL('https://openapi.naver.com/v1/search/book_adv.json');
+  naverUrl.searchParams.set('d_titl', title);
+  naverUrl.searchParams.set('start', '1');
+  naverUrl.searchParams.set('display', String(display));
 
   const response = await fetch(naverUrl.toString(), {
     headers: {
@@ -625,6 +699,19 @@ function normalizeIsbn(value: string) {
 
 function isLikelyIsbn(value: string) {
   return /^[0-9X]{10}$/.test(value) || /^(978|979)[0-9]{10}$/.test(value);
+}
+
+function normalizeBookSearchQuery(value: string) {
+  return value.replace(/\s+/g, ' ').trim().slice(0, 80);
+}
+
+function parseBookSearchDisplay(value: string | null) {
+  if (!value) return 10;
+
+  const parsedValue = Number(value);
+  if (!Number.isInteger(parsedValue)) return 10;
+
+  return Math.min(Math.max(parsedValue, 1), 20);
 }
 
 function toNaverBookSearchResult(item: NaverBookItem) {

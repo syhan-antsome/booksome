@@ -15,7 +15,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { AuthRequired } from '../../src/components/auth-required';
 import { ScreenHeader } from '../../src/components/screen-header';
 import { useAuth } from '../../src/providers/auth-provider';
-import { lookupBookByIsbn, type BookSearchItem } from '../../src/services/books';
+import { lookupBookByIsbn, searchBooksByTitle, type BookSearchItem } from '../../src/services/books';
 import { createRoom } from '../../src/services/rooms';
 
 export default function CreateRoomScreen() {
@@ -25,9 +25,12 @@ export default function CreateRoomScreen() {
   const [author, setAuthor] = useState('');
   const [isbn13, setIsbn13] = useState('');
   const [selectedBook, setSelectedBook] = useState<BookSearchItem | null>(null);
+  const [bookSearchResults, setBookSearchResults] = useState<BookSearchItem[]>([]);
   const [firstQuestion, setFirstQuestion] = useState('');
   const [isLookingUpBook, setIsLookingUpBook] = useState(false);
+  const [isSearchingBooks, setIsSearchingBooks] = useState(false);
   const [bookLookupError, setBookLookupError] = useState<string | null>(null);
+  const [bookSearchError, setBookSearchError] = useState<string | null>(null);
   const [isEntering, setIsEntering] = useState(false);
   const [entryError, setEntryError] = useState<string | null>(null);
 
@@ -38,6 +41,16 @@ export default function CreateRoomScreen() {
       void applyBookLookup(scannedIsbn);
     }
   }, [params.isbn13]);
+
+  const selectBook = (book: BookSearchItem) => {
+    setSelectedBook(book);
+    setBookTitle(book.title);
+    setAuthor(book.author);
+    setIsbn13(book.isbn);
+    setBookSearchResults([]);
+    setBookLookupError(null);
+    setBookSearchError(null);
+  };
 
   const applyBookLookup = async (isbn: string) => {
     setIsLookingUpBook(true);
@@ -53,13 +66,52 @@ export default function CreateRoomScreen() {
         return;
       }
 
-      setSelectedBook(book);
-      setBookTitle((value) => value || book.title);
-      setAuthor((value) => value || book.author);
+      selectBook(book);
     } catch (error) {
       setBookLookupError(getErrorMessage(error, '도서 정보를 불러오지 못했습니다.'));
     } finally {
       setIsLookingUpBook(false);
+    }
+  };
+
+  const searchBooks = async () => {
+    setBookSearchError(null);
+    setBookLookupError(null);
+
+    try {
+      setIsSearchingBooks(true);
+      setBookSearchResults([]);
+
+      const result = await searchBooksByTitle(bookTitle);
+      setBookSearchResults(result.items);
+
+      if (result.items.length === 0) {
+        setBookSearchError('검색 결과가 없습니다. 직접 입력으로 계속할 수 있습니다.');
+      }
+    } catch (error) {
+      setBookSearchError(getErrorMessage(error, '책 제목으로 도서를 찾지 못했습니다.'));
+    } finally {
+      setIsSearchingBooks(false);
+    }
+  };
+
+  const updateBookTitle = (value: string) => {
+    setBookTitle(value);
+    setBookSearchResults([]);
+    setBookSearchError(null);
+
+    if (selectedBook && value !== selectedBook.title) {
+      setSelectedBook(null);
+      setIsbn13('');
+    }
+  };
+
+  const updateAuthor = (value: string) => {
+    setAuthor(value);
+
+    if (selectedBook && value !== selectedBook.author) {
+      setSelectedBook(null);
+      setIsbn13('');
     }
   };
 
@@ -187,15 +239,59 @@ export default function CreateRoomScreen() {
                 </View>
               ) : null}
               {bookLookupError ? <Text style={styles.lookupError}>{bookLookupError}</Text> : null}
+              <View style={styles.titleSearchRow}>
+                <TextInput
+                  onChangeText={updateBookTitle}
+                  onSubmitEditing={searchBooks}
+                  placeholder="책 제목"
+                  placeholderTextColor="#A49B8D"
+                  returnKeyType="search"
+                  style={[styles.input, styles.titleSearchInput]}
+                  value={bookTitle}
+                />
+                <Pressable
+                  disabled={isSearchingBooks}
+                  onPress={searchBooks}
+                  style={[styles.titleSearchButton, isSearchingBooks ? styles.uploadButtonDisabled : null]}
+                >
+                  {isSearchingBooks ? <ActivityIndicator color="#FFFFFF" size="small" /> : null}
+                  <Text style={styles.titleSearchButtonText}>찾기</Text>
+                </Pressable>
+              </View>
+              {bookSearchError ? <Text style={styles.lookupError}>{bookSearchError}</Text> : null}
+              {bookSearchResults.length > 0 ? (
+                <View style={styles.bookSearchResults}>
+                  {bookSearchResults.map((book, index) => (
+                    <Pressable
+                      key={`${book.source}-${book.isbn}-${index}`}
+                      onPress={() => selectBook(book)}
+                      style={styles.bookSearchResult}
+                    >
+                      {book.imageUrl ? (
+                        <Image resizeMode="cover" source={{ uri: book.imageUrl }} style={styles.bookSearchResultImage} />
+                      ) : (
+                        <View style={styles.bookSearchResultImageFallback}>
+                          <Text style={styles.bookSearchResultImageText}>BOOK</Text>
+                        </View>
+                      )}
+                      <View style={styles.bookSearchResultCopy}>
+                        <Text style={styles.bookSearchResultTitle} numberOfLines={2}>
+                          {book.title}
+                        </Text>
+                        <Text style={styles.bookSearchResultMeta} numberOfLines={1}>
+                          {book.author}
+                          {book.publisher ? ` · ${book.publisher}` : ''}
+                        </Text>
+                        <Text style={styles.bookSearchResultIsbn} numberOfLines={1}>
+                          ISBN {book.isbn}
+                        </Text>
+                      </View>
+                    </Pressable>
+                  ))}
+                </View>
+              ) : null}
               <TextInput
-                onChangeText={setBookTitle}
-                placeholder="책 제목"
-                placeholderTextColor="#A49B8D"
-                style={styles.input}
-                value={bookTitle}
-              />
-              <TextInput
-                onChangeText={setAuthor}
+                onChangeText={updateAuthor}
                 placeholder="저자"
                 placeholderTextColor="#A49B8D"
                 style={styles.input}
@@ -399,6 +495,84 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '800',
     lineHeight: 19,
+  },
+  titleSearchRow: {
+    alignItems: 'stretch',
+    flexDirection: 'row',
+    gap: 10,
+  },
+  titleSearchInput: {
+    flex: 1,
+  },
+  titleSearchButton: {
+    alignItems: 'center',
+    backgroundColor: '#116653',
+    borderRadius: 16,
+    flexDirection: 'row',
+    gap: 6,
+    justifyContent: 'center',
+    minHeight: 50,
+    minWidth: 74,
+    paddingHorizontal: 14,
+  },
+  titleSearchButtonText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '900',
+  },
+  bookSearchResults: {
+    backgroundColor: '#F7F2EA',
+    borderColor: '#E6DDCF',
+    borderRadius: 18,
+    borderWidth: 1,
+    overflow: 'hidden',
+  },
+  bookSearchResult: {
+    borderBottomColor: '#E6DDCF',
+    borderBottomWidth: 1,
+    flexDirection: 'row',
+    gap: 12,
+    padding: 12,
+  },
+  bookSearchResultImage: {
+    borderRadius: 10,
+    height: 76,
+    width: 52,
+  },
+  bookSearchResultImageFallback: {
+    alignItems: 'center',
+    backgroundColor: '#E7DED0',
+    borderRadius: 10,
+    height: 76,
+    justifyContent: 'center',
+    width: 52,
+  },
+  bookSearchResultImageText: {
+    color: '#7A6E62',
+    fontSize: 10,
+    fontWeight: '900',
+  },
+  bookSearchResultCopy: {
+    flex: 1,
+    justifyContent: 'center',
+  },
+  bookSearchResultTitle: {
+    color: '#142326',
+    fontSize: 15,
+    fontWeight: '900',
+    lineHeight: 21,
+  },
+  bookSearchResultMeta: {
+    color: '#68716D',
+    fontSize: 12,
+    fontWeight: '800',
+    marginTop: 5,
+  },
+  bookSearchResultIsbn: {
+    color: '#116653',
+    fontSize: 11,
+    fontWeight: '900',
+    marginTop: 6,
   },
   spacedLabel: {
     marginTop: 10,

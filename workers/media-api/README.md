@@ -41,7 +41,8 @@ npx wrangler secret put NAVER_OCR_SECRET
 ## Book Lookup Secrets
 
 Book lookup runs through this Worker so the mobile app never contains vendor secrets.
-The Worker first checks Naver Book Search, then falls back to the National Library of Korea Seoji API when Naver returns no items.
+ISBN lookup first checks Naver Book Search, then falls back to the National Library of Korea Seoji API when Naver returns no items.
+Title search uses Naver Book Search `book_adv` with `d_titl`.
 
 Set these as Worker secrets:
 
@@ -54,6 +55,7 @@ npx wrangler secret put NL_SEOJI_CERT_KEY
 ## Initial Endpoints
 
 - `GET /health`
+- `GET /v1/books/search?query=:title`
 - `GET /v1/books/isbn/:isbn`
 - `POST /v1/ocr/reading-page`
 - `POST /v1/uploads/request`
