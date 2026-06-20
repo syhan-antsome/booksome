@@ -10,7 +10,9 @@ alter table public.book_editions
 alter table public.rooms
   add column if not exists external_cover_url text;
 
-create or replace view public.room_discovery_cards
+drop view if exists public.room_discovery_cards;
+
+create view public.room_discovery_cards
 with (security_invoker = true) as
 select
   r.id,

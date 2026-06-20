@@ -251,7 +251,9 @@ create table if not exists public.reports (
   created_at timestamptz not null default now()
 );
 
-create or replace view public.room_discovery_cards
+drop view if exists public.room_discovery_cards;
+
+create view public.room_discovery_cards
 with (security_invoker = true) as
 select
   r.id,

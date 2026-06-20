@@ -1,7 +1,9 @@
 -- Refresh the discovery view so newly created rooms can be ordered by creation time.
 -- Safe to run after schema.sql.
 
-create or replace view public.room_discovery_cards
+drop view if exists public.room_discovery_cards;
+
+create view public.room_discovery_cards
 with (security_invoker = true) as
 select
   r.id,
