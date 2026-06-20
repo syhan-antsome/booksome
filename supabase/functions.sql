@@ -1,6 +1,15 @@
 -- BookSome server-side functions.
 -- Run after schema.sql and rls.sql.
 
+alter table public.book_works
+  add column if not exists external_cover_url text;
+
+alter table public.book_editions
+  add column if not exists external_cover_url text;
+
+alter table public.rooms
+  add column if not exists external_cover_url text;
+
 drop function if exists public.create_reading_room(text, text, text, text, text, text, text);
 drop function if exists public.create_reading_room(text, text, text, text, text, text, text, text);
 drop function if exists public.create_reading_room(text, text, text, text, text, text, jsonb, text, text, text, text, text);

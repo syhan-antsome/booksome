@@ -62,6 +62,7 @@ Then run the SQL files in Supabase SQL Editor in this order:
 ```text
 supabase/schema.sql
 supabase/rls.sql
+supabase/add-book-lookup-fields.sql
 supabase/functions.sql
 supabase/seed.sql
 ```
@@ -94,6 +95,7 @@ If an existing database needs the Bookroom v2 rule that a book work can have onl
 
 ```text
 supabase/enforce-one-room-per-work.sql
+supabase/add-book-lookup-fields.sql
 supabase/functions.sql
 ```
 
