@@ -55,8 +55,16 @@ on public.posts for select
 using (
   hidden_at is null
   and (
-    public.is_public_room(room_id)
-    or public.is_room_member(room_id)
+    author_id = auth.uid()
+    or public.is_room_operator(room_id)
+    or (
+      visibility = 'public'
+      and moderation_status = 'approved'
+      and (
+        public.is_public_room(room_id)
+        or public.is_room_member(room_id)
+      )
+    )
   )
 );
 
@@ -70,6 +78,8 @@ using (
     from public.posts
     where posts.id = comments.post_id
       and posts.hidden_at is null
+      and posts.visibility = 'public'
+      and posts.moderation_status = 'approved'
       and (
         public.is_public_room(posts.room_id)
         or public.is_room_member(posts.room_id)

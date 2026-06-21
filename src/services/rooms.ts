@@ -26,10 +26,19 @@ export type RoomDetail = {
   accentColor: string;
   coverPath: string | null;
   externalCoverUrl: string | null;
-  pinnedQuestion: string | null;
   nextEvent: string | null;
   memberCount: number;
   viewerRole: string | null;
+  viewerReadingStatus: RoomReadingStatus | null;
+  readingStatusCounts: RoomReadingStatusCounts;
+};
+
+export type RoomReadingStatus = 'want_to_read' | 'reading' | 'finished';
+
+export type RoomReadingStatusCounts = {
+  wantToRead: number;
+  reading: number;
+  finished: number;
 };
 
 export type RoomPost = {
@@ -38,6 +47,11 @@ export type RoomPost = {
   body: string;
   quoteText: string | null;
   chapterLabel: string | null;
+  classificationStatus: 'pending' | 'done' | 'failed' | 'skipped';
+  moderationStatus: 'pending' | 'approved' | 'rejected' | 'needs_review' | 'failed';
+  visibility: 'pending' | 'public' | 'hidden';
+  aiConfidence: number | null;
+  aiReason: string | null;
   authorName: string | null;
   createdAt: string;
   reactionCount: number;
@@ -53,6 +67,26 @@ export type RoomComment = {
   createdAt: string;
 };
 
+export type BookroomFeedItem = {
+  id: string;
+  roomId: string;
+  roomSlug: string;
+  roomTitle: string;
+  roomAuthor: string;
+  roomAccentColor: string;
+  roomCoverPath: string | null;
+  roomExternalCoverUrl: string | null;
+  kind: RoomPost['kind'];
+  body: string;
+  quoteText: string | null;
+  chapterLabel: string | null;
+  authorName: string | null;
+  authorAvatarPath: string | null;
+  createdAt: string;
+  reactionCount: number;
+  commentCount: number;
+};
+
 export type CreateRoomInput = {
   bookTitle: string;
   author: string;
@@ -64,7 +98,6 @@ export type CreateRoomInput = {
   roomTitle?: string;
   roomSubtitle?: string;
   roomDescription?: string;
-  firstQuestion?: string;
   coverPath?: string | null;
 };
 
@@ -77,9 +110,7 @@ export type CreateRoomResult = {
 export type CreateRoomPostInput = {
   roomId: string;
   authorId: string;
-  kind: 'impression' | 'question' | 'quote';
   body: string;
-  quoteText?: string | null;
   chapterLabel?: string | null;
 };
 
@@ -88,6 +119,8 @@ export type CreateRoomCommentInput = {
   authorId: string;
   body: string;
 };
+
+const mediaApiUrl = process.env.EXPO_PUBLIC_MEDIA_API_URL;
 
 export async function listFeaturedRooms() {
   const { data, error } = await supabase
@@ -155,18 +188,8 @@ export async function getRoomDetail(slug: string, viewerId?: string): Promise<Ro
     return null;
   }
 
-  const [{ data: work }, { data: question }, { data: session }, { count }, { data: membership }] =
-    await Promise.all([
+  const [{ data: work }, { data: session }, memberRows] = await Promise.all([
     supabase.from('book_works').select('author').eq('id', room.work_id).maybeSingle(),
-    supabase
-      .from('posts')
-      .select('body')
-      .eq('room_id', room.id)
-      .eq('kind', 'question')
-      .order('pinned', { ascending: false })
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .maybeSingle(),
     supabase
       .from('reading_sessions')
       .select('title')
@@ -174,16 +197,11 @@ export async function getRoomDetail(slug: string, viewerId?: string): Promise<Ro
       .order('starts_at', { ascending: true, nullsFirst: false })
       .limit(1)
       .maybeSingle(),
-    supabase.from('room_members').select('profile_id', { count: 'exact', head: true }).eq('room_id', room.id),
-    viewerId
-      ? supabase
-          .from('room_members')
-          .select('role')
-          .eq('room_id', room.id)
-          .eq('profile_id', viewerId)
-          .maybeSingle()
-      : Promise.resolve({ data: null }),
+    getRoomMemberRows(room.id),
   ]);
+
+  const viewerMembership = viewerId ? memberRows.find((member) => member.profile_id === viewerId) : null;
+  const readingStatusCounts = getReadingStatusCounts(memberRows);
 
   return {
     id: room.id,
@@ -195,21 +213,35 @@ export async function getRoomDetail(slug: string, viewerId?: string): Promise<Ro
     accentColor: room.accent_color,
     coverPath: room.cover_path,
     externalCoverUrl: room.external_cover_url,
-    pinnedQuestion: question?.body ?? null,
     nextEvent: session?.title ?? null,
-    memberCount: count ?? 0,
-    viewerRole: membership?.role ?? null,
+    memberCount: memberRows.length,
+    viewerRole: viewerMembership?.role ?? null,
+    viewerReadingStatus: normalizeReadingStatus(viewerMembership?.reading_status),
+    readingStatusCounts,
   };
 }
 
 export async function listRoomPosts(roomId: string, viewerId?: string): Promise<RoomPost[]> {
-  const { data, error } = await supabase
+  const selectWithReviewFields =
+    'id, kind, body, quote_text, chapter_label, classification_status, moderation_status, visibility, ai_confidence, ai_reason, created_at, profiles:author_id(display_name)';
+  const selectLegacyFields = 'id, kind, body, quote_text, chapter_label, created_at, profiles:author_id(display_name)';
+  const result = await supabase
     .from('posts')
-    .select('id, kind, body, quote_text, chapter_label, created_at, profiles:author_id(display_name)')
+    .select(selectWithReviewFields)
     .eq('room_id', roomId)
     .in('kind', ['impression', 'question', 'quote'])
     .order('created_at', { ascending: false })
     .limit(20);
+
+  const { data, error } = result.error && isMissingReviewColumnError(result.error)
+    ? await supabase
+        .from('posts')
+        .select(selectLegacyFields)
+        .eq('room_id', roomId)
+        .in('kind', ['impression', 'question', 'quote'])
+        .order('created_at', { ascending: false })
+        .limit(20)
+    : result;
 
   if (error) {
     throw error;
@@ -221,6 +253,11 @@ export async function listRoomPosts(roomId: string, viewerId?: string): Promise<
     body: string;
     quote_text: string | null;
     chapter_label: string | null;
+    classification_status?: RoomPost['classificationStatus'] | null;
+    moderation_status?: RoomPost['moderationStatus'] | null;
+    visibility?: RoomPost['visibility'] | null;
+    ai_confidence?: number | string | null;
+    ai_reason?: string | null;
     created_at: string;
     profiles?: { display_name?: string | null } | { display_name?: string | null }[] | null;
   };
@@ -294,6 +331,11 @@ export async function listRoomPosts(roomId: string, viewerId?: string): Promise<
       body: post.body,
       quoteText: post.quote_text,
       chapterLabel: post.chapter_label,
+      classificationStatus: post.classification_status ?? 'done',
+      moderationStatus: post.moderation_status ?? 'approved',
+      visibility: post.visibility ?? 'public',
+      aiConfidence: normalizeConfidence(post.ai_confidence),
+      aiReason: post.ai_reason ?? null,
       authorName: profile?.display_name ?? null,
       createdAt: post.created_at,
       reactionCount: reactionCounts.get(post.id) ?? 0,
@@ -303,25 +345,175 @@ export async function listRoomPosts(roomId: string, viewerId?: string): Promise<
   });
 }
 
-export async function createRoomPost(input: CreateRoomPostInput) {
+export async function listBookroomFeed(limit = 30): Promise<BookroomFeedItem[]> {
   const { data, error } = await supabase
     .from('posts')
-    .insert({
-      room_id: input.roomId,
-      author_id: input.authorId,
-      kind: input.kind,
-      body: input.body.trim(),
-      quote_text: input.quoteText?.trim() || null,
-      chapter_label: input.chapterLabel?.trim() || null,
+    .select(
+      'id, room_id, kind, body, quote_text, chapter_label, created_at, rooms:room_id(id, slug, title, subtitle, accent_color, cover_path, external_cover_url), profiles:author_id(display_name, avatar_path)',
+    )
+    .in('kind', ['impression', 'question', 'quote'])
+    .eq('visibility', 'public')
+    .eq('moderation_status', 'approved')
+    .order('created_at', { ascending: false })
+    .limit(limit);
+
+  if (error) {
+    throw error;
+  }
+
+  type FeedRow = {
+    id: string;
+    room_id: string;
+    kind: RoomPost['kind'];
+    body: string;
+    quote_text: string | null;
+    chapter_label: string | null;
+    created_at: string;
+    rooms?:
+      | {
+          id: string;
+          slug: string;
+          title: string;
+          subtitle: string | null;
+          accent_color: string;
+          cover_path?: string | null;
+          external_cover_url?: string | null;
+        }
+      | {
+          id: string;
+          slug: string;
+          title: string;
+          subtitle: string | null;
+          accent_color: string;
+          cover_path?: string | null;
+          external_cover_url?: string | null;
+        }[]
+      | null;
+    profiles?:
+      | { display_name?: string | null; avatar_path?: string | null }
+      | { display_name?: string | null; avatar_path?: string | null }[]
+      | null;
+  };
+
+  const rows = (data ?? []) as FeedRow[];
+  const postIds = rows.map((post) => post.id);
+
+  const [reactionsResult, commentsResult] = postIds.length
+    ? await Promise.all([
+        supabase.from('reactions').select('post_id').in('post_id', postIds).eq('reaction', 'like'),
+        supabase.from('comments').select('post_id').in('post_id', postIds).is('hidden_at', null),
+      ])
+    : [
+        { data: [], error: null },
+        { data: [], error: null },
+      ];
+
+  if (reactionsResult.error) {
+    throw reactionsResult.error;
+  }
+
+  if (commentsResult.error) {
+    throw commentsResult.error;
+  }
+
+  const reactionCounts = new Map<string, number>();
+  for (const reaction of reactionsResult.data ?? []) {
+    reactionCounts.set(reaction.post_id, (reactionCounts.get(reaction.post_id) ?? 0) + 1);
+  }
+
+  const commentCounts = new Map<string, number>();
+  for (const comment of commentsResult.data ?? []) {
+    commentCounts.set(comment.post_id, (commentCounts.get(comment.post_id) ?? 0) + 1);
+  }
+
+  return rows
+    .map((post) => {
+      const room = Array.isArray(post.rooms) ? post.rooms[0] : post.rooms;
+      const profile = Array.isArray(post.profiles) ? post.profiles[0] : post.profiles;
+
+      if (!room) {
+        return null;
+      }
+
+      return {
+        id: post.id,
+        roomId: post.room_id,
+        roomSlug: room.slug,
+        roomTitle: room.title,
+        roomAuthor: room.subtitle ?? '작가 미상',
+        roomAccentColor: room.accent_color,
+        roomCoverPath: room.cover_path ?? null,
+        roomExternalCoverUrl: room.external_cover_url ?? null,
+        kind: post.kind,
+        body: post.body,
+        quoteText: post.quote_text,
+        chapterLabel: post.chapter_label,
+        authorName: profile?.display_name ?? null,
+        authorAvatarPath: profile?.avatar_path ?? null,
+        createdAt: post.created_at,
+        reactionCount: reactionCounts.get(post.id) ?? 0,
+        commentCount: commentCounts.get(post.id) ?? 0,
+      } satisfies BookroomFeedItem;
     })
+    .filter((post): post is BookroomFeedItem => Boolean(post));
+}
+
+export async function createRoomPost(input: CreateRoomPostInput) {
+  const insertWithReviewFields = {
+    room_id: input.roomId,
+    author_id: input.authorId,
+    kind: 'impression',
+    body: input.body.trim(),
+    quote_text: null,
+    chapter_label: input.chapterLabel?.trim() || null,
+    classification_status: 'pending',
+    moderation_status: 'pending',
+    visibility: 'pending',
+  };
+
+  const result = await supabase
+    .from('posts')
+    .insert(insertWithReviewFields)
     .select('id')
     .single();
+
+  const { data, error } = result.error && isMissingReviewColumnError(result.error)
+    ? await supabase
+        .from('posts')
+        .insert({
+          room_id: input.roomId,
+          author_id: input.authorId,
+          kind: 'impression',
+          body: input.body.trim(),
+          quote_text: null,
+          chapter_label: input.chapterLabel?.trim() || null,
+        })
+        .select('id')
+        .single()
+    : result;
 
   if (error) {
     throw error;
   }
 
   return data as { id: string };
+}
+
+export async function requestRoomPostReview(postId: string, accessToken?: string | null) {
+  if (!mediaApiUrl || !accessToken) {
+    return;
+  }
+
+  const response = await fetch(`${mediaApiUrl.replace(/\/$/, '')}/v1/posts/${encodeURIComponent(postId)}/review`, {
+    method: 'POST',
+    headers: {
+      authorization: `Bearer ${accessToken}`,
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error(`AI 검토 요청에 실패했습니다. (${response.status})`);
+  }
 }
 
 export async function createRoomComment(input: CreateRoomCommentInput) {
@@ -369,6 +561,21 @@ export async function togglePostReaction(postId: string, profileId: string, acti
   }
 }
 
+export async function setRoomReadingStatus(roomId: string, status: RoomReadingStatus) {
+  const { data, error } = await supabase
+    .rpc('set_room_reading_status', {
+      p_room_id: roomId,
+      p_reading_status: status,
+    })
+    .single();
+
+  if (error) {
+    throw error;
+  }
+
+  return data as { room_id: string; profile_id: string; reading_status: RoomReadingStatus };
+}
+
 export async function createRoom(input: CreateRoomInput) {
   const payload = {
     p_book_title: input.bookTitle.trim(),
@@ -381,7 +588,7 @@ export async function createRoom(input: CreateRoomInput) {
     p_room_title: (input.roomTitle || input.bookTitle).trim(),
     p_room_subtitle: input.roomSubtitle?.trim() || null,
     p_room_description: input.roomDescription?.trim() || null,
-    p_first_question: input.firstQuestion?.trim() || null,
+    p_first_question: null,
     p_cover_path: input.coverPath ?? null,
   };
 
@@ -406,13 +613,6 @@ export async function createRoom(input: CreateRoomInput) {
       const fallback = await supabase.rpc('create_reading_room', fallbackPayload).single();
 
       if (fallback.error) {
-        if (!payload.p_first_question && isFirstQuestionRequiredError(fallback.error.message)) {
-          return createRoom({
-            ...input,
-            firstQuestion: '이 책은 당신에게 어떤 질문을 남겼나요?',
-          });
-        }
-
         if (isRpcSignatureError(fallback.error.message)) {
           const legacyPayload = {
             p_book_title: payload.p_book_title,
@@ -426,13 +626,6 @@ export async function createRoom(input: CreateRoomInput) {
           const legacyFallback = await supabase.rpc('create_reading_room', legacyPayload).single();
 
           if (legacyFallback.error) {
-            if (!payload.p_first_question && isFirstQuestionRequiredError(legacyFallback.error.message)) {
-              return createRoom({
-                ...input,
-                firstQuestion: '이 책은 당신에게 어떤 질문을 남겼나요?',
-              });
-            }
-
             throw legacyFallback.error;
           }
 
@@ -445,17 +638,93 @@ export async function createRoom(input: CreateRoomInput) {
       return fallback.data as CreateRoomResult;
     }
 
-    if (!payload.p_first_question && isFirstQuestionRequiredError(error.message)) {
-      return createRoom({
-        ...input,
-        firstQuestion: '이 책은 당신에게 어떤 질문을 남겼나요?',
-      });
-    }
-
     throw error;
   }
 
   return data as CreateRoomResult;
+}
+
+function normalizeConfidence(value: number | string | null | undefined) {
+  if (typeof value === 'number') return Number.isFinite(value) ? value : null;
+  if (typeof value === 'string') {
+    const parsedValue = Number(value);
+    return Number.isFinite(parsedValue) ? parsedValue : null;
+  }
+
+  return null;
+}
+
+type RoomMemberRow = {
+  profile_id: string;
+  role: string;
+  reading_status?: string | null;
+};
+
+async function getRoomMemberRows(roomId: string): Promise<RoomMemberRow[]> {
+  const result = await supabase
+    .from('room_members')
+    .select('profile_id, role, reading_status')
+    .eq('room_id', roomId);
+
+  if (result.error && isMissingReadingStatusColumnError(result.error)) {
+    const fallback = await supabase
+      .from('room_members')
+      .select('profile_id, role')
+      .eq('room_id', roomId);
+
+    if (fallback.error) {
+      throw fallback.error;
+    }
+
+    return (fallback.data ?? []) as RoomMemberRow[];
+  }
+
+  if (result.error) {
+    throw result.error;
+  }
+
+  return (result.data ?? []) as RoomMemberRow[];
+}
+
+function getReadingStatusCounts(memberRows: RoomMemberRow[]): RoomReadingStatusCounts {
+  return memberRows.reduce<RoomReadingStatusCounts>(
+    (counts, member) => {
+      const status = normalizeReadingStatus(member.reading_status);
+
+      if (status === 'want_to_read') {
+        counts.wantToRead += 1;
+      }
+
+      if (status === 'reading') {
+        counts.reading += 1;
+      }
+
+      if (status === 'finished') {
+        counts.finished += 1;
+      }
+
+      return counts;
+    },
+    { wantToRead: 0, reading: 0, finished: 0 },
+  );
+}
+
+function normalizeReadingStatus(value: string | null | undefined): RoomReadingStatus | null {
+  if (value === 'want_to_read' || value === 'reading' || value === 'finished') {
+    return value;
+  }
+
+  return null;
+}
+
+function isMissingReviewColumnError(error: { message?: string; code?: string }) {
+  const message = error.message ?? '';
+  return error.code === '42703' || /classification_status|moderation_status|visibility|ai_confidence|ai_reason/.test(message);
+}
+
+function isMissingReadingStatusColumnError(error: { message?: string; code?: string }) {
+  const message = error.message ?? '';
+  return error.code === '42703' || message.includes('reading_status');
 }
 
 function isRpcSignatureError(message?: string) {
@@ -464,10 +733,6 @@ function isRpcSignatureError(message?: string) {
       message?.includes('function public.create_reading_room') ||
       message?.includes('schema cache')
   );
-}
-
-function isFirstQuestionRequiredError(message?: string) {
-  return Boolean(message?.includes('첫 질문은 꼭 필요합니다'));
 }
 
 export async function joinRoom(roomId: string) {

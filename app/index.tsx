@@ -67,7 +67,7 @@ export default function DiscoverScreen() {
               {isLoading
                 ? '책장을 여는 중'
                 : session
-                  ? `Hi, ${profile?.display_name ?? 'Reader'}`
+                  ? `Hi, ${profile?.display_name ?? '북썸 독자'}`
                   : 'Hi, Reader'}
             </Text>
             <Text style={styles.appLogo}>BookSome</Text>

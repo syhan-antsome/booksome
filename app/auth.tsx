@@ -52,15 +52,21 @@ export default function AuthScreen() {
     () =>
       mode === 'sign-in'
         ? '함께 읽던 북룸과 대화를 계속 이어가세요.'
-        : '좋아하는 책을 고르고, 질문을 남기고, 독서 친구를 만나보세요.',
+        : '필명으로 책에 머물고, 질문과 문장을 안전하게 남겨보세요.',
     [mode],
   );
   const heroHeight = Math.max(300, Math.min(390, height * 0.43));
 
   const submit = async () => {
     setFeedback(null);
-    setIsSubmitting(true);
+    const penName = displayName.trim();
 
+    if (mode === 'sign-up' && !penName) {
+      setFeedback('필명 또는 닉네임을 입력해주세요.');
+      return;
+    }
+
+    setIsSubmitting(true);
     try {
       if (mode === 'sign-in') {
         await signInWithEmail(email.trim(), password);
@@ -69,7 +75,7 @@ export default function AuthScreen() {
         const result = await signUpWithEmail({
           email: email.trim(),
           password,
-          displayName: displayName.trim() || 'Reader',
+          displayName: penName,
         });
 
         if (result.session) {
@@ -167,7 +173,7 @@ export default function AuthScreen() {
                 <TextInput
                   autoCapitalize="words"
                   onChangeText={setDisplayName}
-                  placeholder="표시 이름"
+                  placeholder="필명 또는 닉네임"
                   placeholderTextColor="#8D8A83"
                   style={styles.input}
                   value={displayName}
@@ -218,7 +224,7 @@ export default function AuthScreen() {
                 <Text style={styles.feedback}>이미 로그인되어 있습니다. 뒤로 가면 홈으로 돌아갑니다.</Text>
               ) : null}
 
-              <Text style={styles.note}>내 책장, 북룸, 질문과 모임 알림이 계정에 저장됩니다.</Text>
+              <Text style={styles.note}>북썸 활동은 필명 또는 닉네임으로 표시됩니다. 본명보다 편한 이름을 권장합니다.</Text>
             </View>
           </View>
         </ScrollView>

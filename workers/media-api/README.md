@@ -10,6 +10,7 @@ Cloudflare Worker for handling BookSome media uploads into R2 and server-side bo
 - write into Cloudflare R2
 - proxy book lookup requests without exposing vendor secrets to the app
 - run reading-page text recognition without adding native OCR SDKs to the Expo app
+- queue AI review for bookroom posts before public exposure
 - later notify Supabase or an internal API layer
 
 ## Local Development
@@ -25,11 +26,13 @@ npm run dev
 2. update `bucket_name` in `wrangler.jsonc`
 3. run `npm run types`
 4. set the book lookup secrets
-5. add auth verification before exposing upload endpoints publicly
+5. set the Supabase service role secret for post review
+6. add stricter upload auth verification before exposing upload endpoints publicly
 
 ## Workers AI
 
 The reading-page OCR endpoint first tries Naver CLOVA OCR when configured, then falls back to Workers AI.
+Bookroom post review uses Workers AI for two steps: Llama Guard for safety moderation and a text generation model for `impression | quote | question` classification.
 
 Optional Naver OCR secrets:
 
@@ -37,6 +40,18 @@ Optional Naver OCR secrets:
 npx wrangler secret put NAVER_OCR_INVOKE_URL
 npx wrangler secret put NAVER_OCR_SECRET
 ```
+
+## Bookroom Post Review
+
+Run `supabase/add-post-ai-review.sql` before enabling this endpoint. The Worker verifies the user's Supabase access token, reads the post with the service role key, then reviews it in the background with `ctx.waitUntil()`.
+
+Set this Worker secret:
+
+```sh
+npx wrangler secret put SUPABASE_SERVICE_ROLE_KEY
+```
+
+`SUPABASE_URL` is a non-secret Worker variable in `wrangler.jsonc`.
 
 ## Book Lookup Secrets
 
@@ -58,6 +73,7 @@ npx wrangler secret put NL_SEOJI_CERT_KEY
 - `GET /v1/books/search?query=:title`
 - `GET /v1/books/isbn/:isbn`
 - `POST /v1/ocr/reading-page`
+- `POST /v1/posts/:postId/review`
 - `POST /v1/uploads/request`
 - `PUT /v1/uploads/blob/:kind/:entityId/:fileName`
 

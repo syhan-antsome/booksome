@@ -108,6 +108,40 @@ export async function getProfile(userId: string) {
   return data;
 }
 
+export async function updateProfile(
+  userId: string,
+  input: {
+    displayName?: string;
+    avatarPath?: string | null;
+  },
+) {
+  const payload: {
+    display_name?: string;
+    avatar_path?: string | null;
+    updated_at: string;
+  } = {
+    updated_at: new Date().toISOString(),
+  };
+
+  if (typeof input.displayName === 'string') {
+    payload.display_name = input.displayName.trim();
+  }
+
+  if ('avatarPath' in input) {
+    payload.avatar_path = input.avatarPath ?? null;
+  }
+
+  const { data, error } = await supabase
+    .from('profiles')
+    .update(payload)
+    .eq('id', userId)
+    .select('*')
+    .single<ProfileRecord>();
+
+  if (error) throw error;
+  return data;
+}
+
 export async function ensureProfile(user: User) {
   const existing = await getProfile(user.id);
 
@@ -115,10 +149,11 @@ export async function ensureProfile(user: User) {
     return existing;
   }
 
-  const fallbackName =
-    (user.user_metadata?.display_name as string | undefined) ??
-    user.email?.split('@')[0] ??
-    'Reader';
+  const metadataDisplayName =
+    typeof user.user_metadata?.display_name === 'string'
+      ? user.user_metadata.display_name.trim()
+      : '';
+  const fallbackName = metadataDisplayName || '북썸 독자';
 
   const { data, error } = await supabase
     .from('profiles')

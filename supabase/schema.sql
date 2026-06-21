@@ -98,9 +98,14 @@ create table if not exists public.room_members (
   room_id uuid not null references public.rooms(id) on delete cascade,
   profile_id uuid not null references public.profiles(id) on delete cascade,
   role public.room_member_role not null default 'member',
+  reading_status text,
   joined_at timestamptz not null default now(),
   muted_until timestamptz,
-  primary key (room_id, profile_id)
+  primary key (room_id, profile_id),
+  constraint room_members_reading_status_check check (
+    reading_status is null
+    or reading_status in ('want_to_read', 'reading', 'finished')
+  )
 );
 
 create table if not exists public.posts (
@@ -113,6 +118,12 @@ create table if not exists public.posts (
   chapter_label text,
   spoiler_chapter integer,
   pinned boolean not null default false,
+  classification_status text not null default 'done' check (classification_status in ('pending', 'done', 'failed', 'skipped')),
+  moderation_status text not null default 'approved' check (moderation_status in ('pending', 'approved', 'rejected', 'needs_review', 'failed')),
+  visibility text not null default 'public' check (visibility in ('pending', 'public', 'hidden')),
+  ai_confidence numeric(4, 3) check (ai_confidence is null or (ai_confidence >= 0 and ai_confidence <= 1)),
+  ai_reason text,
+  reviewed_at timestamptz,
   hidden_at timestamptz,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
@@ -197,6 +208,12 @@ create table if not exists public.meetups (
   host_id uuid references public.profiles(id) on delete set null,
   title text not null,
   description text,
+  starting_book_title text,
+  starting_book_author text,
+  starting_book_publisher text,
+  starting_book_translator text,
+  starting_book_isbn text,
+  starting_book_cover_url text,
   status public.meetup_status not null default 'scheduled',
   starts_at timestamptz,
   city text,
@@ -283,7 +300,11 @@ left join lateral (
 left join lateral (
   select body
   from public.posts
-  where room_id = r.id and kind = 'question' and hidden_at is null
+  where room_id = r.id
+    and kind = 'question'
+    and hidden_at is null
+    and visibility = 'public'
+    and moderation_status = 'approved'
   order by pinned desc, created_at desc
   limit 1
 ) pinned on true
@@ -301,7 +322,10 @@ create index if not exists book_editions_isbn13_idx on public.book_editions(isbn
 create index if not exists rooms_work_id_idx on public.rooms(work_id);
 create unique index if not exists rooms_one_per_work_idx on public.rooms(work_id);
 create index if not exists room_members_profile_id_idx on public.room_members(profile_id);
+create index if not exists room_members_reading_status_idx on public.room_members(room_id, reading_status)
+where reading_status is not null;
 create index if not exists posts_room_id_created_at_idx on public.posts(room_id, created_at desc);
+create index if not exists posts_room_visibility_created_at_idx on public.posts(room_id, visibility, created_at desc);
 create index if not exists comments_post_id_created_at_idx on public.comments(post_id, created_at asc);
 create index if not exists reading_books_profile_id_updated_at_idx on public.reading_books(profile_id, updated_at desc);
 create unique index if not exists reading_books_one_pinned_per_profile_idx

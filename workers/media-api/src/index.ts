@@ -5,6 +5,7 @@ type NaverBookItem = {
   link?: string;
   image?: string;
   author?: string;
+  translator?: string;
   discount?: string;
   publisher?: string;
   pubdate?: string;
@@ -28,12 +29,16 @@ type SeojiBookItem = {
   SET_ISBN?: string;
   TITLE?: string;
   TITLE_URL?: string;
+  TRANSLATOR?: string;
+  TRANSLATOR_NAME?: string;
 };
 
 type RecognizedReadingLine = {
   id: string;
   text: string;
 };
+
+type PostClassificationKind = 'impression' | 'quote' | 'question';
 
 type BookLookupConfig = {
   naverClientId?: string;
@@ -44,6 +49,11 @@ type BookLookupConfig = {
 type NaverOcrConfig = {
   invokeUrl?: string;
   secret?: string;
+};
+
+type SupabaseConfig = {
+  url?: string;
+  serviceRoleKey?: string;
 };
 
 type NaverOcrResponse = {
@@ -61,10 +71,46 @@ type EnvWithSecrets = Env & {
   NL_SEOJI_CERT_KEY?: string;
   NAVER_OCR_INVOKE_URL?: string;
   NAVER_OCR_SECRET?: string;
+  SUPABASE_URL?: string;
+  SUPABASE_SERVICE_ROLE_KEY?: string;
+};
+
+type SupabaseUserResponse = {
+  id?: string;
+};
+
+type ReviewablePostRow = {
+  id: string;
+  room_id: string;
+  author_id: string | null;
+  kind: PostClassificationKind | 'notice';
+  body: string;
+  quote_text: string | null;
+  chapter_label: string | null;
+  classification_status?: string | null;
+  moderation_status?: string | null;
+  visibility?: string | null;
+};
+
+type AiClassification = {
+  kind: PostClassificationKind;
+  confidence: number;
+  reason: string;
 };
 
 const readingPageOcrPrompt =
   'Extract exact visible Korean text from this image for a reading-note app. Return JSON only with this shape: {"lines":["..."]}. Each item must be one visible sentence or short line. Preserve Korean text, spacing, and punctuation as much as possible. Do not summarize, translate, describe the image, or add explanations. Omit uncertain text. If no readable text is visible, return {"lines":[]}.';
+
+const postClassificationSystemPrompt =
+  [
+    '너는 한국어 독서 앱 BookSome의 짧은 글을 분류한다.',
+    '분류 기준은 순서대로 적용한다.',
+    '1. 문장이 질문이면 "question"이다. 물음표가 없어도 질문이다. 혼잣말식 질문, 구어체 질문, 토론을 여는 물음도 question이다. 예: "이 책 작가가 누구지", "이 책은 정말 유익할까", "왜 이런 결말일까", "이 인물은 왜 그랬지".',
+    '2. 질문이 아니고, 책 속 문장/구절/인용/기억하고 싶은 문장을 옮기거나 공유하는 글이면 "quote"이다. 책 문장 뒤에 "라는 문장이 좋다", "이 문장이 남았다", "밑줄", "기억하고 싶다" 같은 짧은 감상이 붙어도 quote이다. 예: "작은 마음은 언제나 중요하다\\n\\n라는 문장이 너무 좋네요"는 quote이다.',
+    '3. 위 둘이 아니면 모두 "impression"이다. impression은 나머지/기본 분류다.',
+    '질문성과 감상이 섞이면 question을 우선한다.',
+    '반드시 question, quote, impression 중 하나의 단어만 출력한다. 설명, 문장부호, JSON, markdown을 출력하지 않는다.',
+  ].join(' ');
 
 const allowedKinds: Record<UploadKind, { prefix: string; maxBytes: number }> = {
   avatar: { prefix: 'avatars', maxBytes: 2 * 1024 * 1024 },
@@ -112,6 +158,10 @@ export default {
 
       if (request.method === 'POST' && url.pathname === '/v1/ocr/reading-page') {
         return handleReadingPageOcr(request, env);
+      }
+
+      if (request.method === 'POST' && url.pathname.startsWith('/v1/posts/') && url.pathname.endsWith('/review')) {
+        return handleReviewPost(request, env, ctx);
       }
 
       if (request.method === 'POST' && url.pathname === '/v1/uploads/request') {
@@ -171,6 +221,196 @@ async function handleReadingPageOcr(request: Request, env: Env) {
     },
     env,
   );
+}
+
+async function handleReviewPost(request: Request, env: Env, ctx: ExecutionContext) {
+  const url = new URL(request.url);
+  const postId = extractReviewPostId(url.pathname);
+
+  if (!postId) {
+    return json({ error: 'Invalid post id' }, env, 400);
+  }
+
+  const config = getSupabaseConfig(env);
+  if (!config.url || !config.serviceRoleKey) {
+    return json({ error: 'Post review is not configured' }, env, 503);
+  }
+
+  const accessToken = getBearerToken(request);
+  if (!accessToken) {
+    return json({ error: 'Missing authorization token' }, env, 401);
+  }
+
+  const user = await getSupabaseUser(config, accessToken);
+  if (!user?.id) {
+    return json({ error: 'Invalid authorization token' }, env, 401);
+  }
+
+  const post = await fetchSupabasePost(config, postId);
+  if (!post) {
+    return json({ error: 'Post not found' }, env, 404);
+  }
+
+  if (post.author_id !== user.id) {
+    return json({ error: 'Cannot review this post' }, env, 403);
+  }
+
+  ctx.waitUntil(reviewPostWithAi(env, config, postId));
+
+  return json(
+    {
+      ok: true,
+      postId,
+      status: 'queued',
+    },
+    env,
+    202,
+  );
+}
+
+async function reviewPostWithAi(env: Env, config: SupabaseConfig, postId: string) {
+  try {
+    const post = await fetchSupabasePost(config, postId);
+    if (!post) {
+      return;
+    }
+
+    await patchSupabasePost(config, postId, {
+      classification_status: 'pending',
+      moderation_status: 'pending',
+      visibility: 'pending',
+      hidden_at: null,
+    });
+
+    const moderation = await moderateRoomPost(env, post);
+
+    if (moderation.status !== 'approved') {
+      await patchSupabasePost(config, postId, {
+        classification_status: 'skipped',
+        moderation_status: moderation.status,
+        visibility: 'hidden',
+        hidden_at: new Date().toISOString(),
+        ai_reason: moderation.reason,
+        reviewed_at: new Date().toISOString(),
+      });
+      return;
+    }
+
+    const classification = await classifyRoomPost(env, post);
+
+    await patchSupabasePost(config, postId, {
+      kind: classification.kind,
+      classification_status: 'done',
+      moderation_status: 'approved',
+      visibility: 'public',
+      hidden_at: null,
+      ai_confidence: classification.confidence,
+      ai_reason: classification.reason,
+      reviewed_at: new Date().toISOString(),
+    });
+  } catch (error) {
+    console.warn(
+      JSON.stringify({
+        level: 'warn',
+        action: 'post_ai_review_failed',
+        postId,
+        message: error instanceof Error ? error.message : 'Unknown error',
+      }),
+    );
+
+    try {
+      await patchSupabasePost(config, postId, {
+        classification_status: 'failed',
+        moderation_status: 'failed',
+        visibility: 'hidden',
+        hidden_at: new Date().toISOString(),
+        ai_reason: error instanceof Error ? error.message.slice(0, 500) : 'AI review failed',
+        reviewed_at: new Date().toISOString(),
+      });
+    } catch (patchError) {
+      console.warn(
+        JSON.stringify({
+          level: 'warn',
+          action: 'post_ai_review_failure_patch_failed',
+          postId,
+          message: patchError instanceof Error ? patchError.message : 'Unknown error',
+        }),
+      );
+    }
+  }
+}
+
+async function moderateRoomPost(env: Env, post: ReviewablePostRow) {
+  const content = [
+    post.body,
+    post.chapter_label ? `Context label: ${post.chapter_label}` : '',
+  ]
+    .filter(Boolean)
+    .join('\n');
+  const result = await env.AI.run('@cf/meta/llama-guard-3-8b', {
+    messages: [
+      {
+        role: 'user',
+        content,
+      },
+    ],
+    max_tokens: 120,
+    temperature: 0,
+  });
+  const text = extractAiText(result).trim();
+
+  if (/^safe\b/i.test(text)) {
+    return {
+      status: 'approved' as const,
+      reason: 'safe',
+    };
+  }
+
+  if (/^unsafe\b/i.test(text) || /\bunsafe\b/i.test(text)) {
+    return {
+      status: 'needs_review' as const,
+      reason: text.slice(0, 500) || 'unsafe',
+    };
+  }
+
+  return {
+    status: 'needs_review' as const,
+    reason: text.slice(0, 500) || 'uncertain',
+  };
+}
+
+async function classifyRoomPost(env: Env, post: ReviewablePostRow): Promise<AiClassification> {
+  const result = await env.AI.run('@cf/meta/llama-3.3-70b-instruct-fp8-fast', {
+    messages: [
+      {
+        role: 'system',
+        content: postClassificationSystemPrompt,
+      },
+      {
+        role: 'user',
+        content: [
+          `"${post.body}" 라는 문장이 질문이면 "question", 인용/책 문장이면 "quote", 나머지는 "impression"으로 분류해줘.`,
+          post.chapter_label ? `쪽/챕터/장면: ${post.chapter_label}` : '',
+        ]
+        .filter(Boolean)
+        .join('\n'),
+      },
+    ],
+    max_tokens: 180,
+    temperature: 0,
+  });
+  const text = extractAiText(result);
+  const kind = parseClassificationLabel(text);
+  const confidence = kind ? 0.86 : 0.5;
+  const reason = kind
+    ? `AI label: ${kind}`
+    : `AI label parse failed: ${text.slice(0, 300) || 'empty response'}`;
+
+  return {
+    kind: kind ?? 'impression',
+    confidence,
+    reason,
+  };
 }
 
 async function recognizeReadingPageText(env: Env, imageBuffer: ArrayBuffer, contentType: string) {
@@ -744,6 +984,94 @@ function getNaverOcrConfig(env: Env): NaverOcrConfig {
   };
 }
 
+function getSupabaseConfig(env: Env): SupabaseConfig {
+  const secretEnv = env as EnvWithSecrets;
+
+  return {
+    url: secretEnv.SUPABASE_URL,
+    serviceRoleKey: secretEnv.SUPABASE_SERVICE_ROLE_KEY,
+  };
+}
+
+function extractReviewPostId(pathname: string) {
+  const match = pathname.match(/^\/v1\/posts\/([0-9a-fA-F-]{36})\/review$/);
+  return match?.[1] ?? null;
+}
+
+function getBearerToken(request: Request) {
+  const authorization = request.headers.get('authorization') ?? '';
+  const match = authorization.match(/^Bearer\s+(.+)$/i);
+  return match?.[1]?.trim() ?? '';
+}
+
+async function getSupabaseUser(config: SupabaseConfig, accessToken: string) {
+  if (!config.url || !config.serviceRoleKey) return null;
+
+  const response = await fetch(`${config.url.replace(/\/$/, '')}/auth/v1/user`, {
+    headers: {
+      apikey: config.serviceRoleKey,
+      authorization: `Bearer ${accessToken}`,
+    },
+  });
+
+  if (!response.ok) {
+    return null;
+  }
+
+  return (await response.json()) as SupabaseUserResponse;
+}
+
+async function fetchSupabasePost(config: SupabaseConfig, postId: string) {
+  if (!config.url || !config.serviceRoleKey) return null;
+
+  const url = new URL(`${config.url.replace(/\/$/, '')}/rest/v1/posts`);
+  url.searchParams.set('id', `eq.${postId}`);
+  url.searchParams.set(
+    'select',
+    'id,room_id,author_id,kind,body,quote_text,chapter_label,classification_status,moderation_status,visibility',
+  );
+
+  const response = await fetch(url.toString(), {
+    headers: getSupabaseServiceHeaders(config),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to fetch Supabase post: ${response.status}`);
+  }
+
+  const rows = (await response.json()) as ReviewablePostRow[];
+  return rows[0] ?? null;
+}
+
+async function patchSupabasePost(config: SupabaseConfig, postId: string, payload: Record<string, unknown>) {
+  if (!config.url || !config.serviceRoleKey) return;
+
+  const url = new URL(`${config.url.replace(/\/$/, '')}/rest/v1/posts`);
+  url.searchParams.set('id', `eq.${postId}`);
+
+  const response = await fetch(url.toString(), {
+    method: 'PATCH',
+    headers: {
+      ...getSupabaseServiceHeaders(config),
+      'content-type': 'application/json',
+      prefer: 'return=minimal',
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to update Supabase post: ${response.status}`);
+  }
+}
+
+function getSupabaseServiceHeaders(config: SupabaseConfig) {
+  return {
+    accept: 'application/json',
+    apikey: config.serviceRoleKey ?? '',
+    authorization: `Bearer ${config.serviceRoleKey ?? ''}`,
+  };
+}
+
 function normalizeExtension(input?: string) {
   if (!input) return 'jpg';
   const cleaned = input.toLowerCase().replace(/[^a-z0-9]/g, '');
@@ -793,6 +1121,7 @@ function toNaverBookSearchResult(item: NaverBookItem) {
     title: cleanNaverText(item.title),
     author: cleanNaverText(item.author),
     publisher: cleanNaverText(item.publisher ?? ''),
+    translator: extractBookTranslator(item),
     publishedDate: cleanNaverText(item.pubdate ?? ''),
     isbn,
     imageUrl: item.image ?? null,
@@ -819,6 +1148,7 @@ function toSeojiBookSearchResult(item: SeojiBookItem) {
     title,
     author: cleanSeojiText(item.AUTHOR ?? '') || '작가 미상',
     publisher: cleanSeojiText(item.PUBLISHER ?? ''),
+    translator: extractBookTranslator(item),
     publishedDate: normalizeSeojiPublishedDate(item.REAL_PUBLISH_DATE || item.PUBLISH_PREDATE || item.INPUT_DATE || ''),
     isbn,
     imageUrl: null,
@@ -846,6 +1176,57 @@ function cleanNaverText(value: string) {
 
 function cleanSeojiText(value: string) {
   return value.replace(/\s+/g, ' ').trim();
+}
+
+function extractBookTranslator(item: object) {
+  const record = item as Record<string, unknown>;
+  const candidateKeys = [
+    'translator',
+    'translators',
+    'translatorName',
+    'translator_name',
+    'TRANSLATOR',
+    'TRANSLATORS',
+    'TRANSLATOR_NAME',
+    'TRANSLATOR_NM',
+    'TRNSLATOR',
+    'TRNSLATOR_NM',
+    'TRSLTR',
+    'TRSLTR_NM',
+    '번역자',
+    '옮긴이',
+  ];
+
+  for (const key of candidateKeys) {
+    const translator = cleanBookTextValue(record[key]);
+    if (translator) return translator;
+  }
+
+  return null;
+}
+
+function cleanBookTextValue(value: unknown): string | null {
+  if (typeof value === 'string') {
+    const cleanedValue = cleanSeojiText(cleanNaverText(value));
+    return cleanedValue || null;
+  }
+
+  if (Array.isArray(value)) {
+    const cleanedValues = value.map(cleanBookTextValue).filter((item) => item !== null);
+    return cleanedValues.length > 0 ? cleanedValues.join(', ') : null;
+  }
+
+  if (typeof value === 'object' && value) {
+    const record = value as Record<string, unknown>;
+    const nestedKeys = ['name', 'NAME', 'nm', 'NM', 'text', 'TEXT', 'value', 'VALUE'];
+
+    for (const key of nestedKeys) {
+      const cleanedValue = cleanBookTextValue(record[key]);
+      if (cleanedValue) return cleanedValue;
+    }
+  }
+
+  return null;
 }
 
 function normalizeSeojiPublishedDate(value: string) {
@@ -975,6 +1356,32 @@ function extractJsonLines(value: string): string[] {
   }
 
   return [];
+}
+
+function parseClassificationLabel(value: string): PostClassificationKind | null {
+  const normalizedValue = value
+    .replace(/```[\s\S]*?```/g, (block) => block.replace(/```/g, ''))
+    .replace(/["'`.,:;!?()[\]{}]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toLowerCase();
+
+  const firstToken = normalizedValue.split(' ')[0];
+  if (isPostClassificationKind(firstToken)) {
+    return firstToken;
+  }
+
+  for (const label of ['question', 'quote', 'impression'] as const) {
+    if (normalizedValue.includes(label)) {
+      return label;
+    }
+  }
+
+  return null;
+}
+
+function isPostClassificationKind(value: unknown): value is PostClassificationKind {
+  return value === 'impression' || value === 'quote' || value === 'question';
 }
 
 function isObjectRecord(value: unknown): value is Record<string, unknown> {

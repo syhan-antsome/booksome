@@ -140,8 +140,16 @@ on public.posts for select
 using (
   hidden_at is null
   and (
-    public.is_public_room(room_id)
-    or public.is_room_member(room_id)
+    author_id = auth.uid()
+    or public.is_room_operator(room_id)
+    or (
+      visibility = 'public'
+      and moderation_status = 'approved'
+      and (
+        public.is_public_room(room_id)
+        or public.is_room_member(room_id)
+      )
+    )
   )
 );
 
@@ -156,10 +164,10 @@ with check (
   )
 );
 
-create policy "Authors and room operators can update posts"
+create policy "Room operators can update posts"
 on public.posts for update
-using (author_id = auth.uid() or public.is_room_operator(room_id))
-with check (author_id = auth.uid() or public.is_room_operator(room_id));
+using (public.is_room_operator(room_id))
+with check (public.is_room_operator(room_id));
 
 create policy "Comments are readable when parent post is readable"
 on public.comments for select
@@ -170,6 +178,8 @@ using (
     from public.posts
     where posts.id = comments.post_id
       and posts.hidden_at is null
+      and posts.visibility = 'public'
+      and posts.moderation_status = 'approved'
       and (
         public.is_public_room(posts.room_id)
         or public.is_room_member(posts.room_id)
@@ -186,6 +196,9 @@ with check (
     select 1
     from public.posts
     where posts.id = comments.post_id
+      and posts.hidden_at is null
+      and posts.visibility = 'public'
+      and posts.moderation_status = 'approved'
       and public.is_room_member(posts.room_id)
   )
 );
@@ -274,6 +287,22 @@ on public.meetups for all
 to authenticated
 using (room_id is not null and public.is_room_operator(room_id))
 with check (room_id is not null and public.is_room_operator(room_id));
+
+create policy "Meetup hosts create meetups"
+on public.meetups for insert
+to authenticated
+with check (host_id = auth.uid());
+
+create policy "Meetup hosts update their meetups"
+on public.meetups for update
+to authenticated
+using (host_id = auth.uid())
+with check (host_id = auth.uid());
+
+create policy "Meetup hosts delete their meetups"
+on public.meetups for delete
+to authenticated
+using (host_id = auth.uid());
 
 create policy "Media is readable"
 on public.media_assets for select

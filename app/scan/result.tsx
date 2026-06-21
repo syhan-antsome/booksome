@@ -29,7 +29,15 @@ import {
 
 export default function ScanResultScreen() {
   const { session } = useAuth();
-  const params = useLocalSearchParams<{ context?: string; isbn?: string }>();
+  const params = useLocalSearchParams<{
+    context?: string;
+    isbn?: string;
+    meetupCity?: string;
+    meetupDescription?: string;
+    meetupDistrict?: string;
+    meetupProvince?: string;
+    meetupTitle?: string;
+  }>();
   const [bookResults, setBookResults] = useState<BookSearchItem[]>([]);
   const [isLookingUpBook, setIsLookingUpBook] = useState(false);
   const [bookLookupError, setBookLookupError] = useState<string | null>(null);
@@ -45,6 +53,7 @@ export default function ScanResultScreen() {
   const normalizedIsbn = useMemo(() => normalizeIsbn(rawIsbn ?? ''), [rawIsbn]);
   const isRoomContext = params.context === 'create-room';
   const isMarketContext = params.context === 'market-listing';
+  const isMeetupContext = params.context === 'meetup-book';
   const selectedBook = bookResults[0] ?? null;
   const selectedBookIsbn = useMemo(
     () => normalizeIsbn(selectedBook?.isbn || normalizedIsbn),
@@ -59,7 +68,7 @@ export default function ScanResultScreen() {
     !isCheckingDuplicate &&
     !isAddingToReadingLife &&
     !duplicateBook &&
-    (isRoomContext || isMarketContext || totalPagesValue !== null);
+    (isRoomContext || isMarketContext || isMeetupContext || totalPagesValue !== null);
 
   useEffect(() => {
     let isMounted = true;
@@ -100,7 +109,7 @@ export default function ScanResultScreen() {
   useEffect(() => {
     let isMounted = true;
 
-    if (!session?.user.id || isRoomContext || isMarketContext || !selectedBookIsbn) {
+    if (!session?.user.id || isRoomContext || isMarketContext || isMeetupContext || !selectedBookIsbn) {
       setDuplicateBook(null);
       setIsCheckingDuplicate(false);
       return;
@@ -124,7 +133,7 @@ export default function ScanResultScreen() {
     return () => {
       isMounted = false;
     };
-  }, [isMarketContext, isRoomContext, selectedBookIsbn, session?.user.id]);
+  }, [isMarketContext, isMeetupContext, isRoomContext, selectedBookIsbn, session?.user.id]);
 
   const returnToScanner = () => {
     router.replace({
@@ -132,6 +141,16 @@ export default function ScanResultScreen() {
       params: {
         ...(isRoomContext ? { context: 'create-room' } : {}),
         ...(isMarketContext ? { context: 'market-listing' } : {}),
+        ...(isMeetupContext
+          ? {
+              context: 'meetup-book',
+              meetupCity: getStringParam(params.meetupCity),
+              meetupDescription: getStringParam(params.meetupDescription),
+              meetupDistrict: getStringParam(params.meetupDistrict),
+              meetupProvince: getStringParam(params.meetupProvince),
+              meetupTitle: getStringParam(params.meetupTitle),
+            }
+          : {}),
       },
     });
   };
@@ -142,6 +161,11 @@ export default function ScanResultScreen() {
         ? '/create-room'
         : isMarketContext
           ? '/market/new'
+          : isMeetupContext
+            ? {
+                pathname: '/meetups/new',
+                params: getMeetupReturnParams(params),
+              }
           : '/reading-life',
     );
   };
@@ -166,6 +190,22 @@ export default function ScanResultScreen() {
           isbn: selectedBook.isbn || normalizedIsbn,
           source: 'scan',
           title: selectedBook.title,
+        },
+      });
+      return;
+    }
+
+    if (isMeetupContext) {
+      router.replace({
+        pathname: '/meetups/new',
+        params: {
+          ...getMeetupReturnParams(params),
+          bookAuthor: selectedBook.author,
+          bookCoverUrl: selectedBook.imageUrl ?? '',
+          bookIsbn: selectedBook.isbn || normalizedIsbn,
+          bookPublisher: selectedBook.publisher,
+          bookTitle: selectedBook.title,
+          bookTranslator: selectedBook.translator ?? '',
         },
       });
       return;
@@ -291,7 +331,7 @@ export default function ScanResultScreen() {
               </Pressable>
             }
             eyebrow="ISBN Result"
-            subtitle={getResultSubtitle(isRoomContext, isMarketContext)}
+            subtitle={getResultSubtitle(isRoomContext, isMarketContext, isMeetupContext)}
             title="스캔 결과"
             tone="paper"
           />
@@ -343,10 +383,7 @@ export default function ScanResultScreen() {
                   <View style={styles.bookCopy}>
                     <Text style={styles.bookKicker}>찾은 책</Text>
                     <Text style={styles.bookTitle}>{selectedBook.title}</Text>
-                    <Text style={styles.bookMeta}>
-                      {selectedBook.author}
-                      {selectedBook.publisher ? ` · ${selectedBook.publisher}` : ''}
-                    </Text>
+                    <Text style={styles.bookMeta}>{getBookMetaText(selectedBook)}</Text>
                     {selectedBook.description ? (
                       <Text numberOfLines={5} style={styles.bookDescription}>
                         {selectedBook.description}
@@ -414,7 +451,13 @@ export default function ScanResultScreen() {
                     <ActivityIndicator color="#FFFFFF" />
                   ) : (
                     <Text style={styles.primaryButtonText}>
-                      {isRoomContext ? '북룸 책으로 사용' : isMarketContext ? '책가게에 사용' : '내 책장에 등록'}
+                      {isRoomContext
+                        ? '북룸 책으로 사용'
+                        : isMarketContext
+                          ? '책가게에 사용'
+                          : isMeetupContext
+                            ? '시작 책으로 사용'
+                            : '내 책장에 등록'}
                     </Text>
                   )}
                 </Pressable>
@@ -422,7 +465,13 @@ export default function ScanResultScreen() {
 
               <Pressable onPress={cancelRegistration} style={styles.cancelButton}>
                 <Text style={styles.cancelButtonText}>
-                  {isRoomContext ? '북룸 책 설정 취소' : isMarketContext ? '책가게 등록 취소' : '등록 취소'}
+                  {isRoomContext
+                    ? '북룸 책 설정 취소'
+                    : isMarketContext
+                      ? '책가게 등록 취소'
+                      : isMeetupContext
+                        ? '시작 책 설정 취소'
+                        : '등록 취소'}
                 </Text>
               </Pressable>
             </>
@@ -445,10 +494,41 @@ function parsePositiveInteger(value: string) {
   return Number.isSafeInteger(parsedValue) && parsedValue > 0 ? parsedValue : null;
 }
 
-function getResultSubtitle(isRoomContext: boolean, isMarketContext: boolean) {
+function getResultSubtitle(isRoomContext: boolean, isMarketContext: boolean, isMeetupContext = false) {
   if (isRoomContext) return '도서 정보를 확인하고 북룸으로 가져갑니다.';
   if (isMarketContext) return '도서 정보를 확인하고 책가게 등록에 사용합니다.';
+  if (isMeetupContext) return '도서 정보를 확인하고 시작 책으로 사용합니다.';
   return '도서 정보를 확인하고 마지막 페이지를 입력합니다.';
+}
+
+function getMeetupReturnParams(params: {
+  meetupCity?: string | string[];
+  meetupDescription?: string | string[];
+  meetupDistrict?: string | string[];
+  meetupProvince?: string | string[];
+  meetupTitle?: string | string[];
+}) {
+  return {
+    meetupCity: getStringParam(params.meetupCity),
+    meetupDescription: getStringParam(params.meetupDescription),
+    meetupDistrict: getStringParam(params.meetupDistrict),
+    meetupProvince: getStringParam(params.meetupProvince),
+    meetupTitle: getStringParam(params.meetupTitle),
+  };
+}
+
+function getBookMetaText(book: BookSearchItem) {
+  return [
+    book.author,
+    book.publisher,
+    book.translator ? `${book.translator} 옮김` : null,
+  ]
+    .filter(Boolean)
+    .join(' · ');
+}
+
+function getStringParam(value: string | string[] | undefined) {
+  return Array.isArray(value) ? value[0] ?? '' : value ?? '';
 }
 
 function getErrorMessage(error: unknown, fallback: string) {

@@ -42,7 +42,11 @@ left join lateral (
 left join lateral (
   select body
   from public.posts
-  where room_id = r.id and kind = 'question' and hidden_at is null
+  where room_id = r.id
+    and kind = 'question'
+    and hidden_at is null
+    and visibility = 'public'
+    and moderation_status = 'approved'
   order by pinned desc, created_at desc
   limit 1
 ) pinned on true

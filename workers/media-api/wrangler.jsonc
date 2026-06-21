@@ -12,7 +12,8 @@
     "MEDIA_BUCKET_NAME": "booksome-media-dev",
     "UPLOAD_MAX_BYTES": "8388608",
     "OCR_MAX_BYTES": "5242880",
-    "ALLOWED_ORIGIN": "http://localhost:8081"
+    "ALLOWED_ORIGIN": "http://localhost:8081",
+    "SUPABASE_URL": "https://ctprzqotfdylgodivnlq.supabase.co"
   },
   "ai": {
     "binding": "AI"

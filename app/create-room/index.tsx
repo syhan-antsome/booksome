@@ -27,7 +27,6 @@ export default function CreateRoomScreen() {
   const [isbn13, setIsbn13] = useState('');
   const [selectedBook, setSelectedBook] = useState<BookSearchItem | null>(null);
   const [bookSearchResults, setBookSearchResults] = useState<BookSearchItem[]>([]);
-  const [firstQuestion, setFirstQuestion] = useState('');
   const [isLookingUpBook, setIsLookingUpBook] = useState(false);
   const [isSearchingBooks, setIsSearchingBooks] = useState(false);
   const [bookLookupError, setBookLookupError] = useState<string | null>(null);
@@ -156,7 +155,6 @@ export default function CreateRoomScreen() {
         roomTitle: bookTitle,
         roomSubtitle: author,
         roomDescription: selectedBook?.description ?? '',
-        firstQuestion,
         coverPath: null,
       });
 
@@ -181,7 +179,7 @@ export default function CreateRoomScreen() {
         {!session ? (
           <AuthRequired
             title="로그인 후 책장에 머물 수 있습니다."
-            copy="내가 남긴 문장과 질문을 내 책자리로 이어갑니다."
+            copy="내가 남긴 문장을 내 책자리로 이어갑니다."
           />
         ) : null}
 
@@ -311,16 +309,6 @@ export default function CreateRoomScreen() {
                 style={styles.input}
                 value={author}
               />
-
-              <Text style={[styles.label, styles.spacedLabel]}>첫 흔적</Text>
-              <TextInput
-                multiline
-                onChangeText={setFirstQuestion}
-                placeholder="이 책이 남긴 질문이 있다면 남겨보세요. 비워도 책장에 머물 수 있습니다."
-                placeholderTextColor="#A49B8D"
-                style={[styles.input, styles.textArea]}
-                value={firstQuestion}
-              />
             </View>
 
             <Pressable
@@ -329,7 +317,7 @@ export default function CreateRoomScreen() {
               style={[styles.createButton, isEntering ? styles.uploadButtonDisabled : null]}
             >
               {isEntering ? <ActivityIndicator color="#FFFFFF" /> : null}
-              <Text style={styles.createButtonText}>이 책장에 머물기</Text>
+              <Text style={styles.createButtonText}>북룸으로 가기</Text>
             </Pressable>
 
             {entryError ? (
@@ -602,10 +590,6 @@ const styles = StyleSheet.create({
     minHeight: 50,
     paddingHorizontal: 14,
     paddingVertical: 12,
-  },
-  textArea: {
-    minHeight: 92,
-    textAlignVertical: 'top',
   },
   uploadButtonDisabled: {
     opacity: 0.68,

@@ -10,7 +10,14 @@ import { useAuth } from '../../src/providers/auth-provider';
 
 export default function ScanScreen() {
   const { session } = useAuth();
-  const params = useLocalSearchParams<{ context?: string }>();
+  const params = useLocalSearchParams<{
+    context?: string;
+    meetupCity?: string;
+    meetupDescription?: string;
+    meetupDistrict?: string;
+    meetupProvince?: string;
+    meetupTitle?: string;
+  }>();
   const [permission, requestPermission] = useCameraPermissions();
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [scanError, setScanError] = useState<string | null>(null);
@@ -18,6 +25,7 @@ export default function ScanScreen() {
   const isGranted = permission?.granted;
   const isRoomContext = params.context === 'create-room';
   const isMarketContext = params.context === 'market-listing';
+  const isMeetupContext = params.context === 'meetup-book';
 
   const handleBarcodeScanned = (result: BarcodeScanningResult) => {
     if (isMovingToResult) return;
@@ -32,6 +40,16 @@ export default function ScanScreen() {
           isbn,
           ...(isRoomContext ? { context: 'create-room' } : {}),
           ...(isMarketContext ? { context: 'market-listing' } : {}),
+          ...(isMeetupContext
+            ? {
+                context: 'meetup-book',
+                meetupCity: getStringParam(params.meetupCity),
+                meetupDescription: getStringParam(params.meetupDescription),
+                meetupDistrict: getStringParam(params.meetupDistrict),
+                meetupProvince: getStringParam(params.meetupProvince),
+                meetupTitle: getStringParam(params.meetupTitle),
+              }
+            : {}),
         },
       });
       return;
@@ -51,7 +69,7 @@ export default function ScanScreen() {
       <View style={styles.content}>
         <ScreenHeader
           eyebrow="ISBN Scanner"
-          subtitle={getScanSubtitle(isRoomContext, isMarketContext)}
+          subtitle={getScanSubtitle(isRoomContext, isMarketContext, isMeetupContext)}
           title="책 스캔"
           tone="ink"
         />
@@ -117,7 +135,9 @@ export default function ScanScreen() {
                 ? '스캔된 ISBN으로 이미 열린 책장을 먼저 찾습니다.'
                 : isMarketContext
                   ? '스캔된 책 정보는 책가게 등록 화면에 자동으로 채워집니다.'
-                : '스캔된 책은 나의 독서생활에 저장되고, 이후 진행률과 메모를 이어서 붙일 수 있습니다.'}
+                  : isMeetupContext
+                    ? '스캔된 책 정보는 새 모임의 시작 책으로 채워집니다.'
+                  : '스캔된 책은 나의 독서생활에 저장되고, 이후 진행률과 메모를 이어서 붙일 수 있습니다.'}
             </Text>
           </View>
         ) : null}
@@ -130,10 +150,15 @@ function normalizeIsbn(value: string) {
   return value.replace(/[^0-9X]/gi, '').toUpperCase();
 }
 
-function getScanSubtitle(isRoomContext: boolean, isMarketContext: boolean) {
+function getScanSubtitle(isRoomContext: boolean, isMarketContext: boolean, isMeetupContext = false) {
   if (isRoomContext) return '바코드로 책장을 찾습니다.';
   if (isMarketContext) return '바코드로 책가게 등록 정보를 채웁니다.';
+  if (isMeetupContext) return '바코드로 시작 책을 고릅니다.';
   return '스캔한 책을 나의 독서생활에 담습니다.';
+}
+
+function getStringParam(value: string | string[] | undefined) {
+  return Array.isArray(value) ? value[0] ?? '' : value ?? '';
 }
 
 const styles = StyleSheet.create({

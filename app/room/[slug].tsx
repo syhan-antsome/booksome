@@ -24,33 +24,38 @@ import {
   getRoomDetail,
   joinRoom,
   listRoomPosts,
+  requestRoomPostReview,
+  setRoomReadingStatus,
   togglePostReaction,
   type RoomDetail,
   type RoomPost,
+  type RoomReadingStatus,
 } from '../../src/services/rooms';
 
-type RoomTab = 'talk' | 'reading' | 'info';
-type PostComposerKind = 'impression' | 'quote' | 'question';
-type PostFilter = 'all' | PostComposerKind;
+const readingStatusOptions: {
+  status: RoomReadingStatus;
+  label: string;
+  countKey: 'wantToRead' | 'reading' | 'finished';
+}[] = [
+  { status: 'want_to_read', label: '보고 싶어요', countKey: 'wantToRead' },
+  { status: 'reading', label: '읽는 중', countKey: 'reading' },
+  { status: 'finished', label: '보았어요', countKey: 'finished' },
+];
 
 export default function RoomScreen() {
   const { slug } = useLocalSearchParams<{ slug: string }>();
   const { session } = useAuth();
   const { width } = useWindowDimensions();
-  const [activeTab, setActiveTab] = useState<RoomTab>('talk');
   const [remoteRoom, setRemoteRoom] = useState<RoomDetail | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isJoining, setIsJoining] = useState(false);
   const [isPosting, setIsPosting] = useState(false);
+  const [settingReadingStatus, setSettingReadingStatus] = useState<RoomReadingStatus | null>(null);
   const [reactingPostId, setReactingPostId] = useState<string | null>(null);
   const [commentingPostId, setCommentingPostId] = useState<string | null>(null);
   const [actionMessage, setActionMessage] = useState<string | null>(null);
+  const [isComposerOpen, setIsComposerOpen] = useState(false);
   const [postBody, setPostBody] = useState('');
-  const [postKind, setPostKind] = useState<PostComposerKind>('impression');
-  const [postQuoteText, setPostQuoteText] = useState('');
   const [postChapterLabel, setPostChapterLabel] = useState('');
-  const [postFilter, setPostFilter] = useState<PostFilter>('all');
-  const [isAnsweringPrompt, setIsAnsweringPrompt] = useState(false);
+  const [expandedCommentPostId, setExpandedCommentPostId] = useState<string | null>(null);
   const [commentDrafts, setCommentDrafts] = useState<Record<string, string>>({});
   const [posts, setPosts] = useState<RoomPost[]>([]);
   const fallbackRoom = featuredRooms.find((item) => item.slug === slug) ?? featuredRooms[0];
@@ -70,7 +75,6 @@ export default function RoomScreen() {
     let isMounted = true;
 
     if (!slug) {
-      setIsLoading(false);
       return;
     }
 
@@ -91,11 +95,6 @@ export default function RoomScreen() {
         if (isMounted) {
           setRemoteRoom(null);
         }
-      })
-      .finally(() => {
-        if (isMounted) {
-          setIsLoading(false);
-        }
       });
 
     return () => {
@@ -103,52 +102,78 @@ export default function RoomScreen() {
     };
   }, [session?.user.id, slug]);
 
-  const handleJoinRoom = async () => {
+  const hasPendingReview = posts.some(
+    (post) =>
+      post.visibility === 'pending' ||
+      post.classificationStatus === 'pending' ||
+      post.moderationStatus === 'pending',
+  );
+
+  useEffect(() => {
+    if (!hasPendingReview || !remoteRoom) return;
+
+    const intervalId = setInterval(() => {
+      void refreshRoom();
+    }, 4500);
+
+    return () => clearInterval(intervalId);
+  }, [hasPendingReview, remoteRoom?.id, session?.user.id, slug]);
+
+  const ensureJoinedRoom = async () => {
     if (!session) {
       router.push('/auth');
-      return;
+      return false;
     }
 
     if (!remoteRoom) {
       setActionMessage('북룸 정보를 불러온 뒤 다시 시도해주세요.');
-      return;
+      return false;
     }
 
     if (remoteRoom.viewerRole) {
-      setActionMessage('이미 이 책장에 머물고 있습니다.');
-      return;
+      return true;
     }
 
-    setIsJoining(true);
     setActionMessage(null);
 
     try {
       await joinRoom(remoteRoom.id);
       await refreshRoom();
-      setActionMessage('이 책장에 머물기 시작했습니다.');
+      return true;
     } catch (error) {
       setActionMessage(getErrorMessage(error, '책장에 들어가지 못했습니다.'));
-    } finally {
-      setIsJoining(false);
+      return false;
     }
   };
 
-  const ensureCanInteract = () => {
-    if (!session) {
-      router.push('/auth');
-      return false;
+  const handleSetReadingStatus = async (status: RoomReadingStatus) => {
+    if (!remoteRoom) {
+      setActionMessage('북룸 정보를 불러온 뒤 다시 시도해주세요.');
+      return;
     }
 
-    if (!remoteRoom?.viewerRole) {
-      setActionMessage('먼저 이 책장에 머물러야 흔적을 남길 수 있습니다.');
-      return false;
-    }
+    if (!(await ensureJoinedRoom())) return;
 
-    return true;
+    setSettingReadingStatus(status);
+    setActionMessage(null);
+
+    try {
+      await setRoomReadingStatus(remoteRoom.id, status);
+      await refreshRoom();
+    } catch (error) {
+      setActionMessage(getErrorMessage(error, '독서 반응을 남기지 못했습니다.'));
+    } finally {
+      setSettingReadingStatus(null);
+    }
   };
 
   const handleToggleReaction = async (post: RoomPost) => {
-    if (!ensureCanInteract() || !session) return;
+    if (!isPostPublic(post)) {
+      setActionMessage('잠시 뒤 공감할 수 있습니다.');
+      return;
+    }
+
+    if (!(await ensureJoinedRoom()) || !session) return;
 
     setReactingPostId(post.id);
     setActionMessage(null);
@@ -163,25 +188,30 @@ export default function RoomScreen() {
     }
   };
 
-  const handleCreateComment = async (postId: string) => {
-    if (!ensureCanInteract() || !session) return;
+  const handleCreateComment = async (post: RoomPost) => {
+    if (!isPostPublic(post)) {
+      setActionMessage('잠시 뒤 이어 남길 수 있습니다.');
+      return;
+    }
 
-    const body = commentDrafts[postId]?.trim();
+    if (!(await ensureJoinedRoom()) || !session) return;
+
+    const body = commentDrafts[post.id]?.trim();
     if (!body) {
       setActionMessage('댓글로 이어갈 생각을 짧게 적어보세요.');
       return;
     }
 
-    setCommentingPostId(postId);
+    setCommentingPostId(post.id);
     setActionMessage(null);
 
     try {
       await createRoomComment({
-        postId,
+        postId: post.id,
         authorId: session.user.id,
         body,
       });
-      setCommentDrafts((drafts) => ({ ...drafts, [postId]: '' }));
+      setCommentDrafts((drafts) => ({ ...drafts, [post.id]: '' }));
       await refreshRoom();
       setActionMessage('댓글을 남겼습니다.');
     } catch (error) {
@@ -202,43 +232,44 @@ export default function RoomScreen() {
       return;
     }
 
-    if (!remoteRoom.viewerRole) {
-      setActionMessage('먼저 이 책장에 머물러야 글을 남길 수 있습니다.');
-      return;
-    }
-
     const trimmedBody = postBody.trim();
-    const trimmedQuote = postQuoteText.trim();
     const trimmedChapter = postChapterLabel.trim();
 
-    if (postKind === 'quote' && !trimmedQuote) {
-      setActionMessage('함께 읽고 싶은 책 속 문장을 적어보세요.');
+    if (!trimmedBody) {
+      setActionMessage('이 책에 남기고 싶은 생각을 적어보세요.');
       return;
     }
 
-    if (postKind !== 'quote' && !trimmedBody) {
-      setActionMessage(postKind === 'question' ? '떠오른 질문을 한 줄로 적어보세요.' : '책이 남긴 생각을 한 줄로 적어보세요.');
-      return;
-    }
+    if (!(await ensureJoinedRoom())) return;
 
     setIsPosting(true);
     setActionMessage(null);
 
     try {
-      await createRoomPost({
+      const createdPost = await createRoomPost({
         roomId: remoteRoom.id,
         authorId: session.user.id,
-        kind: postKind,
-        body: trimmedBody || '이 문장을 함께 읽고 싶어요.',
-        quoteText: postKind === 'quote' ? trimmedQuote : null,
+        body: trimmedBody,
         chapterLabel: trimmedChapter || null,
       });
       setPostBody('');
-      setPostQuoteText('');
       setPostChapterLabel('');
-      setIsAnsweringPrompt(false);
+      setIsComposerOpen(false);
       await refreshRoom();
-      setActionMessage(postKind === 'question' ? '질문을 남겼습니다.' : postKind === 'quote' ? '문장을 남겼습니다.' : '감상을 남겼습니다.');
+      setActionMessage('남겼습니다. 잠시 뒤 책톡에 나타납니다.');
+      requestRoomPostReview(createdPost.id, session.access_token)
+        .then(() => {
+          setTimeout(() => {
+            void refreshRoom();
+          }, 2500);
+          setTimeout(() => {
+            void refreshRoom();
+          }, 7000);
+        })
+        .catch((error) => {
+          console.warn('Failed to request post review.', error instanceof Error ? error.message : error);
+          setActionMessage('남겼습니다. 반영이 조금 늦어지고 있습니다.');
+        });
     } catch (error) {
       setActionMessage(getErrorMessage(error, '글 작성에 실패했습니다.'));
     } finally {
@@ -246,63 +277,43 @@ export default function RoomScreen() {
     }
   };
 
-  const handleAnswerPrompt = () => {
-    if (!ensureCanInteract()) return;
-
-    setPostKind('impression');
-    setIsAnsweringPrompt(true);
-    setActionMessage('책의 첫 질문에 이어서 생각을 남겨보세요.');
-  };
-
   const room = useMemo(() => {
     if (!remoteRoom) {
       return {
-        accent: fallbackRoom.accent,
         author: fallbackRoom.author,
         coverPath: null,
         externalCoverUrl: fallbackRoom.coverUrl ?? null,
-        description: null,
-        host: '첫 독자',
-        members: fallbackRoom.members,
-        next: fallbackRoom.next,
-        question: fallbackRoom.question,
+        memberCount: 0,
+        readingStatusCounts: { wantToRead: 0, reading: 0, finished: 0 },
         title: fallbackRoom.title,
+        viewerReadingStatus: null,
         viewerRole: null,
       };
     }
 
     return {
-      accent: remoteRoom.accentColor,
       author: remoteRoom.author,
       coverPath: remoteRoom.coverPath,
       externalCoverUrl: remoteRoom.externalCoverUrl,
-      description: remoteRoom.description,
-      host: remoteRoom.viewerRole === 'founder' ? '첫 독자' : remoteRoom.viewerRole ? '머무는 독자' : '열린 책장',
-      members: remoteRoom.memberCount.toLocaleString(),
-      next: remoteRoom.nextEvent ?? '첫 읽기 흔적을 기다리고 있습니다.',
-      question: remoteRoom.pinnedQuestion ?? '이 책은 당신에게 어떤 질문을 남겼나요?',
+      memberCount: remoteRoom.memberCount,
+      readingStatusCounts: remoteRoom.readingStatusCounts,
       title: remoteRoom.title,
+      viewerReadingStatus: remoteRoom.viewerReadingStatus,
       viewerRole: remoteRoom.viewerRole,
     };
   }, [fallbackRoom, remoteRoom]);
 
   const coverUrl = room.coverPath ? getMediaUrl(room.coverPath) : room.externalCoverUrl;
   const heroSource: ImageSourcePropType = coverUrl ? { uri: coverUrl } : (roomFallbackImage as ImageSourcePropType);
-  const isMember = Boolean(room.viewerRole);
   const isCompact = width < 430;
-  const postCounts = useMemo(
-    () => ({
-      all: posts.length,
-      impression: posts.filter((post) => post.kind === 'impression').length,
-      quote: posts.filter((post) => post.kind === 'quote').length,
-      question: posts.filter((post) => post.kind === 'question').length,
-    }),
-    [posts],
-  );
-  const visiblePosts = useMemo(
-    () => (postFilter === 'all' ? posts : posts.filter((post) => post.kind === postFilter)),
-    [postFilter, posts],
-  );
+  const publicPosts = useMemo(() => posts.filter(isPostPublic), [posts]);
+  const reactionSignalCount = publicPosts.reduce((total, post) => total + post.reactionCount + post.comments.length, 0);
+  const nowMetrics = [
+    { label: '독자', value: room.memberCount },
+    { label: '책톡', value: posts.length },
+    { label: '반응', value: reactionSignalCount },
+  ];
+  const nowPost = useMemo(() => getNowPost(publicPosts), [publicPosts]);
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -313,14 +324,8 @@ export default function RoomScreen() {
           <View style={styles.heroGlow} />
           <View style={styles.heroTopBar}>
             <BackButton />
-            <Text style={styles.topStatus}>{isLoading ? '불러오는 중' : isMember ? '머무는 중' : '열린 책장'}</Text>
           </View>
-          <View style={styles.heroOrnament} />
           <View style={[styles.heroCopy, isCompact ? styles.heroCopyCompact : null]}>
-            <View style={styles.roomMarker}>
-              <Text style={styles.roomMarkerText}>BOOKROOM</Text>
-              <View style={styles.roomMarkerLine} />
-            </View>
             <View style={styles.heroMainRow}>
               <View style={styles.heroTextBlock}>
                 <Text style={[styles.heroTitle, isCompact ? styles.heroTitleCompact : null]}>{room.title}</Text>
@@ -330,25 +335,59 @@ export default function RoomScreen() {
                 <Image resizeMode="cover" source={heroSource} style={styles.heroPosterImage} />
               </View>
             </View>
-            <View style={styles.heroMeta}>
-              <Text style={styles.heroMetaText}>{room.host}</Text>
-              <View style={styles.heroMetaDot} />
-              <Text style={styles.heroMetaText}>{room.members}명의 독자</Text>
-            </View>
           </View>
         </View>
 
-        {!isMember ? (
-          <View style={styles.joinNote}>
-            <View style={styles.joinCopy}>
-              <Text style={styles.joinTitle}>이 책장에 머물러보세요</Text>
-              <Text style={styles.joinText}>감상, 문장, 질문을 이 책에 남길 수 있습니다.</Text>
-            </View>
-            <Pressable disabled={isJoining} onPress={handleJoinRoom} style={styles.joinButton}>
-              <Text style={styles.joinButtonText}>{isJoining ? '...' : '머물기'}</Text>
-            </Pressable>
+        <View style={styles.readingResponseBar}>
+          {readingStatusOptions.map((item) => {
+            const isActive = room.viewerReadingStatus === item.status;
+            const isUpdating = settingReadingStatus === item.status;
+
+            return (
+              <Pressable
+                key={item.status}
+                disabled={Boolean(settingReadingStatus)}
+                onPress={() => handleSetReadingStatus(item.status)}
+                style={[styles.readingResponseButton, isActive ? styles.readingResponseButtonActive : null]}
+              >
+                <Text style={[styles.readingResponseLabel, isActive ? styles.readingResponseLabelActive : null]}>
+                  {isUpdating ? '...' : item.label}
+                </Text>
+                <Text style={[styles.readingResponseCount, isActive ? styles.readingResponseCountActive : null]}>
+                  {room.readingStatusCounts[item.countKey]}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
+
+        <View style={styles.nowPanel}>
+          <View style={styles.nowMetricRow}>
+            {nowMetrics.map((item, index) => (
+              <View
+                key={item.label}
+                style={[styles.nowMetric, index === nowMetrics.length - 1 ? styles.nowMetricLast : null]}
+              >
+                <Text style={styles.nowMetricValue}>{item.value}</Text>
+                <Text style={styles.nowMetricLabel}>{item.label}</Text>
+              </View>
+            ))}
           </View>
-        ) : null}
+          {nowPost ? (
+            <View style={styles.nowTalk}>
+              <Text numberOfLines={2} style={styles.nowTalkText}>
+                {getNowPostText(nowPost)}
+              </Text>
+              <View style={styles.nowTalkMeta}>
+                <Text numberOfLines={1} style={styles.nowTalkAuthor}>
+                  {nowPost.authorName ?? '독자'}
+                </Text>
+                <Text style={styles.nowTalkSignal}>♡ {nowPost.reactionCount}</Text>
+                <Text style={styles.nowTalkSignal}>댓글 {nowPost.comments.length}</Text>
+              </View>
+            </View>
+          ) : null}
+        </View>
 
         {actionMessage ? (
           <View style={styles.messagePanel}>
@@ -356,157 +395,75 @@ export default function RoomScreen() {
           </View>
         ) : null}
 
-        <View style={styles.roomSheetIntro}>
-          <Text style={styles.roomSheetEyebrow}>책이 중심인 북룸</Text>
-          <Text style={styles.roomSheetTitle}>질문을 따라 읽고, 문장을 따라 만납니다.</Text>
-        </View>
-
-        <View style={styles.tabs}>
-          {[
-            { key: 'talk', label: '대화', number: 'Talk' },
-            { key: 'reading', label: '읽기', number: 'Read' },
-            { key: 'info', label: '노트', number: 'Note' },
-          ].map((tab) => (
-            <Pressable
-              key={tab.key}
-              onPress={() => setActiveTab(tab.key as RoomTab)}
-              style={[styles.tabButton, activeTab === tab.key ? styles.tabButtonActive : null]}
-            >
-              <Text style={[styles.tabNumber, activeTab === tab.key ? styles.tabNumberActive : null]}>
-                {tab.number}
-              </Text>
-              <Text style={[styles.tabText, activeTab === tab.key ? styles.tabTextActive : null]}>
-                {tab.label}
-              </Text>
-              {activeTab === tab.key ? <View style={styles.tabActiveLine} /> : null}
-            </Pressable>
-          ))}
-        </View>
-
-        {activeTab === 'talk' ? (
-          <View style={styles.tabPanel}>
-            <View style={styles.pinnedQuestion}>
-              <View style={styles.questionPrelude}>
-                <View style={styles.questionNumberBlock}>
-                  <Text style={styles.questionNumber}>첫</Text>
-                  <Text style={styles.questionNumberSub}>문장</Text>
-                </View>
-                <View style={styles.questionMarker}>
-                  <View style={styles.questionMarkerLine} />
-                  <Text style={styles.questionMarkerText}>책이 남긴 첫 질문</Text>
-                </View>
-              </View>
-              <Text style={styles.questionQuote}>“</Text>
-              <Text style={styles.question}>{room.question}</Text>
-              <View style={styles.questionFooter}>
-                <Text style={styles.questionIntent}>이 질문에서 이 책의 첫 대화가 시작됩니다.</Text>
-                <Pressable onPress={handleAnswerPrompt} style={styles.questionReplyButton}>
-                  <Text style={styles.questionReplyText}>답해보기</Text>
-                  <Text style={styles.questionReplyArrow}>↑</Text>
-                </Pressable>
-              </View>
-            </View>
-
-            <View style={styles.composer}>
-              <View style={styles.composerHeader}>
-                <View>
-                  <Text style={styles.sectionLabel}>내 문장</Text>
-                  <Text style={styles.composerTitle}>책장을 덮기 전 남기기</Text>
-                </View>
-                <Text style={styles.composerState}>{isMember ? '머무는 중' : '머문 뒤 가능'}</Text>
-              </View>
-              <View style={styles.segmented}>
-                {[
-                  { key: 'impression', label: '감상' },
-                  { key: 'quote', label: '문장' },
-                  { key: 'question', label: '질문' },
-                ].map((item) => (
-                  <Pressable
-                    key={item.key}
-                    onPress={() => setPostKind(item.key as PostComposerKind)}
-                    style={[styles.segmentButton, postKind === item.key ? styles.segmentButtonActive : null]}
-                  >
-                    <Text style={[styles.segmentText, postKind === item.key ? styles.segmentTextActive : null]}>
-                      {item.label}
-                    </Text>
+        <View style={styles.tabPanel}>
+          <View style={styles.sectionBlock}>
+            {isComposerOpen ? (
+              <>
+                <View style={styles.composerTopRow}>
+                  <Text style={styles.composerTitle}>남기기</Text>
+                  <Pressable hitSlop={10} onPress={() => setIsComposerOpen(false)}>
+                    <Text style={styles.composerCloseText}>닫기</Text>
                   </Pressable>
-                ))}
-              </View>
-              <TextInput
-                onChangeText={setPostChapterLabel}
-                placeholder="쪽 / 챕터 / 장면"
-                placeholderTextColor="#8F877B"
-                style={styles.chapterInput}
-                value={postChapterLabel}
-              />
-              {postKind === 'quote' ? (
+                </View>
+                <TextInput
+                  onChangeText={setPostChapterLabel}
+                  placeholder="쪽수나 장면"
+                  placeholderTextColor="#8F877B"
+                  style={styles.chapterInput}
+                  value={postChapterLabel}
+                />
                 <TextInput
                   multiline
-                  onChangeText={setPostQuoteText}
-                  placeholder={isMember ? '함께 읽고 싶은 책 속 문장' : '책장에 머문 뒤 문장을 남길 수 있습니다.'}
-                  placeholderTextColor="#CBBDA7"
-                  style={styles.quoteInput}
-                  value={postQuoteText}
+                  onChangeText={setPostBody}
+                  placeholder={getPostBodyPlaceholder(Boolean(session))}
+                  placeholderTextColor="#8F877B"
+                  style={styles.postInput}
+                  value={postBody}
                 />
-              ) : null}
-              <TextInput
-                multiline
-                onChangeText={setPostBody}
-                placeholder={getPostBodyPlaceholder(postKind, isMember, isAnsweringPrompt)}
-                placeholderTextColor="#8F877B"
-                style={styles.postInput}
-                value={postBody}
-              />
-              <Pressable disabled={isPosting} onPress={handleCreatePost} style={styles.postButton}>
-                <Text style={styles.postButtonText}>{isPosting ? '…' : '↑'}</Text>
+                <Pressable disabled={isPosting} onPress={handleCreatePost} style={styles.postButton}>
+                  <Text style={styles.postButtonText}>{isPosting ? '…' : '남기기'}</Text>
+                </Pressable>
+              </>
+            ) : (
+              <Pressable
+                accessibilityLabel="책톡 남기기"
+                onPress={() => setIsComposerOpen(true)}
+                style={styles.composerPrompt}
+              >
+                <Text style={styles.composerPromptMark}>＋</Text>
               </Pressable>
-            </View>
+            )}
+          </View>
 
-            <View style={styles.postsSection}>
-              <View style={styles.sectionHeader}>
-                <View>
-                  <Text style={styles.sectionLabel}>Book traces</Text>
-                  <Text style={styles.sectionTitle}>이 책에 남은 문장들</Text>
-                </View>
-                <Text style={styles.sectionCount}>{posts.length}</Text>
+          <View style={styles.sectionBlock}>
+            <View style={styles.sectionHeader}>
+              <View>
+                <Text style={styles.sectionTitle}>책톡</Text>
               </View>
-              <View style={styles.postFilterBar}>
-                {[
-                  { key: 'all', label: '전체', count: postCounts.all },
-                  { key: 'impression', label: '감상', count: postCounts.impression },
-                  { key: 'quote', label: '문장', count: postCounts.quote },
-                  { key: 'question', label: '질문', count: postCounts.question },
-                ].map((item) => (
-                  <Pressable
-                    key={item.key}
-                    onPress={() => setPostFilter(item.key as PostFilter)}
-                    style={[styles.postFilterButton, postFilter === item.key ? styles.postFilterButtonActive : null]}
-                  >
-                    <Text style={[styles.postFilterText, postFilter === item.key ? styles.postFilterTextActive : null]}>
-                      {item.label}
-                    </Text>
-                    <Text style={[styles.postFilterCount, postFilter === item.key ? styles.postFilterCountActive : null]}>
-                      {item.count}
-                    </Text>
-                  </Pressable>
-                ))}
-              </View>
-              {visiblePosts.length > 0 ? (
-                visiblePosts.map((post) => (
-                  <View key={post.id} style={styles.postCard}>
-                    <View
-                      style={[
-                        styles.postSpine,
-                        post.kind === 'question'
-                          ? styles.postSpineQuestion
-                          : post.kind === 'quote'
-                            ? styles.postSpineQuote
-                            : styles.postSpineImpression,
-                      ]}
-                    />
+              <Text style={styles.sectionCount}>{posts.length}</Text>
+            </View>
+            {posts.length > 0 ? (
+              posts.map((post) => {
+                const postPublic = isPostPublic(post);
+                const commentsOpen = expandedCommentPostId === post.id;
+
+                return (
+                  <View key={post.id} style={[styles.postCard, !postPublic ? styles.postCardPending : null]}>
                     <View style={styles.postMetaRow}>
                       <View style={styles.postMetaLeft}>
-                        <Text style={styles.postKind}>{getPostKindLabel(post.kind)}</Text>
+                        <View
+                          style={[
+                            styles.postDot,
+                            post.kind === 'question'
+                              ? styles.postDotQuestion
+                              : post.kind === 'quote'
+                                ? styles.postDotQuote
+                                : styles.postDotImpression,
+                          ]}
+                        />
+                        <Text style={[styles.postKind, !postPublic ? styles.postKindPending : null]}>
+                          {getPostDisplayLabel(post)}
+                        </Text>
                         {post.chapterLabel ? <Text style={styles.postChapter}>{post.chapterLabel}</Text> : null}
                       </View>
                       <Text style={styles.postAuthor}>{post.authorName ?? '독자'}</Text>
@@ -517,9 +474,12 @@ export default function RoomScreen() {
                       </View>
                     ) : null}
                     <Text style={styles.postBody}>{post.body}</Text>
+                    {!postPublic ? (
+                      <Text style={styles.postReviewText}>{getPostReviewText(post)}</Text>
+                    ) : null}
                     <View style={styles.postActions}>
                       <Pressable
-                        disabled={reactingPostId === post.id}
+                        disabled={!postPublic || reactingPostId === post.id}
                         onPress={() => handleToggleReaction(post)}
                         style={[styles.reactionButton, post.viewerReacted ? styles.reactionButtonActive : null]}
                       >
@@ -528,95 +488,55 @@ export default function RoomScreen() {
                         </Text>
                         <Text style={styles.reactionCount}>{post.reactionCount}</Text>
                       </Pressable>
-                      <View style={styles.feedIconGroup}>
-                        <Text style={styles.feedIcon}>✎</Text>
-                        <Text style={styles.reactionCount}>{post.comments.length}</Text>
-                      </View>
-                      <View style={styles.feedIconSpacer} />
-                      <Text style={styles.feedIcon}>↗</Text>
-                    </View>
-                    {post.comments.length > 0 ? (
-                      <View style={styles.commentsList}>
-                        {post.comments.map((comment) => (
-                          <View key={comment.id} style={styles.commentItem}>
-                            <Text style={styles.commentAuthor}>{comment.authorName ?? '독자'}</Text>
-                            <Text style={styles.commentBody}>{comment.body}</Text>
-                          </View>
-                        ))}
-                      </View>
-                    ) : null}
-                    <View style={styles.commentComposer}>
-                      <TextInput
-                        onChangeText={(text) => setCommentDrafts((drafts) => ({ ...drafts, [post.id]: text }))}
-                        placeholder={isMember ? '댓글을 남겨보세요.' : '책장에 머문 뒤 댓글을 남길 수 있습니다.'}
-                        placeholderTextColor="#8F877B"
-                        style={styles.commentInput}
-                        value={commentDrafts[post.id] ?? ''}
-                      />
                       <Pressable
-                        disabled={commentingPostId === post.id}
-                        onPress={() => handleCreateComment(post.id)}
-                        style={styles.commentButton}
+                        disabled={!postPublic}
+                        onPress={() => setExpandedCommentPostId(commentsOpen ? null : post.id)}
+                        style={styles.commentToggle}
                       >
-                        <Text style={styles.commentButtonText}>{commentingPostId === post.id ? '…' : '↑'}</Text>
+                        <Text style={styles.commentToggleText}>댓글 {post.comments.length}</Text>
                       </Pressable>
                     </View>
+                    {commentsOpen ? (
+                      <View style={styles.commentArea}>
+                        {post.comments.length > 0 ? (
+                          <View style={styles.commentsList}>
+                            {post.comments.map((comment) => (
+                              <View key={comment.id} style={styles.commentItem}>
+                                <Text style={styles.commentAuthor}>{comment.authorName ?? '독자'}</Text>
+                                <Text style={styles.commentBody}>{comment.body}</Text>
+                              </View>
+                            ))}
+                          </View>
+                        ) : null}
+                        <View style={styles.commentComposer}>
+                          <TextInput
+                            onChangeText={(text) => setCommentDrafts((drafts) => ({ ...drafts, [post.id]: text }))}
+                            editable={postPublic}
+                            placeholder={session ? '이어 남기기' : '로그인 후 남길 수 있습니다.'}
+                            placeholderTextColor="#8F877B"
+                            style={styles.commentInput}
+                            value={commentDrafts[post.id] ?? ''}
+                          />
+                          <Pressable
+                            disabled={!postPublic || commentingPostId === post.id}
+                            onPress={() => handleCreateComment(post)}
+                            style={[styles.commentButton, !postPublic ? styles.commentButtonDisabled : null]}
+                          >
+                            <Text style={styles.commentButtonText}>{commentingPostId === post.id ? '…' : '↑'}</Text>
+                          </Pressable>
+                        </View>
+                      </View>
+                    ) : null}
                   </View>
-                ))
-              ) : (
-                <View style={styles.emptyPanel}>
-                  <Text style={styles.emptyText}>{getEmptyPostText(postFilter)}</Text>
-                </View>
-              )}
-            </View>
-          </View>
-        ) : null}
-
-        {activeTab === 'reading' ? (
-          <View style={styles.tabPanel}>
-            <View style={styles.readingLead}>
-              <Text style={styles.sectionLabel}>Now</Text>
-              <Text style={styles.readingTitle}>{room.next}</Text>
-              <Text style={styles.readingCopy}>읽기 일정과 챕터별 대화는 이곳에 쌓입니다.</Text>
-            </View>
-            <View style={styles.timelineItem}>
-              <Text style={styles.timelineTime}>Next</Text>
-              <Text style={styles.timelineCopy}>챕터별 스포일러 보호 토론을 준비 중입니다.</Text>
-            </View>
-            <View style={styles.timelineItem}>
-              <Text style={styles.timelineTime}>Soon</Text>
-              <Text style={styles.timelineCopy}>읽기 체크인과 독자별 진행률을 연결할 예정입니다.</Text>
-            </View>
-          </View>
-        ) : null}
-
-        {activeTab === 'info' ? (
-          <View style={styles.tabPanel}>
-            <View style={styles.infoBlock}>
-              <Text style={styles.sectionLabel}>책장 노트</Text>
-              <Text style={styles.infoTitle}>{room.title}</Text>
-              <Text style={styles.infoCopy}>{room.description ?? '아직 이 책장 소개가 없습니다.'}</Text>
-            </View>
-            <View style={styles.infoGrid}>
-              <View style={styles.infoCell}>
-                <Text style={styles.infoCellLabel}>자리</Text>
-                <Text style={styles.infoCellValue}>{room.host}</Text>
+                );
+              })
+            ) : (
+              <View style={styles.emptyPanel}>
+                <Text style={styles.emptyText}>아직 책톡이 없습니다.</Text>
               </View>
-              <View style={styles.infoCell}>
-                <Text style={styles.infoCellLabel}>독자</Text>
-                <Text style={styles.infoCellValue}>{room.members}</Text>
-              </View>
-              <View style={styles.infoCell}>
-                <Text style={styles.infoCellLabel}>상태</Text>
-                <Text style={styles.infoCellValue}>{isMember ? '머무는 중' : '열림'}</Text>
-              </View>
-            </View>
-            <View style={styles.ruleBlock}>
-              <Text style={styles.sectionLabel}>북룸 규칙</Text>
-              <Text style={styles.ruleText}>서로의 읽는 속도를 존중하고, 스포일러가 될 수 있는 내용은 맥락을 먼저 알려주세요.</Text>
-            </View>
+            )}
           </View>
-        ) : null}
+        </View>
       </ScrollView>
     </SafeAreaView>
   );
@@ -641,61 +561,72 @@ function getPostKindLabel(kind: RoomPost['kind']) {
   if (kind === 'question') return '질문';
   if (kind === 'quote') return '문장';
   if (kind === 'notice') return '공지';
-  return '감상';
+  return '책톡';
 }
 
-function getPostBodyPlaceholder(kind: PostComposerKind, isMember: boolean, isAnsweringPrompt: boolean) {
-  if (!isMember) return '책장에 머문 뒤 감상, 문장, 질문을 남길 수 있습니다.';
-  if (isAnsweringPrompt) return '책의 첫 질문에 대한 생각을 적어보세요.';
-  if (kind === 'question') return '이 책이 나에게 남긴 질문을 적어보세요.';
-  if (kind === 'quote') return '이 문장이 왜 마음에 남았는지 적어보세요.';
-  return '이 책이 지금 남긴 생각을 적어보세요.';
+function getPostBodyPlaceholder(isLoggedIn: boolean) {
+  if (!isLoggedIn) return '로그인 후 글을 남길 수 있습니다.';
+  return '읽고 남은 문장이나 생각을 적어보세요.';
 }
 
-function getEmptyPostText(filter: PostFilter) {
-  if (filter === 'question') return '아직 열린 질문이 없습니다.';
-  if (filter === 'quote') return '아직 함께 읽을 문장이 없습니다.';
-  if (filter === 'impression') return '아직 첫 감상이 기다리고 있습니다.';
-  return '아직 첫 대화가 기다리고 있습니다.';
+function isPostPublic(post: RoomPost) {
+  return post.visibility === 'public' && post.moderationStatus === 'approved';
+}
+
+function getPostDisplayLabel(post: RoomPost) {
+  if (post.moderationStatus === 'pending' || post.visibility === 'pending') return '정리중';
+  if (post.moderationStatus === 'needs_review') return '정리중';
+  if (post.moderationStatus === 'rejected' || post.visibility === 'hidden') return '숨김';
+  if (post.classificationStatus === 'pending') return '정리중';
+  if (post.classificationStatus === 'failed') return '책톡';
+  return getPostKindLabel(post.kind);
+}
+
+function getPostReviewText(post: RoomPost) {
+  if (post.moderationStatus === 'rejected') {
+    return '이 책톡은 보이지 않게 되었습니다.';
+  }
+
+  if (post.moderationStatus === 'needs_review' || post.moderationStatus === 'failed') {
+    return '잠시 정리 중입니다.';
+  }
+
+  return '잠시 정리 중입니다.';
+}
+
+function getNowPost(posts: RoomPost[]) {
+  return [...posts].sort((a, b) => getPostSignalScore(b) - getPostSignalScore(a))[0] ?? null;
+}
+
+function getPostSignalScore(post: RoomPost) {
+  return post.reactionCount * 2 + post.comments.length;
+}
+
+function getNowPostText(post: RoomPost) {
+  return (post.quoteText || post.body).replace(/\s+/g, ' ').trim();
 }
 
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#EFE6DA',
+    backgroundColor: '#F6F3ED',
   },
   content: {
-    paddingHorizontal: 18,
+    paddingHorizontal: 16,
     paddingTop: 0,
-    paddingBottom: 56,
-  },
-  topBar: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 12,
-  },
-  topStatus: {
-    backgroundColor: 'rgba(255,255,255,0.82)',
-    borderRadius: 18,
-    color: '#201B16',
-    fontSize: 12,
-    fontWeight: '900',
-    overflow: 'hidden',
-    paddingHorizontal: 14,
-    paddingVertical: 10,
+    paddingBottom: 52,
   },
   heroStage: {
-    borderBottomLeftRadius: 42,
-    borderBottomRightRadius: 42,
-    marginHorizontal: -18,
-    minHeight: 590,
+    borderBottomLeftRadius: 18,
+    borderBottomRightRadius: 18,
+    marginHorizontal: -16,
+    minHeight: 336,
     overflow: 'hidden',
     position: 'relative',
-    shadowColor: '#2A241D',
-    shadowOffset: { height: 18, width: 0 },
-    shadowOpacity: 0.14,
-    shadowRadius: 34,
+    shadowColor: '#0C1714',
+    shadowOffset: { height: 8, width: 0 },
+    shadowOpacity: 0.12,
+    shadowRadius: 16,
   },
   heroBackdrop: {
     bottom: 0,
@@ -705,7 +636,7 @@ const styles = StyleSheet.create({
     top: 0,
   },
   heroVeil: {
-    backgroundColor: 'rgba(14, 11, 8, 0.32)',
+    backgroundColor: 'rgba(8, 15, 13, 0.42)',
     bottom: 0,
     left: 0,
     position: 'absolute',
@@ -713,7 +644,7 @@ const styles = StyleSheet.create({
     top: 0,
   },
   heroGlow: {
-    backgroundColor: 'rgba(0, 0, 0, 0.22)',
+    backgroundColor: 'rgba(0, 0, 0, 0.18)',
     bottom: 0,
     left: 0,
     position: 'absolute',
@@ -724,53 +655,26 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     flexDirection: 'row',
     justifyContent: 'space-between',
-    left: 18,
+    left: 14,
     position: 'absolute',
-    right: 18,
-    top: 18,
+    right: 14,
+    top: 14,
     zIndex: 3,
-  },
-  heroOrnament: {
-    borderColor: 'rgba(255,255,255,0.2)',
-    borderRadius: 999,
-    borderWidth: 1,
-    height: 260,
-    position: 'absolute',
-    right: -120,
-    top: 106,
-    width: 260,
   },
   heroCopy: {
     alignItems: 'flex-start',
-    bottom: 42,
-    left: 22,
+    bottom: 24,
+    left: 16,
     position: 'absolute',
-    right: 22,
+    right: 16,
   },
   heroCopyCompact: {
-    bottom: 42,
-  },
-  roomMarker: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    gap: 12,
-    marginBottom: 18,
-  },
-  roomMarkerLine: {
-    backgroundColor: 'rgba(255,255,255,0.72)',
-    height: 1,
-    width: 54,
-  },
-  roomMarkerText: {
-    color: '#FFFFFF',
-    fontSize: 12,
-    fontWeight: '900',
-    letterSpacing: 0,
+    bottom: 22,
   },
   heroMainRow: {
     alignItems: 'flex-end',
     flexDirection: 'row',
-    gap: 18,
+    gap: 12,
     width: '100%',
   },
   heroTextBlock: {
@@ -778,740 +682,442 @@ const styles = StyleSheet.create({
   },
   heroTitle: {
     color: '#FFFFFF',
-    fontSize: 43,
-    fontWeight: '900',
+    fontSize: 29,
+    fontWeight: '700',
     letterSpacing: 0,
-    lineHeight: 50,
+    lineHeight: 34,
+    marginTop: 2,
   },
   heroTitleCompact: {
-    fontSize: 40,
-    lineHeight: 46,
+    fontSize: 25,
+    lineHeight: 30,
   },
   heroAuthor: {
-    color: 'rgba(255,255,255,0.84)',
-    fontSize: 16,
-    fontWeight: '800',
-    marginTop: 12,
+    color: 'rgba(255,255,255,0.7)',
+    fontSize: 12,
+    fontWeight: '500',
+    marginTop: 5,
   },
   heroPoster: {
-    borderColor: 'rgba(255,255,255,0.55)',
-    borderRadius: 22,
+    borderColor: 'rgba(255,255,255,0.28)',
+    borderRadius: 5,
     borderWidth: 1,
-    height: 148,
+    height: 116,
     overflow: 'hidden',
     shadowColor: '#000000',
-    shadowOffset: { height: 14, width: 0 },
-    shadowOpacity: 0.32,
-    shadowRadius: 22,
-    width: 108,
+    shadowOffset: { height: 8, width: 0 },
+    shadowOpacity: 0.22,
+    shadowRadius: 12,
+    width: 84,
   },
   heroPosterImage: {
     height: '100%',
     width: '100%',
   },
-  heroMeta: {
+  readingResponseBar: {
     alignItems: 'center',
+    backgroundColor: '#F6F3ED',
+    borderBottomColor: 'rgba(21,34,31,0.12)',
+    borderBottomWidth: 1,
+    borderTopColor: 'rgba(21,34,31,0.12)',
+    borderTopWidth: 1,
+    borderRadius: 0,
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    marginTop: 22,
-  },
-  heroMetaText: {
-    color: 'rgba(255,255,255,0.86)',
-    fontSize: 13,
-    fontWeight: '900',
-  },
-  heroMetaDot: {
-    backgroundColor: 'rgba(255,255,255,0.45)',
-    borderRadius: 2,
-    height: 4,
-    marginHorizontal: 10,
-    width: 4,
-  },
-  joinNote: {
-    alignItems: 'center',
-    backgroundColor: '#201B16',
-    borderRadius: 28,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: -32,
-    overflow: 'hidden',
-    padding: 18,
+    gap: 0,
+    marginTop: 10,
+    paddingVertical: 3,
     position: 'relative',
-    shadowColor: '#2A241D',
-    shadowOffset: { height: 16, width: 0 },
-    shadowOpacity: 0.16,
-    shadowRadius: 26,
+    zIndex: 2,
   },
-  joinCopy: {
+  readingResponseButton: {
+    alignItems: 'center',
+    borderRadius: 0,
     flex: 1,
-    paddingRight: 12,
+    justifyContent: 'center',
+    minHeight: 38,
+    paddingHorizontal: 6,
+    paddingVertical: 5,
   },
-  joinTitle: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '900',
+  readingResponseButtonActive: {
+    backgroundColor: 'transparent',
   },
-  joinText: {
-    color: 'rgba(255,255,255,0.62)',
-    fontSize: 13,
+  readingResponseLabel: {
+    color: '#5D645F',
+    fontSize: 11,
     fontWeight: '600',
-    lineHeight: 19,
-    marginTop: 6,
   },
-  joinButton: {
-    alignItems: 'center',
-    backgroundColor: '#F4D38A',
-    borderRadius: 22,
-    justifyContent: 'center',
-    minHeight: 44,
-    minWidth: 78,
-    paddingHorizontal: 18,
+  readingResponseLabelActive: {
+    color: '#8C3E38',
   },
-  joinButtonDisabled: {
-    backgroundColor: '#EEE7DC',
-  },
-  joinButtonText: {
-    color: '#201B16',
-    fontSize: 14,
-    fontWeight: '900',
-  },
-  joinButtonTextDisabled: {
-    color: '#4E463C',
-  },
-  messagePanel: {
-    backgroundColor: '#FFF6E2',
-    borderRadius: 20,
-    marginTop: 18,
-    padding: 14,
-  },
-  messageText: {
-    color: '#4F473D',
-    fontSize: 14,
-    fontWeight: '700',
-  },
-  roomSheetIntro: {
-    marginTop: 32,
-    paddingHorizontal: 2,
-  },
-  roomSheetEyebrow: {
-    color: '#846F5B',
-    fontSize: 12,
-    fontWeight: '900',
-  },
-  roomSheetTitle: {
-    color: '#201B16',
-    fontSize: 28,
-    fontWeight: '900',
-    letterSpacing: 0,
-    lineHeight: 35,
-    marginTop: 8,
-  },
-  tabs: {
-    backgroundColor: 'rgba(32,27,22,0.08)',
-    borderRadius: 26,
-    flexDirection: 'row',
-    gap: 6,
-    marginTop: 22,
-    padding: 6,
-  },
-  tabButton: {
-    alignItems: 'center',
-    borderRadius: 21,
-    flex: 1,
-    justifyContent: 'center',
-    minHeight: 54,
-  },
-  tabButtonActive: {
-    backgroundColor: '#201B16',
-  },
-  tabNumber: {
-    color: '#938475',
-    fontSize: 10,
-    fontWeight: '900',
-    marginBottom: 3,
-  },
-  tabNumberActive: {
-    color: '#F4D38A',
-  },
-  tabText: {
-    color: '#7B6F63',
-    fontSize: 15,
-    fontWeight: '900',
-  },
-  tabTextActive: {
-    color: '#FFFFFF',
-  },
-  tabActiveLine: {
-    backgroundColor: '#F4D38A',
-    borderRadius: 2,
-    height: 4,
-    marginTop: 6,
-    width: 18,
-  },
-  tabPanel: {
-    marginTop: 24,
-  },
-  pinnedQuestion: {
-    backgroundColor: '#221A14',
-    borderRadius: 34,
-    marginHorizontal: -2,
-    marginTop: 4,
-    overflow: 'hidden',
-    padding: 26,
-    position: 'relative',
-    shadowColor: '#2A241D',
-    shadowOffset: { height: 14, width: 0 },
-    shadowOpacity: 0.14,
-    shadowRadius: 26,
-  },
-  questionPrelude: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    gap: 14,
-    marginBottom: 26,
-  },
-  questionNumberBlock: {
-    alignItems: 'center',
-    borderColor: 'rgba(244,211,138,0.55)',
-    borderRadius: 24,
-    borderWidth: 1,
-    height: 58,
-    justifyContent: 'center',
-    width: 58,
-  },
-  questionNumber: {
-    color: '#F4D38A',
-    fontSize: 18,
-    fontWeight: '900',
-  },
-  questionNumberSub: {
-    color: 'rgba(255,255,255,0.72)',
-    fontSize: 10,
-    fontWeight: '900',
+  readingResponseCount: {
+    color: '#9A9F98',
+    fontSize: 11,
+    fontWeight: '500',
     marginTop: 1,
   },
-  questionMarker: {
+  readingResponseCountActive: {
+    color: '#8C3E38',
+  },
+  nowPanel: {
+    borderBottomColor: 'rgba(21,34,31,0.12)',
+    borderBottomWidth: 1,
+    paddingVertical: 9,
+  },
+  nowMetricRow: {
+    flexDirection: 'row',
+  },
+  nowMetric: {
+    borderRightColor: 'rgba(21,34,31,0.1)',
+    borderRightWidth: 1,
     flex: 1,
-    gap: 9,
+    paddingHorizontal: 10,
   },
-  questionMarkerLine: {
-    backgroundColor: 'rgba(244,211,138,0.52)',
-    height: 1,
-    width: '100%',
+  nowMetricLast: {
+    borderRightWidth: 0,
   },
-  questionMarkerText: {
-    color: '#F7F3EC',
-    fontSize: 13,
-    fontWeight: '900',
-  },
-  questionQuote: {
-    color: 'rgba(244,211,138,0.24)',
-    fontSize: 108,
-    fontWeight: '900',
-    left: 20,
-    lineHeight: 112,
-    position: 'absolute',
-    top: 76,
-  },
-  sectionLabel: {
-    color: '#8E7F70',
-    fontSize: 12,
-    fontWeight: '800',
-    marginBottom: 8,
-  },
-  question: {
-    color: '#FFFFFF',
-    fontSize: 32,
-    fontWeight: '900',
-    lineHeight: 43,
-    paddingLeft: 2,
-    paddingTop: 12,
-  },
-  questionFooter: {
-    alignItems: 'center',
-    borderTopColor: 'rgba(255,255,255,0.14)',
-    borderTopWidth: 1,
-    flexDirection: 'row',
-    gap: 14,
-    justifyContent: 'space-between',
-    marginTop: 28,
-    paddingTop: 18,
-  },
-  questionIntent: {
-    color: 'rgba(255,255,255,0.68)',
-    flex: 1,
-    fontSize: 13,
-    fontWeight: '700',
-    lineHeight: 19,
-  },
-  questionReplyButton: {
-    alignItems: 'center',
-    backgroundColor: '#F4D38A',
-    borderRadius: 22,
-    flexDirection: 'row',
-    gap: 7,
-    minHeight: 44,
-    paddingHorizontal: 16,
-  },
-  questionReplyText: {
-    color: '#201B16',
-    fontSize: 14,
-    fontWeight: '900',
-  },
-  questionReplyArrow: {
-    color: '#201B16',
-    fontSize: 17,
-    fontWeight: '900',
-    lineHeight: 19,
-  },
-  composer: {
-    backgroundColor: '#FFF8EA',
-    borderRadius: 30,
-    marginTop: 26,
-    padding: 20,
-    shadowColor: '#2A241D',
-    shadowOffset: { height: 10, width: 0 },
-    shadowOpacity: 0.08,
-    shadowRadius: 20,
-  },
-  composerHeader: {
-    alignItems: 'flex-start',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 14,
-  },
-  composerTitle: {
-    color: '#201B16',
-    fontSize: 21,
-    fontWeight: '900',
-  },
-  composerState: {
-    color: '#8E7F70',
-    fontSize: 13,
-    fontWeight: '800',
-  },
-  segmented: {
-    alignSelf: 'stretch',
-    backgroundColor: 'rgba(32,27,22,0.08)',
-    borderRadius: 18,
-    flexDirection: 'row',
-    gap: 4,
-    marginBottom: 16,
-    padding: 4,
-  },
-  segmentButton: {
-    alignItems: 'center',
-    borderRadius: 14,
-    flex: 1,
-    minHeight: 38,
-    justifyContent: 'center',
-    paddingHorizontal: 15,
-  },
-  segmentButtonActive: {
-    backgroundColor: '#201B16',
-  },
-  segmentText: {
-    color: '#7E7469',
-    fontSize: 14,
-    fontWeight: '800',
-  },
-  segmentTextActive: {
-    color: '#FFFFFF',
-  },
-  chapterInput: {
-    backgroundColor: 'rgba(255,255,255,0.64)',
-    borderColor: 'rgba(32,27,22,0.08)',
-    borderRadius: 18,
-    borderWidth: 1,
-    color: '#201B16',
-    fontSize: 14,
-    fontWeight: '800',
-    height: 46,
-    marginBottom: 10,
-    paddingHorizontal: 15,
-  },
-  quoteInput: {
-    backgroundColor: '#2A2119',
-    borderColor: 'rgba(244,211,138,0.24)',
-    borderRadius: 24,
-    borderWidth: 1,
-    color: '#FFF8EA',
-    fontSize: 17,
-    fontWeight: '800',
-    lineHeight: 26,
-    marginBottom: 10,
-    minHeight: 98,
-    paddingHorizontal: 18,
-    paddingVertical: 16,
-    textAlignVertical: 'top',
-  },
-  postInput: {
-    backgroundColor: '#FFFFFF',
-    borderColor: 'rgba(32,27,22,0.08)',
-    borderRadius: 24,
-    borderWidth: 1,
-    color: '#201B16',
+  nowMetricValue: {
+    color: '#14231F',
     fontSize: 16,
     fontWeight: '600',
-    minHeight: 124,
-    paddingHorizontal: 18,
-    paddingVertical: 17,
+    lineHeight: 19,
+  },
+  nowMetricLabel: {
+    color: '#777268',
+    fontSize: 10,
+    fontWeight: '500',
+    marginTop: 2,
+  },
+  nowTalk: {
+    borderTopColor: 'rgba(21,34,31,0.08)',
+    borderTopWidth: 1,
+    marginTop: 8,
+    paddingHorizontal: 10,
+    paddingTop: 8,
+  },
+  nowTalkText: {
+    color: '#252D29',
+    fontSize: 13,
+    fontWeight: '400',
+    lineHeight: 19,
+  },
+  nowTalkMeta: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 5,
+  },
+  nowTalkAuthor: {
+    color: '#80776D',
+    flexShrink: 1,
+    fontSize: 11,
+    fontWeight: '500',
+  },
+  nowTalkSignal: {
+    color: '#8C3E38',
+    fontSize: 11,
+    fontWeight: '500',
+  },
+  messagePanel: {
+    backgroundColor: '#ECE7DD',
+    borderRadius: 0,
+    marginTop: 8,
+    paddingHorizontal: 2,
+    paddingVertical: 7,
+    position: 'relative',
+    zIndex: 1,
+  },
+  messageText: {
+    color: '#4D564F',
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  tabPanel: {
+    marginTop: 10,
+  },
+  sectionBlock: {
+    borderBottomColor: 'rgba(21,34,31,0.12)',
+    borderBottomWidth: 1,
+    marginBottom: 12,
+    paddingBottom: 12,
+  },
+  composerTitle: {
+    color: '#14231F',
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  composerTopRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  composerCloseText: {
+    color: '#8C3E38',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  composerPrompt: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    minHeight: 30,
+  },
+  composerPromptMark: {
+    color: '#8C3E38',
+    fontSize: 18,
+    fontWeight: '500',
+    lineHeight: 20,
+  },
+  chapterInput: {
+    backgroundColor: 'transparent',
+    borderBottomColor: 'rgba(21,34,31,0.16)',
+    borderBottomWidth: 1,
+    color: '#14231F',
+    fontSize: 13,
+    fontWeight: '500',
+    height: 34,
+    marginBottom: 6,
+    paddingHorizontal: 0,
+  },
+  postInput: {
+    backgroundColor: '#FCFAF5',
+    borderColor: 'rgba(21,34,31,0.10)',
+    borderRadius: 5,
+    borderWidth: 1,
+    color: '#14231F',
+    fontSize: 14,
+    fontWeight: '500',
+    lineHeight: 20,
+    minHeight: 88,
+    paddingHorizontal: 10,
+    paddingVertical: 10,
     textAlignVertical: 'top',
   },
   postButton: {
     alignItems: 'center',
-    backgroundColor: '#116653',
-    borderRadius: 24,
-    height: 48,
+    backgroundColor: '#14231F',
+    borderRadius: 5,
+    height: 34,
     justifyContent: 'center',
-    marginTop: 14,
-    width: 48,
+    marginTop: 9,
+    minWidth: 72,
+    paddingHorizontal: 14,
     alignSelf: 'flex-end',
   },
   postButtonText: {
     color: '#FFFFFF',
-    fontSize: 24,
-    fontWeight: '900',
-    lineHeight: 26,
-  },
-  postsSection: {
-    marginTop: 34,
+    fontSize: 12,
+    fontWeight: '600',
+    lineHeight: 16,
   },
   sectionHeader: {
     alignItems: 'center',
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 14,
+    marginBottom: 4,
   },
   sectionTitle: {
-    color: '#201B16',
-    fontSize: 26,
-    fontWeight: '900',
+    color: '#14231F',
+    fontSize: 15,
+    fontWeight: '600',
   },
   sectionCount: {
-    backgroundColor: 'rgba(32,27,22,0.08)',
-    borderRadius: 14,
-    color: '#6D5D4F',
-    fontSize: 14,
-    fontWeight: '900',
-    overflow: 'hidden',
-    paddingHorizontal: 11,
-    paddingVertical: 7,
-  },
-  postFilterBar: {
-    flexDirection: 'row',
-    gap: 7,
-    marginBottom: 14,
-  },
-  postFilterButton: {
-    alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.44)',
-    borderColor: 'rgba(32,27,22,0.07)',
-    borderRadius: 17,
-    borderWidth: 1,
-    flex: 1,
-    minHeight: 52,
-    justifyContent: 'center',
-  },
-  postFilterButtonActive: {
-    backgroundColor: '#201B16',
-    borderColor: '#201B16',
-  },
-  postFilterText: {
-    color: '#7E7469',
+    color: '#8C3E38',
     fontSize: 12,
-    fontWeight: '900',
-  },
-  postFilterTextActive: {
-    color: '#FFFFFF',
-  },
-  postFilterCount: {
-    color: '#A08F7C',
-    fontSize: 11,
-    fontWeight: '900',
-    marginTop: 2,
-  },
-  postFilterCountActive: {
-    color: '#F4D38A',
+    fontWeight: '500',
   },
   postCard: {
-    backgroundColor: 'rgba(255,255,255,0.52)',
-    borderColor: 'rgba(32,27,22,0.08)',
-    borderRadius: 28,
-    borderWidth: 1,
-    marginBottom: 14,
-    overflow: 'hidden',
-    paddingHorizontal: 18,
-    paddingVertical: 20,
+    borderTopColor: 'rgba(21,34,31,0.10)',
+    borderTopWidth: 1,
+    paddingVertical: 13,
     position: 'relative',
   },
-  postSpine: {
-    borderRadius: 2,
-    bottom: 20,
-    left: 0,
-    position: 'absolute',
-    top: 20,
-    width: 4,
-  },
-  postSpineQuestion: {
-    backgroundColor: '#7DAF9C',
-  },
-  postSpineQuote: {
-    backgroundColor: '#F4D38A',
-  },
-  postSpineImpression: {
-    backgroundColor: '#BF8E63',
+  postCardPending: {
+    opacity: 0.82,
   },
   postMetaRow: {
     alignItems: 'center',
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 10,
+    marginBottom: 5,
   },
   postMetaLeft: {
     alignItems: 'center',
     flexDirection: 'row',
     flexShrink: 1,
-    gap: 8,
+    gap: 6,
+  },
+  postDot: {
+    borderRadius: 3,
+    height: 6,
+    width: 6,
+  },
+  postDotQuestion: {
+    backgroundColor: '#496F68',
+  },
+  postDotQuote: {
+    backgroundColor: '#A86A3E',
+  },
+  postDotImpression: {
+    backgroundColor: '#8C3E38',
   },
   postKind: {
-    color: '#116653',
-    fontSize: 12,
-    fontWeight: '900',
+    color: '#496F68',
+    fontSize: 11,
+    fontWeight: '600',
     overflow: 'hidden',
+  },
+  postKindPending: {
+    color: '#9A6A2B',
   },
   postChapter: {
     color: '#8E7F70',
     flexShrink: 1,
-    fontSize: 12,
-    fontWeight: '800',
+    fontSize: 11,
+    fontWeight: '500',
   },
   postAuthor: {
     color: '#8E7F70',
-    fontSize: 12,
-    fontWeight: '700',
+    fontSize: 11,
+    fontWeight: '500',
   },
   postQuoteBox: {
-    backgroundColor: '#221A14',
-    borderColor: 'rgba(244,211,138,0.24)',
-    borderRadius: 22,
-    borderWidth: 1,
-    marginBottom: 13,
-    paddingHorizontal: 16,
-    paddingVertical: 15,
+    borderLeftColor: 'rgba(21,34,31,0.22)',
+    borderLeftWidth: 2,
+    marginBottom: 8,
+    paddingHorizontal: 9,
+    paddingVertical: 3,
   },
   postQuoteText: {
-    color: '#FFF4D6',
-    fontSize: 17,
-    fontWeight: '900',
-    lineHeight: 28,
+    color: '#3A332B',
+    fontSize: 14,
+    fontWeight: '500',
+    lineHeight: 21,
   },
   postBody: {
-    color: '#201B16',
-    fontSize: 17,
-    fontWeight: '700',
-    lineHeight: 28,
+    color: '#182520',
+    fontSize: 14,
+    fontWeight: '400',
+    lineHeight: 21,
+  },
+  postReviewText: {
+    color: '#8A7663',
+    fontSize: 11,
+    fontWeight: '500',
+    lineHeight: 16,
+    marginTop: 6,
   },
   postActions: {
     alignItems: 'center',
     flexDirection: 'row',
-    gap: 16,
-    marginTop: 18,
+    gap: 10,
+    marginTop: 9,
   },
   reactionButton: {
     alignItems: 'center',
     flexDirection: 'row',
-    gap: 5,
-    minHeight: 34,
+    gap: 4,
+    minHeight: 24,
   },
   reactionButtonActive: {
     backgroundColor: 'transparent',
   },
   reactionIcon: {
-    color: '#201B16',
-    fontSize: 25,
-    fontWeight: '800',
-    lineHeight: 28,
+    color: '#182520',
+    fontSize: 18,
+    fontWeight: '500',
+    lineHeight: 20,
   },
   reactionIconActive: {
     color: '#D54E47',
   },
   reactionCount: {
     color: '#675E54',
-    fontSize: 13,
-    fontWeight: '700',
+    fontSize: 12,
+    fontWeight: '500',
   },
-  feedIconGroup: {
+  commentToggle: {
     alignItems: 'center',
-    flexDirection: 'row',
-    gap: 5,
-    minHeight: 34,
+    backgroundColor: 'transparent',
+    borderBottomColor: 'rgba(21,34,31,0.22)',
+    borderBottomWidth: 1,
+    borderRadius: 0,
+    justifyContent: 'center',
+    minHeight: 24,
+    paddingHorizontal: 6,
   },
-  feedIcon: {
-    color: '#201B16',
-    fontSize: 25,
-    fontWeight: '800',
-    lineHeight: 28,
+  commentToggleText: {
+    color: '#5D5248',
+    fontSize: 11,
+    fontWeight: '600',
   },
-  feedIconSpacer: {
-    flex: 1,
+  commentArea: {
+    marginTop: 2,
   },
   commentsList: {
     borderTopColor: 'rgba(32,27,22,0.08)',
     borderTopWidth: 1,
-    gap: 8,
-    marginTop: 16,
-    paddingTop: 16,
+    gap: 4,
+    marginTop: 8,
+    paddingTop: 8,
   },
   commentItem: {
-    paddingVertical: 6,
+    paddingVertical: 3,
   },
   commentAuthor: {
     color: '#82776B',
-    fontSize: 12,
-    fontWeight: '800',
-    marginBottom: 4,
+    fontSize: 11,
+    fontWeight: '500',
+    marginBottom: 2,
   },
   commentBody: {
     color: '#38312A',
-    fontSize: 14,
-    fontWeight: '600',
-    lineHeight: 20,
+    fontSize: 13,
+    fontWeight: '400',
+    lineHeight: 18,
   },
   commentComposer: {
     flexDirection: 'row',
-    gap: 8,
-    marginTop: 12,
+    gap: 6,
+    marginTop: 8,
   },
   commentInput: {
-    backgroundColor: '#FFF8EA',
-    borderColor: 'rgba(32,27,22,0.08)',
-    borderRadius: 18,
+    backgroundColor: '#FCFAF5',
+    borderColor: 'rgba(21,34,31,0.10)',
+    borderRadius: 5,
     borderWidth: 1,
     color: '#24201B',
     flex: 1,
-    fontSize: 14,
-    fontWeight: '600',
-    minHeight: 44,
-    paddingHorizontal: 12,
+    fontSize: 13,
+    fontWeight: '400',
+    minHeight: 36,
+    paddingHorizontal: 9,
   },
   commentButton: {
     alignItems: 'center',
-    backgroundColor: '#201B16',
-    borderRadius: 18,
-    height: 36,
+    backgroundColor: '#14231F',
+    borderRadius: 5,
+    height: 32,
     justifyContent: 'center',
-    width: 36,
+    width: 32,
+  },
+  commentButtonDisabled: {
+    backgroundColor: '#B8AA98',
   },
   commentButtonText: {
     color: '#FFFFFF',
-    fontSize: 19,
-    fontWeight: '900',
-    lineHeight: 21,
+    fontSize: 15,
+    fontWeight: '600',
+    lineHeight: 17,
   },
   emptyPanel: {
-    backgroundColor: 'rgba(255,255,255,0.5)',
-    borderRadius: 28,
-    padding: 24,
+    borderTopColor: 'rgba(21,34,31,0.10)',
+    borderTopWidth: 1,
+    paddingVertical: 14,
   },
   emptyText: {
-    color: '#82776B',
-    fontSize: 15,
-    fontWeight: '700',
-  },
-  readingLead: {
-    backgroundColor: '#201B16',
-    borderRadius: 32,
-    padding: 24,
-    shadowColor: '#2A241D',
-    shadowOffset: { height: 14, width: 0 },
-    shadowOpacity: 0.12,
-    shadowRadius: 24,
-  },
-  readingTitle: {
-    color: '#FFFFFF',
-    fontSize: 24,
-    fontWeight: '900',
-    lineHeight: 32,
-  },
-  readingCopy: {
-    color: 'rgba(255,255,255,0.68)',
-    fontSize: 14,
-    fontWeight: '600',
-    lineHeight: 21,
-    marginTop: 10,
-  },
-  timelineItem: {
-    borderTopColor: 'rgba(32,27,22,0.1)',
-    borderTopWidth: 1,
-    flexDirection: 'row',
-    gap: 16,
-    paddingVertical: 20,
-  },
-  timelineTime: {
-    color: '#116653',
+    color: '#707870',
     fontSize: 13,
-    fontWeight: '900',
-    width: 48,
-  },
-  timelineCopy: {
-    color: '#352D25',
-    flex: 1,
-    fontSize: 16,
-    fontWeight: '700',
-    lineHeight: 24,
-  },
-  infoBlock: {
-    borderBottomColor: 'rgba(32,27,22,0.14)',
-    borderBottomWidth: 1,
-    paddingBottom: 24,
-  },
-  infoTitle: {
-    color: '#201B16',
-    fontSize: 30,
-    fontWeight: '900',
-    lineHeight: 36,
-  },
-  infoCopy: {
-    color: '#6F6255',
-    fontSize: 16,
-    fontWeight: '700',
-    lineHeight: 25,
-    marginTop: 10,
-  },
-  infoGrid: {
-    flexDirection: 'row',
-    gap: 8,
-    marginTop: 16,
-  },
-  infoCell: {
-    backgroundColor: 'rgba(255,255,255,0.54)',
-    borderRadius: 22,
-    flex: 1,
-    padding: 14,
-  },
-  infoCellLabel: {
-    color: '#8E7F70',
-    fontSize: 11,
-    fontWeight: '800',
-    marginBottom: 6,
-    textTransform: 'uppercase',
-  },
-  infoCellValue: {
-    color: '#201B16',
-    fontSize: 16,
-    fontWeight: '900',
-  },
-  ruleBlock: {
-    backgroundColor: '#FFF8EA',
-    borderRadius: 28,
-    marginTop: 16,
-    padding: 20,
-  },
-  ruleText: {
-    color: '#4F473D',
-    fontSize: 15,
-    fontWeight: '700',
-    lineHeight: 23,
+    fontWeight: '400',
   },
 });

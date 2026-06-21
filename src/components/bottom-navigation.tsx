@@ -5,17 +5,18 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useAuth } from '../providers/auth-provider';
 
-export type BottomNavKey = 'home' | 'rooms' | 'reading-life' | 'market' | 'profile';
+export type BottomNavKey = 'home' | 'rooms' | 'meetups' | 'reading-life' | 'market' | 'profile';
 
 const items: {
   key: BottomNavKey;
   label: string;
-  href: '/' | '/rooms' | '/reading-life' | '/market' | '/profile' | '/auth';
+  href: '/' | '/rooms' | '/meetups' | '/reading-life' | '/market' | '/profile' | '/auth';
   icon: string;
   signedOutHref?: '/auth';
 }[] = [
   { key: 'home', label: '홈', href: '/', icon: '🏠' },
   { key: 'rooms', label: '북룸', href: '/rooms', icon: '📖' },
+  { key: 'meetups', label: '북모임', href: '/meetups', icon: '👥' },
   { key: 'reading-life', label: '독서생활', href: '/reading-life', icon: '📝', signedOutHref: '/auth' },
   { key: 'market', label: '책가게', href: '/market', icon: '🛍️' },
   { key: 'profile', label: '나', href: '/profile', icon: '👤', signedOutHref: '/auth' },
@@ -86,33 +87,33 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'center',
     maxWidth: 430,
-    minHeight: 66,
+    minHeight: 62,
     width: '100%',
   },
   slot: {
     alignItems: 'center',
     flex: 1,
     justifyContent: 'center',
-    minHeight: 66,
+    minHeight: 62,
   },
   plate: {
     alignItems: 'center',
     backgroundColor: 'rgba(247, 241, 229, 0.12)',
-    borderRadius: 24,
-    height: 48,
+    borderRadius: 22,
+    height: 44,
     justifyContent: 'center',
     overflow: 'hidden',
     position: 'relative',
-    width: 48,
+    width: 44,
   },
   plateActive: {
     backgroundColor: 'rgba(247, 241, 229, 0.9)',
   },
   icon: {
     color: '#F7F1E5',
-    fontSize: 27,
-    fontWeight: '900',
-    lineHeight: 30,
+    fontSize: 24,
+    fontWeight: '700',
+    lineHeight: 27,
     textAlign: 'center',
   },
   iconActive: {

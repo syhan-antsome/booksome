@@ -2,6 +2,7 @@ export type BookSearchItem = {
   title: string;
   author: string;
   publisher: string;
+  translator?: string | null;
   publishedDate: string;
   isbn: string;
   imageUrl: string | null;
