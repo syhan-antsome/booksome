@@ -1,0 +1,14 @@
+booksome:
+  cors:
+    allowed-origins: http://localhost:8081
+  auth:
+    jwt-secret: Ym9va3NvbWUtdGVzdC1zZWNyZXQtYm9va3NvbWUtdGVzdC1zZWNyZXQtYm9va3NvbWUtdGVzdC1zZWNyZXQtMTIzNA==
+    issuer: https://api.booksome.test
+    audience: booksome-test
+    access-token-ttl: PT15M
+    refresh-token-ttl: P30D
+  book-lookup:
+    kakao-base-url: https://dapi.kakao.com
+    kakao-rest-api-key: test-kakao-key
+    national-library-base-url: https://www.nl.go.kr
+    national-library-cert-key: test-cert-key

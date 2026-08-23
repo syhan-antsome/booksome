@@ -5,6 +5,8 @@ import {
   Alert,
   Image,
   KeyboardAvoidingView,
+  Linking,
+  Modal,
   Platform,
   Pressable,
   ScrollView,
@@ -35,6 +37,7 @@ export default function ProfileScreen() {
   const [errorText, setErrorText] = useState('');
   const [isSavingName, setIsSavingName] = useState(false);
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
+  const [isWebSignOutConfirmVisible, setIsWebSignOutConfirmVisible] = useState(false);
 
   useEffect(() => {
     setDisplayName(profile?.display_name ?? '');
@@ -70,18 +73,36 @@ export default function ProfileScreen() {
     setErrorText('');
     setStatusText('');
 
-    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-
-    if (!permission.granted) {
-      setErrorText('사진을 선택하려면 앨범 접근 권한이 필요합니다.');
-      return;
-    }
-
-    const result = await ImagePicker.launchImageLibraryAsync({
+    const pickerOptions: ImagePicker.ImagePickerOptions = {
       allowsEditing: true,
       aspect: [1, 1],
+      mediaTypes: ['images'],
       quality: 0.86,
-    });
+    };
+
+    let result: ImagePicker.ImagePickerResult;
+    try {
+      result = await ImagePicker.launchImageLibraryAsync(pickerOptions);
+    } catch (pickerError) {
+      if (Platform.OS === 'web') {
+        setErrorText(pickerError instanceof Error ? pickerError.message : '사진 선택 창을 열지 못했습니다.');
+        return;
+      }
+
+      const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (permission.granted) {
+        result = await ImagePicker.launchImageLibraryAsync(pickerOptions);
+      } else {
+        setErrorText('사진을 선택하려면 앨범 접근 권한이 필요합니다.');
+        if (!permission.canAskAgain) {
+          Alert.alert('앨범 권한이 꺼져 있습니다', '기기 설정에서 BookSome 또는 Expo Go의 사진 권한을 허용해주세요.', [
+            { text: '취소', style: 'cancel' },
+            { text: '설정 열기', onPress: () => void Linking.openSettings() },
+          ]);
+        }
+        return;
+      }
+    }
 
     if (result.canceled) {
       return;
@@ -97,7 +118,7 @@ export default function ProfileScreen() {
     setIsUploadingAvatar(true);
 
     try {
-      const uploaded = await uploadImageAsset({
+      await uploadImageAsset({
         kind: 'avatar',
         entityId: session.user.id,
         uri: asset.uri,
@@ -108,7 +129,6 @@ export default function ProfileScreen() {
         fileName: asset.fileName,
       });
 
-      await updateProfile(session.user.id, { avatarPath: uploaded.objectPath });
       await refreshProfile();
       setStatusText('사진을 바꿨습니다.');
     } catch (error) {
@@ -142,9 +162,14 @@ export default function ProfileScreen() {
   };
 
   const confirmSignOut = () => {
+    if (Platform.OS === 'web') {
+      setIsWebSignOutConfirmVisible(true);
+      return;
+    }
+
     Alert.alert('로그아웃', '이 기기에서 로그아웃할까요?', [
       { text: '취소', style: 'cancel' },
-      { text: '로그아웃', style: 'destructive', onPress: signOut },
+      { text: '로그아웃', style: 'destructive', onPress: () => void signOut() },
     ]);
   };
 
@@ -248,6 +273,33 @@ export default function ProfileScreen() {
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
+      <Modal
+        animationType="fade"
+        onRequestClose={() => setIsWebSignOutConfirmVisible(false)}
+        transparent
+        visible={isWebSignOutConfirmVisible}
+      >
+        <View style={styles.modalBackdrop}>
+          <View style={styles.modalPanel}>
+            <Text style={styles.modalTitle}>로그아웃</Text>
+            <Text style={styles.modalCopy}>이 기기에서 로그아웃할까요?</Text>
+            <View style={styles.modalActions}>
+              <Pressable onPress={() => setIsWebSignOutConfirmVisible(false)} style={styles.modalCancelButton}>
+                <Text style={styles.modalCancelText}>취소</Text>
+              </Pressable>
+              <Pressable
+                onPress={() => {
+                  setIsWebSignOutConfirmVisible(false);
+                  void signOut();
+                }}
+                style={styles.modalSignOutButton}
+              >
+                <Text style={styles.modalSignOutText}>로그아웃</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
       <BottomNavigation active="profile" />
     </SafeAreaView>
   );
@@ -478,5 +530,59 @@ const styles = StyleSheet.create({
     color: '#8C3E38',
     fontSize: 13,
     fontWeight: '500',
+  },
+  modalBackdrop: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(10, 24, 19, 0.48)',
+    flex: 1,
+    justifyContent: 'center',
+    padding: 24,
+  },
+  modalPanel: {
+    backgroundColor: '#FFFDF8',
+    borderRadius: 16,
+    maxWidth: 340,
+    padding: 22,
+    width: '100%',
+  },
+  modalTitle: {
+    color: '#18231F',
+    fontSize: 19,
+    fontWeight: '700',
+  },
+  modalCopy: {
+    color: '#66655F',
+    fontSize: 14,
+    lineHeight: 21,
+    marginTop: 8,
+  },
+  modalActions: {
+    flexDirection: 'row',
+    gap: 10,
+    justifyContent: 'flex-end',
+    marginTop: 22,
+  },
+  modalCancelButton: {
+    borderColor: 'rgba(20,35,31,0.14)',
+    borderRadius: 8,
+    borderWidth: 1,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+  },
+  modalCancelText: {
+    color: '#5D625A',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  modalSignOutButton: {
+    backgroundColor: '#8C3E38',
+    borderRadius: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+  },
+  modalSignOutText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '700',
   },
 });

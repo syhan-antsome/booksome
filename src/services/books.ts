@@ -1,3 +1,5 @@
+import { apiRequest } from '../lib/api-client';
+
 export type BookSearchItem = {
   title: string;
   author: string;
@@ -8,7 +10,7 @@ export type BookSearchItem = {
   imageUrl: string | null;
   link: string | null;
   description: string;
-  source: 'naver' | 'nl-seoji';
+  source: 'naver' | 'kakao' | 'nl-seoji';
   sourcePayload: unknown;
 };
 
@@ -24,8 +26,6 @@ type BookTitleSearchResponse = {
   items: BookSearchItem[];
 };
 
-const apiUrl = process.env.EXPO_PUBLIC_MEDIA_API_URL;
-
 export async function lookupBookByIsbn(isbn: string) {
   const normalizedIsbn = isbn.replace(/[^0-9X]/gi, '').toUpperCase();
 
@@ -33,13 +33,11 @@ export async function lookupBookByIsbn(isbn: string) {
     throw new Error('ISBN이 비어 있습니다.');
   }
 
-  const response = await fetch(`${getApiBaseUrl()}/v1/books/isbn/${encodeURIComponent(normalizedIsbn)}`);
-
-  if (!response.ok) {
-    throw new Error(`도서 검색에 실패했습니다. (${response.status})`);
-  }
-
-  return (await response.json()) as BookLookupResponse;
+  return apiRequest<BookLookupResponse>(
+    `/api/books/isbn/${encodeURIComponent(normalizedIsbn)}`,
+    {},
+    { authenticated: 'optional' },
+  );
 }
 
 export async function searchBooksByTitle(query: string) {
@@ -49,19 +47,9 @@ export async function searchBooksByTitle(query: string) {
     throw new Error('책 제목을 두 글자 이상 입력해주세요.');
   }
 
-  const response = await fetch(`${getApiBaseUrl()}/v1/books/search?query=${encodeURIComponent(normalizedQuery)}`);
-
-  if (!response.ok) {
-    throw new Error(`도서 검색에 실패했습니다. (${response.status})`);
-  }
-
-  return (await response.json()) as BookTitleSearchResponse;
-}
-
-function getApiBaseUrl() {
-  if (!apiUrl) {
-    throw new Error('Missing EXPO_PUBLIC_MEDIA_API_URL');
-  }
-
-  return apiUrl.replace(/\/$/, '');
+  return apiRequest<BookTitleSearchResponse>(
+    `/api/books/search?query=${encodeURIComponent(normalizedQuery)}`,
+    {},
+    { authenticated: 'optional' },
+  );
 }

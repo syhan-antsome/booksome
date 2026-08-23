@@ -51,8 +51,8 @@ export default function UpdatePasswordScreen() {
   }, []);
 
   const submit = async () => {
-    if (password.length < 6) {
-      setFeedback('비밀번호는 6자 이상으로 입력해주세요.');
+    if (password.length < 10) {
+      setFeedback('비밀번호는 10자 이상으로 입력해주세요.');
       return;
     }
 

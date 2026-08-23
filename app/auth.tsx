@@ -66,6 +66,11 @@ export default function AuthScreen() {
       return;
     }
 
+    if (mode === 'sign-up' && password.length < 10) {
+      setFeedback('비밀번호는 10자 이상으로 입력해주세요.');
+      return;
+    }
+
     setIsSubmitting(true);
     try {
       if (mode === 'sign-in') {

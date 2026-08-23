@@ -1,22 +1,8 @@
-import { supabase } from '../lib/supabase';
+import { Platform } from 'react-native';
+
+import { apiRequest, getApiBaseUrl } from '../lib/api-client';
 
 export type MediaUploadKind = 'avatar' | 'room-cover' | 'meetup-photo' | 'post-media';
-
-type UploadRequestResponse = {
-  kind: MediaUploadKind;
-  entityId: string;
-  objectKey: string;
-  maxBytes: number;
-  uploadUrl: string;
-  acceptedMimeTypes: string[];
-};
-
-type UploadBlobResponse = {
-  ok: true;
-  objectKey: string;
-  bucket: string;
-  mediaUrl: string;
-};
 
 type UploadImageAssetInput = {
   kind: MediaUploadKind;
@@ -37,106 +23,58 @@ export type UploadedMediaAsset = {
   mediaUrl: string;
 };
 
-const mediaApiUrl = process.env.EXPO_PUBLIC_MEDIA_API_URL;
+type ReactNativeUploadFile = {
+  uri: string;
+  name: string;
+  type: string;
+};
 
 export async function uploadImageAsset(input: UploadImageAssetInput): Promise<UploadedMediaAsset> {
-  if (!mediaApiUrl) {
-    throw new Error('Missing EXPO_PUBLIC_MEDIA_API_URL');
-  }
-
   const extension = getExtension(input.fileName ?? input.uri);
   const mimeType = input.mimeType ?? getMimeType(extension);
+  const fileName = normalizeFileName(input.fileName, extension);
+  const formData = new FormData();
 
-  const uploadRequest = await requestUpload({
-    kind: input.kind,
-    entityId: input.entityId,
-    extension,
-    mimeType,
+  formData.append('kind', input.kind);
+  if (typeof input.width === 'number' && input.width > 0) {
+    formData.append('width', String(Math.round(input.width)));
+  }
+  if (typeof input.height === 'number' && input.height > 0) {
+    formData.append('height', String(Math.round(input.height)));
+  }
+
+  if (Platform.OS === 'web') {
+    const imageResponse = await fetch(input.uri);
+    if (!imageResponse.ok) {
+      throw new Error('선택한 이미지를 읽을 수 없습니다.');
+    }
+    formData.append('file', await imageResponse.blob(), fileName);
+  } else {
+    const nativeFile: ReactNativeUploadFile = {
+      uri: input.uri,
+      name: fileName,
+      type: mimeType,
+    };
+    formData.append('file', nativeFile as unknown as Blob);
+  }
+
+  return apiRequest<UploadedMediaAsset>('/api/media/images', {
+    method: 'POST',
+    body: formData,
   });
-
-  const imageResponse = await fetch(input.uri);
-  const blob = await imageResponse.blob();
-
-  if (blob.size > uploadRequest.maxBytes) {
-    throw new Error('선택한 이미지가 업로드 허용 용량을 초과했습니다.');
-  }
-
-  const uploaded = await uploadBlob(uploadRequest.uploadUrl, blob, mimeType);
-
-  const { data, error } = await supabase
-    .from('media_assets')
-    .insert({
-      owner_id: input.ownerId,
-      room_id: input.roomId ?? null,
-      bucket: uploaded.bucket,
-      object_path: uploaded.objectKey,
-      mime_type: mimeType,
-      width: input.width ?? null,
-      height: input.height ?? null,
-    })
-    .select('id, bucket, object_path')
-    .single();
-
-  if (error) {
-    throw error;
-  }
-
-  return {
-    id: data.id,
-    bucket: data.bucket,
-    objectPath: data.object_path,
-    mediaUrl: getMediaUrl(data.object_path),
-  };
 }
 
 export function getMediaUrl(objectPath: string) {
-  if (!mediaApiUrl) {
-    throw new Error('Missing EXPO_PUBLIC_MEDIA_API_URL');
+  if (/^https?:\/\//i.test(objectPath)) {
+    return objectPath;
   }
-
   const encodedPath = objectPath.split('/').map(encodeURIComponent).join('/');
-  return `${mediaApiUrl.replace(/\/$/, '')}/v1/media/${encodedPath}`;
+  return `${getApiBaseUrl()}/api/media/${encodedPath}`;
 }
 
-async function requestUpload(payload: {
-  kind: MediaUploadKind;
-  entityId: string;
-  extension: string;
-  mimeType: string;
-}) {
-  const response = await fetch(`${mediaApiUrl}/v1/uploads/request`, {
-    method: 'POST',
-    headers: {
-      'content-type': 'application/json',
-    },
-    body: JSON.stringify(payload),
-  });
-
-  if (!response.ok) {
-    throw new Error(`업로드 요청 생성에 실패했습니다. (${response.status})`);
-  }
-
-  return (await response.json()) as UploadRequestResponse;
-}
-
-async function uploadBlob(uploadUrl: string, blob: Blob, mimeType: string) {
-  const targetUrl = uploadUrl.startsWith('http')
-    ? uploadUrl
-    : `${mediaApiUrl?.replace(/\/$/, '')}${uploadUrl}`;
-
-  const response = await fetch(targetUrl, {
-    method: 'PUT',
-    headers: {
-      'content-type': mimeType,
-    },
-    body: blob,
-  });
-
-  if (!response.ok) {
-    throw new Error(`이미지 업로드에 실패했습니다. (${response.status})`);
-  }
-
-  return (await response.json()) as UploadBlobResponse;
+function normalizeFileName(fileName: string | null | undefined, extension: string) {
+  const cleanName = fileName?.split(/[\\/]/).pop()?.replace(/[^a-zA-Z0-9._-]/g, '-') ?? '';
+  return cleanName || `booksome-upload.${extension}`;
 }
 
 function getExtension(value: string) {

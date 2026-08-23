@@ -8,8 +8,9 @@
     "ios": "expo start --ios --port 8081",
     "web": "expo start --web --port 8081",
     "build:web": "expo export --platform web --output-dir dist",
-    "build:pages": "EXPO_PUBLIC_AUTH_REDIRECT_URL=https://booksome-app.pages.dev/auth/update-password EXPO_PUBLIC_NAVER_MAPS_BASE_URL=https://booksome-app.pages.dev expo export --platform web --output-dir dist",
-    "deploy:pages": "npm run build:pages && wrangler pages deploy dist --project-name=booksome-app --commit-dirty=true",
+    "migration:download:media": "node scripts/download-r2-media.mjs",
+    "migration:export:supabase": "node scripts/export-supabase.mjs",
+    "migration:prepare:mariadb": "node scripts/prepare-mariadb-import.mjs",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
@@ -27,6 +28,7 @@
     "expo-location": "~19.0.8",
     "expo-notifications": "~0.32.16",
     "expo-router": "~6.0.23",
+    "expo-secure-store": "~15.0.8",
     "expo-sharing": "~14.0.8",
     "expo-status-bar": "~3.0.9",
     "react": "19.1.0",
@@ -37,7 +39,6 @@
     "react-native-safe-area-context": "~5.6.0",
     "react-native-screens": "~4.16.0",
     "react-native-svg": "15.12.1",
-    "react-native-url-polyfill": "^3.0.0",
     "react-native-web": "^0.21.0",
     "react-native-webview": "^13.15.0"
   },

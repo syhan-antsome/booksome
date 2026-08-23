@@ -1,17 +1,17 @@
-import type { Session } from '@supabase/supabase-js';
-import { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 
-import { clearPersistedSupabaseSession, supabase } from '../lib/supabase';
+import { clearLegacySupabaseSession } from '../state/auth-session';
 import {
-  bootstrapProfile,
   getActiveSession,
   getProfile,
-  type ProfileRecord,
   signOut as signOutRequest,
+  subscribeAuthState,
+  type AuthSession,
+  type ProfileRecord,
 } from '../services/auth';
 
 type AuthContextValue = {
-  session: Session | null;
+  session: AuthSession | null;
   profile: ProfileRecord | null;
   isLoading: boolean;
   refreshProfile: () => Promise<void>;
@@ -21,28 +21,26 @@ type AuthContextValue = {
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [session, setSession] = useState<Session | null>(null);
+  const [session, setSession] = useState<AuthSession | null>(null);
   const [profile, setProfile] = useState<ProfileRecord | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     let isMounted = true;
+    const unsubscribe = subscribeAuthState((change) => {
+      if (!isMounted) return;
+      setSession(change.session);
+      setProfile(change.profile);
+    });
 
-    getActiveSession()
-      .then(async (activeSession) => {
-        if (!isMounted) return;
-
-        setSession(activeSession);
-        if (activeSession) {
-          const nextProfile = await bootstrapProfile(activeSession);
-          if (isMounted) setProfile(nextProfile);
-        }
+    clearLegacySupabaseSession()
+      .then(() => getActiveSession())
+      .then((activeSession) => {
+        if (isMounted) setSession(activeSession);
       })
-      .catch(async (error) => {
-        console.warn('Failed to restore Supabase session.', error instanceof Error ? error.message : error);
-        await clearPersistedSupabaseSession();
+      .catch((error) => {
+        console.warn('Failed to restore BookSome session.', error instanceof Error ? error.message : error);
         if (!isMounted) return;
-
         setSession(null);
         setProfile(null);
       })
@@ -50,57 +48,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (isMounted) setIsLoading(false);
       });
 
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_, nextSession) => {
-      setSession(nextSession);
-
-      if (!nextSession) {
-        setProfile(null);
-        setIsLoading(false);
-        return;
-      }
-
-      setIsLoading(true);
-      bootstrapProfile(nextSession)
-        .then((nextProfile) => {
-          setProfile(nextProfile);
-        })
-        .catch(async (error) => {
-          console.warn('Failed to bootstrap profile.', error instanceof Error ? error.message : error);
-          await clearPersistedSupabaseSession();
-          setProfile(null);
-        })
-        .finally(() => {
-          setIsLoading(false);
-        });
-    });
-
     return () => {
       isMounted = false;
-      subscription.unsubscribe();
+      unsubscribe();
     };
   }, []);
 
-  const value = useMemo<AuthContextValue>(
-    () => ({
-      session,
-      profile,
-      isLoading,
-      refreshProfile: async () => {
-        if (!session?.user) {
-          setProfile(null);
-          return;
-        }
+  const userId = session?.user.id;
+  const refreshProfile = useCallback(async () => {
+    if (!userId) {
+      setProfile(null);
+      return;
+    }
+    setProfile(await getProfile(userId));
+  }, [userId]);
 
-        const nextProfile = await getProfile(session.user.id);
-        setProfile(nextProfile);
-      },
-      signOut: async () => {
-        await signOutRequest();
-      },
-    }),
-    [isLoading, profile, session],
+  const signOut = useCallback(async () => {
+    await signOutRequest();
+  }, []);
+
+  const value = useMemo<AuthContextValue>(
+    () => ({ session, profile, isLoading, refreshProfile, signOut }),
+    [isLoading, profile, refreshProfile, session, signOut],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

@@ -1,26 +1,36 @@
-import type { Session, User } from '@supabase/supabase-js';
+import { apiRequest } from '../lib/api-client';
+import {
+  applyApiAuthSession,
+  clearAuthSession,
+  getStoredAuthSession,
+  mapApiProfile,
+  restoreAuthState,
+  subscribeAuthState,
+  type ApiAuthSession,
+  type ApiProfile,
+  type AuthSession,
+  type AuthUser,
+  type ProfileRecord,
+} from '../state/auth-session';
 
-import { supabase } from '../lib/supabase';
+export type { AuthSession, AuthUser, ProfileRecord };
 
-export type ProfileRecord = {
-  id: string;
-  display_name: string;
-  username: string | null;
-  avatar_path: string | null;
-  bio: string | null;
-  preferred_language: string;
-  city: string | null;
-  country: string | null;
+type CurrentSessionResponse = {
+  user: AuthUser;
+  profile: ApiProfile;
 };
 
 export async function signInWithEmail(email: string, password: string) {
-  const { data, error } = await supabase.auth.signInWithPassword({
-    email,
-    password,
-  });
-
-  if (error) throw error;
-  return data;
+  const response = await apiRequest<ApiAuthSession>(
+    '/api/auth/sign-in',
+    {
+      method: 'POST',
+      body: JSON.stringify({ email, password }),
+    },
+    { authenticated: false, retryOnUnauthorized: false },
+  );
+  const state = await applyApiAuthSession(response, 'SIGNED_IN');
+  return { session: state.session, user: state.session.user, profile: state.profile };
 }
 
 export async function signUpWithEmail(input: {
@@ -28,160 +38,93 @@ export async function signUpWithEmail(input: {
   password: string;
   displayName: string;
 }) {
-  const { data, error } = await supabase.auth.signUp({
-    email: input.email,
-    password: input.password,
-    options: {
-      data: {
-        display_name: input.displayName,
-      },
+  const response = await apiRequest<ApiAuthSession>(
+    '/api/auth/sign-up',
+    {
+      method: 'POST',
+      body: JSON.stringify(input),
     },
-  });
-
-  if (error) throw error;
-  return data;
+    { authenticated: false, retryOnUnauthorized: false },
+  );
+  const state = await applyApiAuthSession(response, 'SIGNED_IN');
+  return { session: state.session, user: state.session.user, profile: state.profile };
 }
 
-export async function requestPasswordReset(email: string) {
-  const { data, error } = await supabase.auth.resetPasswordForEmail(email, {
-    redirectTo: getPasswordRecoveryRedirectUrl(),
-  });
-
-  if (error) throw error;
-  return data;
+export async function requestPasswordReset(_email: string) {
+  throw new Error('비밀번호 재설정 메일 기능은 새 서버로 이전 중입니다.');
 }
 
-export async function updatePassword(password: string) {
-  const { data, error } = await supabase.auth.updateUser({ password });
-
-  if (error) throw error;
-  return data;
+export async function updatePassword(_password: string) {
+  throw new Error('비밀번호 재설정 기능은 새 서버로 이전 중입니다.');
 }
 
 export async function setRecoverySessionFromCurrentUrl() {
-  const hash = typeof window !== 'undefined' ? window.location.hash.replace(/^#/, '') : '';
-  const params = new URLSearchParams(hash);
-  const errorDescription = params.get('error_description');
-
-  if (errorDescription) {
-    throw new Error(decodeURIComponent(errorDescription.replace(/\+/g, ' ')));
-  }
-
-  const accessToken = params.get('access_token');
-  const refreshToken = params.get('refresh_token');
-
-  if (!accessToken || !refreshToken) {
-    const { data, error } = await supabase.auth.getSession();
-    if (error) throw error;
-
-    return data.session;
-  }
-
-  const { data, error } = await supabase.auth.setSession({
-    access_token: accessToken,
-    refresh_token: refreshToken,
-  });
-
-  if (error) throw error;
-  return data.session;
+  return null;
 }
 
 export async function signOut() {
-  const { error } = await supabase.auth.signOut();
-  if (error) throw error;
+  const session = await getStoredAuthSession();
+  try {
+    if (session) {
+      await apiRequest<void>(
+        '/api/auth/sign-out',
+        {
+          method: 'POST',
+          body: JSON.stringify({ refreshToken: session.refresh_token }),
+        },
+        { authenticated: false, retryOnUnauthorized: false },
+      );
+    }
+  } finally {
+    await clearAuthSession();
+  }
 }
 
 export async function getActiveSession() {
-  const { data, error } = await supabase.auth.getSession();
-  if (error) throw error;
-  return data.session;
+  const storedSession = await getStoredAuthSession();
+  if (!storedSession) return null;
+
+  try {
+    const response = await apiRequest<CurrentSessionResponse>('/api/auth/me');
+    const session = await getStoredAuthSession();
+    if (!session) return null;
+    restoreAuthState(session, mapApiProfile(response.profile));
+    return session;
+  } catch (error) {
+    await clearAuthSession();
+    throw error;
+  }
 }
 
-export async function getProfile(userId: string) {
-  const { data, error } = await supabase
-    .from('profiles')
-    .select('*')
-    .eq('id', userId)
-    .maybeSingle<ProfileRecord>();
-
-  if (error) throw error;
-  return data;
+export async function getProfile(_userId: string) {
+  return mapApiProfile(await apiRequest<ApiProfile>('/api/profiles/me'));
 }
 
 export async function updateProfile(
-  userId: string,
+  _userId: string,
   input: {
     displayName?: string;
     avatarPath?: string | null;
   },
 ) {
-  const payload: {
-    display_name?: string;
-    avatar_path?: string | null;
-    updated_at: string;
-  } = {
-    updated_at: new Date().toISOString(),
-  };
-
-  if (typeof input.displayName === 'string') {
-    payload.display_name = input.displayName.trim();
-  }
-
-  if ('avatarPath' in input) {
-    payload.avatar_path = input.avatarPath ?? null;
-  }
-
-  const { data, error } = await supabase
-    .from('profiles')
-    .update(payload)
-    .eq('id', userId)
-    .select('*')
-    .single<ProfileRecord>();
-
-  if (error) throw error;
-  return data;
+  const profile = await apiRequest<ApiProfile>('/api/profiles/me', {
+    method: 'PATCH',
+    body: JSON.stringify({
+      displayName: input.displayName,
+      avatarPath: input.avatarPath,
+      updateAvatar: 'avatarPath' in input,
+    }),
+  });
+  return mapApiProfile(profile);
 }
 
-export async function ensureProfile(user: User) {
-  const existing = await getProfile(user.id);
-
-  if (existing) {
-    return existing;
-  }
-
-  const metadataDisplayName =
-    typeof user.user_metadata?.display_name === 'string'
-      ? user.user_metadata.display_name.trim()
-      : '';
-  const fallbackName = metadataDisplayName || '북썸 독자';
-
-  const { data, error } = await supabase
-    .from('profiles')
-    .insert({
-      id: user.id,
-      display_name: fallbackName,
-      preferred_language: 'ko',
-    })
-    .select('*')
-    .single<ProfileRecord>();
-
-  if (error) throw error;
-  return data;
+export async function ensureProfile(user: AuthUser) {
+  return getProfile(user.id);
 }
 
-export async function bootstrapProfile(session: Session | null) {
+export async function bootstrapProfile(session: AuthSession | null) {
   if (!session?.user) return null;
   return ensureProfile(session.user);
 }
 
-function getPasswordRecoveryRedirectUrl() {
-  if (process.env.EXPO_PUBLIC_AUTH_REDIRECT_URL) {
-    return process.env.EXPO_PUBLIC_AUTH_REDIRECT_URL;
-  }
-
-  if (typeof window !== 'undefined' && window.location?.origin) {
-    return `${window.location.origin}/auth/update-password`;
-  }
-
-  return 'https://booksome-app.pages.dev/auth/update-password';
-}
+export { subscribeAuthState };

@@ -34,6 +34,9 @@ yarn-error.*
 .env
 .env*.local
 
+# Local migration exports can contain private user data
+/data-backups/
+
 # typescript
 *.tsbuildinfo
 workers/media-api/worker-configuration.d.ts
@@ -41,3 +44,7 @@ workers/media-api/worker-configuration.d.ts
 # generated native folders
 /ios
 /android
+
+# Spring Boot server
+server/.gradle/
+server/build/
