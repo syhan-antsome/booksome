@@ -21,7 +21,12 @@ import sseomdiReadingImage from '../assets/sseomdi-reading.png';
 import { BackButton } from '../src/components/back-button';
 import { BottomNavigation } from '../src/components/bottom-navigation';
 import { useAuth } from '../src/providers/auth-provider';
-import { requestPasswordReset, signInWithEmail, signUpWithEmail } from '../src/services/auth';
+import {
+  requestEmailVerification,
+  requestPasswordReset,
+  signInWithEmail,
+  signUpWithEmail,
+} from '../src/services/auth';
 
 function toImageSource(image: string | number): ImageSourcePropType {
   return typeof image === 'string' ? { uri: image } : image;
@@ -84,7 +89,8 @@ export default function AuthScreen() {
         });
 
         if (result.session) {
-          router.replace('/');
+          await requestEmailVerification();
+          router.replace('/auth/verify-email');
           return;
         }
 
@@ -111,7 +117,7 @@ export default function AuthScreen() {
 
     try {
       await requestPasswordReset(cleanEmail);
-      setFeedback('비밀번호 재설정 메일을 보냈습니다. 메일의 링크를 열어 새 비밀번호를 입력해주세요.');
+      router.push({ pathname: '/auth/update-password', params: { email: cleanEmail } });
     } catch (error) {
       const message = error instanceof Error ? error.message : '재설정 메일을 보내지 못했습니다.';
       setFeedback(message);
@@ -219,7 +225,7 @@ export default function AuthScreen() {
                   {isSendingReset ? (
                     <ActivityIndicator color="#103D2B" />
                   ) : (
-                    <Text style={styles.resetText}>비밀번호 재설정 메일 받기</Text>
+                    <Text style={styles.resetText}>비밀번호 재설정 코드 받기</Text>
                   )}
                 </Pressable>
               ) : null}

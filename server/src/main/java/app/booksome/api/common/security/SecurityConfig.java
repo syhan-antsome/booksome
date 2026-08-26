@@ -69,7 +69,9 @@ public class SecurityConfig {
                     "/api/auth/sign-up",
                     "/api/auth/sign-in",
                     "/api/auth/refresh",
-                    "/api/auth/sign-out"
+                    "/api/auth/sign-out",
+                    "/api/auth/password-reset/request",
+                    "/api/auth/password-reset/confirm"
                 ).permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/media/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/rooms/**").permitAll()
@@ -77,6 +79,7 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.GET, "/api/market/listings", "/api/market/listings/*").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/books/**").permitAll()
                 .requestMatchers("/api/health", "/actuator/health", "/actuator/info", "/error").permitAll()
+                .requestMatchers("/api/admin/**").hasRole("ADMIN")
                 .anyRequest().authenticated())
             .build();
     }

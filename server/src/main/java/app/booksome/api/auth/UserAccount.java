@@ -24,6 +24,9 @@ public class UserAccount {
     @Column(length = 24, nullable = false)
     private String status;
 
+    @Column(length = 24, nullable = false)
+    private String role;
+
     @Column(name = "email_verified_at")
     private Instant emailVerifiedAt;
 
@@ -41,6 +44,7 @@ public class UserAccount {
         this.email = email;
         this.passwordHash = passwordHash;
         this.status = "active";
+        this.role = "USER";
         this.createdAt = now;
         this.updatedAt = now;
     }
@@ -65,6 +69,10 @@ public class UserAccount {
         return status;
     }
 
+    public String getRole() {
+        return role;
+    }
+
     public Instant getEmailVerifiedAt() {
         return emailVerifiedAt;
     }
@@ -84,5 +92,12 @@ public class UserAccount {
     public void changePassword(String passwordHash, Instant now) {
         this.passwordHash = passwordHash;
         this.updatedAt = now;
+    }
+
+    public void markEmailVerified(Instant now) {
+        if (emailVerifiedAt == null) {
+            emailVerifiedAt = now;
+            updatedAt = now;
+        }
     }
 }

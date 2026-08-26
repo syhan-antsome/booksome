@@ -1,5 +1,5 @@
-import { router } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { router, useLocalSearchParams } from 'expo-router';
+import { useState } from 'react';
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -15,42 +15,28 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { BackButton } from '../../src/components/back-button';
 import { BottomNavigation } from '../../src/components/bottom-navigation';
-import { setRecoverySessionFromCurrentUrl, updatePassword } from '../../src/services/auth';
+import { updatePassword } from '../../src/services/auth';
 
 export default function UpdatePasswordScreen() {
+  const params = useLocalSearchParams<{ email?: string }>();
+  const [email, setEmail] = useState(typeof params.email === 'string' ? params.email : '');
+  const [code, setCode] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [isPreparing, setIsPreparing] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
-  const [canUpdate, setCanUpdate] = useState(false);
-
-  useEffect(() => {
-    let isMounted = true;
-
-    setRecoverySessionFromCurrentUrl()
-      .then((session) => {
-        if (!isMounted) return;
-        setCanUpdate(Boolean(session));
-        if (!session) {
-          setFeedback('재설정 링크가 없거나 만료되었습니다. 로그인 화면에서 메일을 다시 받아주세요.');
-        }
-      })
-      .catch((error) => {
-        if (!isMounted) return;
-        setCanUpdate(false);
-        setFeedback(error instanceof Error ? error.message : '재설정 링크를 확인하지 못했습니다.');
-      })
-      .finally(() => {
-        if (isMounted) setIsPreparing(false);
-      });
-
-    return () => {
-      isMounted = false;
-    };
-  }, []);
 
   const submit = async () => {
+    if (!email.trim()) {
+      setFeedback('가입한 이메일을 입력해주세요.');
+      return;
+    }
+
+    if (!/^[0-9]{8}$/.test(code)) {
+      setFeedback('메일로 받은 8자리 코드를 입력해주세요.');
+      return;
+    }
+
     if (password.length < 10) {
       setFeedback('비밀번호는 10자 이상으로 입력해주세요.');
       return;
@@ -65,9 +51,9 @@ export default function UpdatePasswordScreen() {
     setFeedback(null);
 
     try {
-      await updatePassword(password);
-      setFeedback('비밀번호를 변경했습니다. 새 비밀번호로 북썸을 이용할 수 있습니다.');
-      router.replace('/');
+      await updatePassword(email.trim(), code, password);
+      setFeedback('비밀번호를 변경했습니다. 새 비밀번호로 로그인해주세요.');
+      router.replace('/auth');
     } catch (error) {
       setFeedback(error instanceof Error ? error.message : '비밀번호를 변경하지 못했습니다.');
     } finally {
@@ -95,19 +81,32 @@ export default function UpdatePasswordScreen() {
           <View style={styles.hero}>
             <Text style={styles.eyebrow}>PASSWORD RESET</Text>
             <Text style={styles.title}>새 비밀번호를 정해주세요</Text>
-            <Text style={styles.copy}>메일 링크가 확인되면 이 화면에서 바로 새 비밀번호를 저장합니다.</Text>
+            <Text style={styles.copy}>메일로 받은 8자리 코드와 새 비밀번호를 입력해주세요.</Text>
           </View>
 
           <View style={styles.form}>
-            {isPreparing ? (
-              <View style={styles.loadingRow}>
-                <ActivityIndicator color="#103D2B" />
-                <Text style={styles.loadingText}>재설정 링크를 확인하는 중입니다</Text>
-              </View>
-            ) : null}
-
             <TextInput
-              editable={canUpdate && !isSubmitting}
+              autoCapitalize="none"
+              editable={!isSubmitting}
+              keyboardType="email-address"
+              onChangeText={setEmail}
+              placeholder="가입한 이메일"
+              placeholderTextColor="#8D8A83"
+              style={styles.input}
+              value={email}
+            />
+            <TextInput
+              editable={!isSubmitting}
+              keyboardType="number-pad"
+              maxLength={8}
+              onChangeText={(value) => setCode(value.replace(/[^0-9]/g, ''))}
+              placeholder="8자리 인증 코드"
+              placeholderTextColor="#8D8A83"
+              style={styles.input}
+              value={code}
+            />
+            <TextInput
+              editable={!isSubmitting}
               onChangeText={setPassword}
               placeholder="새 비밀번호"
               placeholderTextColor="#8D8A83"
@@ -116,7 +115,7 @@ export default function UpdatePasswordScreen() {
               value={password}
             />
             <TextInput
-              editable={canUpdate && !isSubmitting}
+              editable={!isSubmitting}
               onChangeText={setConfirmPassword}
               placeholder="새 비밀번호 확인"
               placeholderTextColor="#8D8A83"
@@ -126,9 +125,9 @@ export default function UpdatePasswordScreen() {
             />
 
             <Pressable
-              disabled={!canUpdate || isSubmitting}
+              disabled={isSubmitting}
               onPress={submit}
-              style={[styles.submitButton, (!canUpdate || isSubmitting) && styles.submitButtonDisabled]}
+              style={[styles.submitButton, isSubmitting && styles.submitButtonDisabled]}
             >
               {isSubmitting ? (
                 <ActivityIndicator color="#FFFFFF" />
@@ -139,11 +138,9 @@ export default function UpdatePasswordScreen() {
 
             {feedback ? <Text style={styles.feedback}>{feedback}</Text> : null}
 
-            {!canUpdate && !isPreparing ? (
-              <Pressable onPress={() => router.replace('/auth')} style={styles.secondaryButton}>
-                <Text style={styles.secondaryText}>로그인 화면으로 돌아가기</Text>
-              </Pressable>
-            ) : null}
+            <Pressable onPress={() => router.replace('/auth')} style={styles.secondaryButton}>
+              <Text style={styles.secondaryText}>로그인 화면으로 돌아가기</Text>
+            </Pressable>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>

@@ -246,6 +246,17 @@ export default function ProfileScreen() {
           </View>
 
           <View style={styles.linkSection}>
+            {session && !session.user.email_verified ? (
+              <Link asChild href="/auth/verify-email">
+                <Pressable style={styles.linkRow}>
+                  <View style={styles.linkCopy}>
+                    <Text style={styles.linkLabel}>이메일 인증</Text>
+                    <Text style={styles.linkMeta}>계정 복구와 보안을 위해 인증해주세요</Text>
+                  </View>
+                  <Text style={styles.linkArrow}>›</Text>
+                </Pressable>
+              </Link>
+            ) : null}
             {profileLinks.map((item) => (
               <Link asChild href={item.href} key={item.href}>
                 <Pressable style={styles.linkRow}>

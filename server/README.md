@@ -39,6 +39,19 @@ The application requires database credentials at runtime. Copy `.env.example` in
 - Database schema changes: Flyway only
 - Hibernate schema mode: `validate`
 
+## Operations console
+
+The React-admin console in `../admin` uses the same authentication endpoints and calls only `/api/admin/**` APIs. Administrator access is enforced by the `ADMIN` JWT role.
+
+Configure the initial administrator account and admin origin before deployment:
+
+```text
+BOOKSOME_ADMIN_EMAILS=your-admin-account@example.com
+BOOKSOME_CORS_ALLOWED_ORIGINS=https://booksome.top,https://www.booksome.top,https://admin.booksome.top
+```
+
+After the account exists, restart the API once to apply the configured administrator role. The user must sign in again so the new access token contains `ADMIN`.
+
 ## Deployment assets
 
 The `deploy/` directory contains templates for:
@@ -48,3 +61,20 @@ The `deploy/` directory contains templates for:
 - the Nginx reverse-proxy location
 
 Production paths use `/service/booksome`, matching the server layout.
+
+## Transactional email
+
+Password reset and email verification use 8-digit codes that expire after 15 minutes. Configure a verified SMTP sender before enabling mail:
+
+```text
+BOOKSOME_MAIL_ENABLED=true
+BOOKSOME_MAIL_FROM=no-reply@mail.booksome.top
+BOOKSOME_SMTP_HOST=smtp.resend.com
+BOOKSOME_SMTP_PORT=587
+BOOKSOME_SMTP_USERNAME=resend
+BOOKSOME_SMTP_PASSWORD=<Resend API key>
+BOOKSOME_SMTP_AUTH=true
+BOOKSOME_SMTP_STARTTLS=true
+```
+
+Keep the SMTP password only in the server environment file. Never commit it.

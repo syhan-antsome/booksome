@@ -36,7 +36,7 @@ public class JwtService {
             .expiresAt(expiresAt)
             .id(UUID.randomUUID().toString())
             .claim("email", user.getEmail())
-            .claim("roles", List.of("USER"))
+            .claim("roles", List.of(user.getRole()))
             .build();
         var header = JwsHeader.with(MacAlgorithm.HS512).type("JWT").build();
         String token = jwtEncoder.encode(JwtEncoderParameters.from(header, claims)).getTokenValue();

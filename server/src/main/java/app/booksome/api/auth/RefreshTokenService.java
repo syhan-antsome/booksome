@@ -66,6 +66,12 @@ public class RefreshTokenService {
             .ifPresent(token -> token.revoke(clock.instant()));
     }
 
+    public void revokeAllForUser(String userId) {
+        Instant now = clock.instant();
+        refreshTokenRepository.findAllByUserIdAndRevokedAtIsNull(userId)
+            .forEach(token -> token.revoke(now));
+    }
+
     private RefreshToken findForUpdate(String rawToken) {
         if (rawToken == null || rawToken.isBlank()) {
             throw invalidRefreshToken();

@@ -1,6 +1,7 @@
 package app.booksome.api.auth;
 
 import java.util.Optional;
+import java.util.List;
 
 import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -13,4 +14,6 @@ public interface RefreshTokenRepository extends JpaRepository<RefreshToken, Stri
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select token from RefreshToken token where token.tokenHash = :tokenHash")
     Optional<RefreshToken> findByTokenHashForUpdate(@Param("tokenHash") String tokenHash);
+
+    List<RefreshToken> findAllByUserIdAndRevokedAtIsNull(String userId);
 }

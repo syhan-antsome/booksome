@@ -5,6 +5,15 @@ import { Platform } from 'react-native';
 export type AuthUser = {
   id: string;
   email: string;
+  email_verified: boolean;
+  role: 'USER' | 'ADMIN';
+};
+
+export type ApiAuthUser = {
+  id: string;
+  email: string;
+  emailVerified: boolean;
+  role: 'USER' | 'ADMIN';
 };
 
 export type AuthSession = {
@@ -43,7 +52,7 @@ export type ApiAuthSession = {
   refreshToken: string;
   tokenType: 'Bearer';
   expiresIn: number;
-  user: AuthUser;
+  user: ApiAuthUser;
   profile: ApiProfile;
 };
 
@@ -84,6 +93,15 @@ export function mapApiProfile(profile: ApiProfile): ProfileRecord {
   };
 }
 
+export function mapApiAuthUser(user: ApiAuthUser): AuthUser {
+  return {
+    id: user.id,
+    email: user.email,
+    email_verified: user.emailVerified,
+    role: user.role ?? 'USER',
+  };
+}
+
 export function subscribeAuthState(listener: AuthStateListener) {
   listeners.add(listener);
   return () => listeners.delete(listener);
@@ -102,7 +120,16 @@ export async function getStoredAuthSession() {
     }
 
     const stored = JSON.parse(rawValue) as Partial<StoredAuthSessionV1>;
-    memorySession = stored.version === 1 && isAuthSession(stored.session) ? stored.session : null;
+    memorySession = stored.version === 1 && isAuthSession(stored.session)
+      ? {
+          ...stored.session,
+          user: {
+            ...stored.session.user,
+            email_verified: stored.session.user.email_verified === true,
+            role: stored.session.user.role === 'ADMIN' ? 'ADMIN' : 'USER',
+          },
+        }
+      : null;
     if (!memorySession) {
       await deleteStoredValue();
     }
@@ -121,7 +148,7 @@ export async function applyApiAuthSession(response: ApiAuthSession, event: AuthC
     token_type: response.tokenType,
     expires_in: response.expiresIn,
     expires_at: Math.floor(Date.now() / 1000) + response.expiresIn,
-    user: response.user,
+    user: mapApiAuthUser(response.user),
   };
   const profile = mapApiProfile(response.profile);
   memorySession = session;
@@ -140,6 +167,13 @@ export function restoreAuthState(session: AuthSession, profile: ProfileRecord) {
 export function updateAuthProfile(profile: ProfileRecord) {
   memoryProfile = profile;
   emitAuthState({ event: 'PROFILE_UPDATED', session: memorySession ?? null, profile });
+}
+
+export async function updateAuthUser(user: ApiAuthUser) {
+  if (!memorySession) return;
+  memorySession = { ...memorySession, user: mapApiAuthUser(user) };
+  await writeStoredValue(JSON.stringify({ version: 1, session: memorySession } satisfies StoredAuthSessionV1));
+  emitAuthState({ event: 'PROFILE_UPDATED', session: memorySession, profile: memoryProfile });
 }
 
 export function getMemoryAuthProfile() {

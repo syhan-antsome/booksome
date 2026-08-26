@@ -6,7 +6,9 @@ import {
   mapApiProfile,
   restoreAuthState,
   subscribeAuthState,
+  updateAuthUser,
   type ApiAuthSession,
+  type ApiAuthUser,
   type ApiProfile,
   type AuthSession,
   type AuthUser,
@@ -16,7 +18,7 @@ import {
 export type { AuthSession, AuthUser, ProfileRecord };
 
 type CurrentSessionResponse = {
-  user: AuthUser;
+  user: ApiAuthUser;
   profile: ApiProfile;
 };
 
@@ -50,16 +52,40 @@ export async function signUpWithEmail(input: {
   return { session: state.session, user: state.session.user, profile: state.profile };
 }
 
-export async function requestPasswordReset(_email: string) {
-  throw new Error('비밀번호 재설정 메일 기능은 새 서버로 이전 중입니다.');
+export async function requestPasswordReset(email: string) {
+  return apiRequest<{ accepted: boolean }>(
+    '/api/auth/password-reset/request',
+    {
+      method: 'POST',
+      body: JSON.stringify({ email }),
+    },
+    { authenticated: false, retryOnUnauthorized: false },
+  );
 }
 
-export async function updatePassword(_password: string) {
-  throw new Error('비밀번호 재설정 기능은 새 서버로 이전 중입니다.');
+export async function updatePassword(email: string, code: string, newPassword: string) {
+  return apiRequest<void>(
+    '/api/auth/password-reset/confirm',
+    {
+      method: 'POST',
+      body: JSON.stringify({ email, code, newPassword }),
+    },
+    { authenticated: false, retryOnUnauthorized: false },
+  );
 }
 
-export async function setRecoverySessionFromCurrentUrl() {
-  return null;
+export async function requestEmailVerification() {
+  return apiRequest<{ accepted: boolean }>('/api/auth/email-verification/request', {
+    method: 'POST',
+  });
+}
+
+export async function confirmEmailVerification(code: string) {
+  await apiRequest<void>('/api/auth/email-verification/confirm', {
+    method: 'POST',
+    body: JSON.stringify({ code }),
+  });
+  await getActiveSession();
 }
 
 export async function signOut() {
@@ -86,6 +112,7 @@ export async function getActiveSession() {
 
   try {
     const response = await apiRequest<CurrentSessionResponse>('/api/auth/me');
+    await updateAuthUser(response.user);
     const session = await getStoredAuthSession();
     if (!session) return null;
     restoreAuthState(session, mapApiProfile(response.profile));

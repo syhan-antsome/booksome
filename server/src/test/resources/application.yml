@@ -12,3 +12,6 @@ booksome:
     kakao-rest-api-key: test-kakao-key
     national-library-base-url: https://www.nl.go.kr
     national-library-cert-key: test-cert-key
+  mail:
+    enabled: false
+    from-address: no-reply@mail.booksome.test
