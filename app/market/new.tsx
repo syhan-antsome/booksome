@@ -514,7 +514,7 @@ export default function NewMarketItemScreen() {
         }}
         visible={isMapPickerVisible}
       />
-      <BottomNavigation active="market" />
+      <BottomNavigation active="rooms" />
     </SafeAreaView>
   );
 }

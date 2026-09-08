@@ -1,4 +1,4 @@
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useMemo, useState } from 'react';
 import {
   ActivityIndicator,
@@ -23,7 +23,6 @@ import { BottomNavigation } from '../src/components/bottom-navigation';
 import { useAuth } from '../src/providers/auth-provider';
 import {
   requestEmailVerification,
-  requestPasswordReset,
   signInWithEmail,
   signUpWithEmail,
 } from '../src/services/auth';
@@ -36,15 +35,17 @@ const authHeroSource = toImageSource(authHeroImage);
 const sseomdiReadingSource = toImageSource(sseomdiReadingImage);
 
 export default function AuthScreen() {
+  const params = useLocalSearchParams<{ email?: string; reset?: string }>();
   const { session } = useAuth();
   const { height } = useWindowDimensions();
   const [mode, setMode] = useState<'sign-in' | 'sign-up'>('sign-in');
   const [displayName, setDisplayName] = useState('');
-  const [email, setEmail] = useState('');
+  const [email, setEmail] = useState(typeof params.email === 'string' ? params.email : '');
   const [password, setPassword] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isSendingReset, setIsSendingReset] = useState(false);
-  const [feedback, setFeedback] = useState<string | null>(null);
+  const [feedback, setFeedback] = useState<string | null>(
+    params.reset === 'success' ? '비밀번호를 변경했습니다. 새 비밀번호로 로그인해주세요.' : null,
+  );
 
   const title = useMemo(
     () =>
@@ -56,7 +57,7 @@ export default function AuthScreen() {
   const copy = useMemo(
     () =>
       mode === 'sign-in'
-        ? '함께 읽던 북룸과 대화를 계속 이어가세요.'
+        ? '내 서재와 읽던 페이지, 남겨둔 기록을 계속 이어가세요.'
         : '필명으로 책에 머물고, 질문과 문장을 안전하게 남겨보세요.',
     [mode],
   );
@@ -104,26 +105,9 @@ export default function AuthScreen() {
     }
   };
 
-  const sendPasswordReset = async () => {
+  const openPasswordReset = () => {
     const cleanEmail = email.trim();
-
-    if (!cleanEmail) {
-      setFeedback('비밀번호를 재설정할 이메일을 먼저 입력해주세요.');
-      return;
-    }
-
-    setIsSendingReset(true);
-    setFeedback(null);
-
-    try {
-      await requestPasswordReset(cleanEmail);
-      router.push({ pathname: '/auth/update-password', params: { email: cleanEmail } });
-    } catch (error) {
-      const message = error instanceof Error ? error.message : '재설정 메일을 보내지 못했습니다.';
-      setFeedback(message);
-    } finally {
-      setIsSendingReset(false);
-    }
+    router.push({ pathname: '/auth/update-password', params: cleanEmail ? { email: cleanEmail } : {} });
   };
 
   return (
@@ -210,6 +194,12 @@ export default function AuthScreen() {
                 value={password}
               />
 
+              {feedback ? (
+                <View accessibilityRole="alert" style={styles.feedbackPanel}>
+                  <Text style={styles.feedback}>{feedback}</Text>
+                </View>
+              ) : null}
+
               <Pressable onPress={submit} style={styles.submitButton} disabled={isSubmitting}>
                 {isSubmitting ? (
                   <ActivityIndicator color="#FFFFFF" />
@@ -221,16 +211,10 @@ export default function AuthScreen() {
               </Pressable>
 
               {mode === 'sign-in' ? (
-                <Pressable disabled={isSendingReset} onPress={sendPasswordReset} style={styles.resetButton}>
-                  {isSendingReset ? (
-                    <ActivityIndicator color="#103D2B" />
-                  ) : (
-                    <Text style={styles.resetText}>비밀번호 재설정 코드 받기</Text>
-                  )}
+                <Pressable onPress={openPasswordReset} style={styles.resetButton}>
+                  <Text style={styles.resetText}>비밀번호를 잊으셨나요?</Text>
                 </Pressable>
               ) : null}
-
-              {feedback ? <Text style={styles.feedback}>{feedback}</Text> : null}
               {session ? (
                 <Text style={styles.feedback}>이미 로그인되어 있습니다. 뒤로 가면 홈으로 돌아갑니다.</Text>
               ) : null}
@@ -395,11 +379,18 @@ const styles = StyleSheet.create({
     fontWeight: '900',
   },
   feedback: {
-    color: '#5F574D',
+    color: '#103D2B',
     fontSize: 14,
     fontWeight: '700',
     lineHeight: 21,
-    marginTop: 6,
+  },
+  feedbackPanel: {
+    backgroundColor: '#E3EDE5',
+    borderColor: 'rgba(16,61,43,0.18)',
+    borderRadius: 16,
+    borderWidth: 1,
+    paddingHorizontal: 16,
+    paddingVertical: 13,
   },
   note: {
     color: '#81786B',

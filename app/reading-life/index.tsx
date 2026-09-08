@@ -504,7 +504,7 @@ export default function ReadingLifeScreen() {
         </View>
 
       </ScrollView>
-      <BottomNavigation active="reading-life" />
+      <BottomNavigation active="library" />
     </SafeAreaView>
   );
 }

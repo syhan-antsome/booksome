@@ -166,7 +166,7 @@ export default function ScanResultScreen() {
                 pathname: '/meetups/new',
                 params: getMeetupReturnParams(params),
               }
-          : '/reading-life',
+          : '/library',
     );
   };
 
@@ -228,7 +228,7 @@ export default function ScanResultScreen() {
         externalCoverUrl,
         totalPages: totalPagesValue,
       });
-      router.replace('/reading-life');
+      router.replace('/library');
     } catch (error) {
       setRegistrationError(getErrorMessage(error, '내 책장에 등록하지 못했습니다.'));
     } finally {

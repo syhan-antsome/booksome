@@ -1,25 +1,43 @@
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { Link } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Keyboard, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useAuth } from '../providers/auth-provider';
+import { booksomeColors, booksomeLayout } from '../theme/booksome';
 
-export type BottomNavKey = 'home' | 'rooms' | 'meetups' | 'reading-life' | 'market' | 'profile';
+export type BottomNavKey = 'today' | 'library' | 'record' | 'rooms' | 'profile';
 
-const items: {
+type NavItem = {
   key: BottomNavKey;
   label: string;
-  href: '/' | '/rooms' | '/meetups' | '/reading-life' | '/market' | '/profile' | '/auth';
-  icon: string;
+  href: '/' | '/library' | '/record' | '/rooms' | '/profile';
+  icon: keyof typeof Ionicons.glyphMap;
+  activeIcon: keyof typeof Ionicons.glyphMap;
   signedOutHref?: '/auth';
-}[] = [
-  { key: 'home', label: '홈', href: '/', icon: '🏠' },
-  { key: 'rooms', label: '북룸', href: '/rooms', icon: '📖' },
-  { key: 'meetups', label: '북모임', href: '/meetups', icon: '👥' },
-  { key: 'reading-life', label: '독서생활', href: '/reading-life', icon: '📝', signedOutHref: '/auth' },
-  { key: 'market', label: '책가게', href: '/market', icon: '🛍️' },
-  { key: 'profile', label: '나', href: '/profile', icon: '👤', signedOutHref: '/auth' },
+};
+
+const items: NavItem[] = [
+  { key: 'today', label: '오늘', href: '/', icon: 'sunny-outline', activeIcon: 'sunny' },
+  { key: 'library', label: '내 서재', href: '/library', icon: 'library-outline', activeIcon: 'library' },
+  {
+    key: 'record',
+    label: '기록',
+    href: '/record',
+    icon: 'create-outline',
+    activeIcon: 'create',
+    signedOutHref: '/auth',
+  },
+  { key: 'rooms', label: '북룸', href: '/rooms', icon: 'book-outline', activeIcon: 'book' },
+  {
+    key: 'profile',
+    label: '나',
+    href: '/profile',
+    icon: 'person-outline',
+    activeIcon: 'person',
+    signedOutHref: '/auth',
+  },
 ];
 
 export function BottomNavigation({ active }: { active: BottomNavKey }) {
@@ -28,12 +46,8 @@ export function BottomNavigation({ active }: { active: BottomNavKey }) {
   const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
 
   useEffect(() => {
-    const showSubscription = Keyboard.addListener('keyboardDidShow', () => {
-      setIsKeyboardVisible(true);
-    });
-    const hideSubscription = Keyboard.addListener('keyboardDidHide', () => {
-      setIsKeyboardVisible(false);
-    });
+    const showSubscription = Keyboard.addListener('keyboardDidShow', () => setIsKeyboardVisible(true));
+    const hideSubscription = Keyboard.addListener('keyboardDidHide', () => setIsKeyboardVisible(false));
 
     return () => {
       showSubscription.remove();
@@ -41,23 +55,40 @@ export function BottomNavigation({ active }: { active: BottomNavKey }) {
     };
   }, []);
 
-  if (isKeyboardVisible) {
-    return null;
-  }
+  if (isKeyboardVisible) return null;
 
   return (
     <View style={[styles.shell, { paddingBottom: Math.max(insets.bottom, 8) }]}>
       <View style={styles.bar}>
         {items.map((item) => {
           const isActive = active === item.key;
+          const isRecord = item.key === 'record';
           const href = !session && item.signedOutHref ? item.signedOutHref : item.href;
 
           return (
             <Link asChild href={href} key={item.key}>
-              <Pressable accessibilityLabel={item.label} style={styles.slot}>
-                <View style={[styles.plate, isActive ? styles.plateActive : null]}>
-                  <Text style={[styles.icon, isActive ? styles.iconActive : null]}>{item.icon}</Text>
+              <Pressable
+                accessibilityLabel={item.label}
+                accessibilityRole="tab"
+                accessibilityState={{ selected: isActive }}
+                style={StyleSheet.flatten([styles.slot, isRecord ? styles.recordSlot : null])}
+              >
+                <View
+                  style={[
+                    styles.iconPlate,
+                    isRecord ? styles.recordPlate : null,
+                    isRecord && isActive ? styles.recordPlateActive : null,
+                  ]}
+                >
+                  <Ionicons
+                    color={isRecord ? booksomeColors.white : isActive ? booksomeColors.forest : '#687168'}
+                    name={isActive ? item.activeIcon : item.icon}
+                    size={isRecord ? 28 : 23}
+                  />
                 </View>
+                <Text style={[styles.label, isActive ? styles.labelActive : null, isRecord ? styles.recordLabel : null]}>
+                  {item.label}
+                </Text>
               </Pressable>
             </Link>
           );
@@ -70,53 +101,64 @@ export function BottomNavigation({ active }: { active: BottomNavKey }) {
 const styles = StyleSheet.create({
   shell: {
     alignItems: 'center',
-    backgroundColor: 'rgba(13, 47, 34, 0.72)',
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
+    backgroundColor: 'rgba(255,253,248,0.98)',
+    borderTopColor: booksomeColors.line,
+    borderTopWidth: StyleSheet.hairlineWidth,
     bottom: 0,
     left: 0,
-    overflow: 'hidden',
-    paddingHorizontal: 14,
-    paddingTop: 10,
+    paddingHorizontal: 10,
+    paddingTop: 7,
     position: 'absolute',
     right: 0,
     zIndex: 30,
   },
   bar: {
-    alignItems: 'center',
+    alignItems: 'flex-end',
     flexDirection: 'row',
-    justifyContent: 'center',
-    maxWidth: 430,
-    minHeight: 62,
+    maxWidth: booksomeLayout.maxContentWidth,
+    minHeight: 66,
     width: '100%',
   },
   slot: {
     alignItems: 'center',
     flex: 1,
-    justifyContent: 'center',
-    minHeight: 62,
+    justifyContent: 'flex-end',
+    minHeight: 64,
+    paddingBottom: 4,
   },
-  plate: {
+  recordSlot: {
+    justifyContent: 'flex-start',
+  },
+  iconPlate: {
     alignItems: 'center',
-    backgroundColor: 'rgba(247, 241, 229, 0.12)',
-    borderRadius: 22,
-    height: 44,
+    height: 31,
     justifyContent: 'center',
-    overflow: 'hidden',
-    position: 'relative',
-    width: 44,
+    width: 40,
   },
-  plateActive: {
-    backgroundColor: 'rgba(247, 241, 229, 0.9)',
+  recordPlate: {
+    backgroundColor: booksomeColors.forest,
+    borderColor: booksomeColors.paperStrong,
+    borderRadius: 30,
+    borderWidth: 4,
+    boxShadow: '0px 4px 8px rgba(11,46,32,0.2)',
+    height: 58,
+    marginTop: -25,
+    width: 58,
   },
-  icon: {
-    color: '#F7F1E5',
-    fontSize: 24,
+  recordPlateActive: {
+    backgroundColor: '#0B5035',
+  },
+  label: {
+    color: '#687168',
+    fontSize: 11,
     fontWeight: '700',
-    lineHeight: 27,
-    textAlign: 'center',
+    marginTop: 3,
   },
-  iconActive: {
-    color: '#103D2B',
+  labelActive: {
+    color: booksomeColors.forest,
+    fontWeight: '900',
+  },
+  recordLabel: {
+    marginTop: 1,
   },
 });

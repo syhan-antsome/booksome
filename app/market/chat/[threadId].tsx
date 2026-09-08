@@ -185,7 +185,7 @@ export default function MarketChatScreen() {
           ) : null}
         </View>
       </KeyboardAvoidingView>
-      <BottomNavigation active="market" />
+      <BottomNavigation active="rooms" />
     </SafeAreaView>
   );
 }

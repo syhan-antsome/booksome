@@ -50,12 +50,12 @@ export async function apiRequest<T>(
     }
   }
 
-  const response = await fetch(`${apiBaseUrl}${normalizePath(path)}`, { ...init, headers });
+  const response = await safeFetch(`${apiBaseUrl}${normalizePath(path)}`, { ...init, headers });
 
   if (sentAuthorization && response.status === 401 && retryOnUnauthorized) {
     const session = await refreshAuthSession();
     headers.set('authorization', `${session.token_type} ${session.access_token}`);
-    const retryResponse = await fetch(`${apiBaseUrl}${normalizePath(path)}`, { ...init, headers });
+    const retryResponse = await safeFetch(`${apiBaseUrl}${normalizePath(path)}`, { ...init, headers });
     return readResponse<T>(retryResponse);
   }
 
@@ -86,7 +86,7 @@ async function refreshAuthSession() {
       throw new Error('로그인이 필요합니다.');
     }
 
-    const response = await fetch(`${apiBaseUrl}/api/auth/refresh`, {
+    const response = await safeFetch(`${apiBaseUrl}/api/auth/refresh`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ refreshToken: currentSession.refresh_token }),
@@ -127,4 +127,12 @@ async function toApiError(response: Response) {
 
 function normalizePath(path: string) {
   return path.startsWith('/') ? path : `/${path}`;
+}
+
+async function safeFetch(url: string, init: RequestInit) {
+  try {
+    return await fetch(url, init);
+  } catch {
+    throw new Error('북썸 서버에 연결하지 못했습니다. 네트워크 연결을 확인해주세요.');
+  }
 }

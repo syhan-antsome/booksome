@@ -24,7 +24,7 @@ import { updateProfile } from '../src/services/auth';
 import { getMediaUrl, uploadImageAsset } from '../src/services/media';
 
 const profileLinks = [
-  { href: '/reading-life', label: '독서 생활', meta: '내가 읽는 책과 기록' },
+  { href: '/library', label: '내 서재', meta: '읽는 책과 완독 기록' },
   { href: '/rooms', label: '북룸', meta: '책마다 모인 책톡' },
   { href: '/market', label: '북마켓', meta: '책을 나누고 거래하기' },
 ] as const;

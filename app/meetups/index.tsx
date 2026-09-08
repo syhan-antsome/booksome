@@ -131,7 +131,7 @@ export default function MeetupsScreen() {
           </View>
         ) : null}
       </ScrollView>
-      <BottomNavigation active="meetups" />
+      <BottomNavigation active="rooms" />
     </SafeAreaView>
   );
 }

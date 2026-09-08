@@ -285,7 +285,7 @@ export default function MarketScreen() {
           </>
         ) : null}
       </ScrollView>
-      <BottomNavigation active="market" />
+      <BottomNavigation active="rooms" />
     </SafeAreaView>
   );
 }

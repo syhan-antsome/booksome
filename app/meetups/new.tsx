@@ -417,7 +417,7 @@ export default function NewMeetupScreen() {
           )}
         </ScrollView>
       </KeyboardAvoidingView>
-      <BottomNavigation active="meetups" />
+      <BottomNavigation active="rooms" />
     </SafeAreaView>
   );
 }

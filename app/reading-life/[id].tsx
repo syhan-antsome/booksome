@@ -120,6 +120,7 @@ export default function ReadingLifeBookScreen() {
   const [pageLabel, setPageLabel] = useState('');
   const [currentPageInput, setCurrentPageInput] = useState('');
   const [totalPagesInput, setTotalPagesInput] = useState('');
+  const [isTotalPagesEditing, setIsTotalPagesEditing] = useState(false);
   const [isShuttleDragging, setIsShuttleDragging] = useState(false);
   const [isShuttleUnlocked, setIsShuttleUnlocked] = useState(false);
   const [shuttleDeltaPage, setShuttleDeltaPage] = useState(0);
@@ -207,6 +208,7 @@ export default function ReadingLifeBookScreen() {
     if (!book) {
       setCurrentPageInput('');
       setTotalPagesInput('');
+      setIsTotalPagesEditing(false);
       return;
     }
 
@@ -249,7 +251,7 @@ export default function ReadingLifeBookScreen() {
   displayCurrentPageRef.current = displayCurrentPage;
 
   const saveBook = async (input: UpdateReadingLifeBookInput) => {
-    if (!session?.user.id || !bookId) return;
+    if (!session?.user.id || !bookId) return false;
 
     setIsSaving(true);
     setErrorMessage(null);
@@ -257,11 +259,41 @@ export default function ReadingLifeBookScreen() {
     try {
       const nextBook = await updateReadingLifeBook(session.user.id, bookId, input);
       setBook(nextBook);
+      return true;
     } catch (error) {
       setErrorMessage(getErrorMessage(error, '변경 내용을 저장하지 못했습니다.'));
+      return false;
     } finally {
       setIsSaving(false);
     }
+  };
+
+  const saveTotalPages = async () => {
+    if (!book) return;
+    const totalPages = parsePositiveInteger(totalPagesInput);
+    if (totalPages === null) {
+      setErrorMessage('전체 페이지를 1 이상의 숫자로 입력해주세요.');
+      return;
+    }
+    if (book.currentPage > totalPages) {
+      setErrorMessage(`전체 페이지는 현재 읽은 ${book.currentPage}쪽보다 작을 수 없습니다.`);
+      return;
+    }
+
+    const progressPercent = calculateReadingProgressPercent(book.currentPage, totalPages);
+    const saved = await saveBook({
+      currentPage: book.currentPage,
+      progressPercent,
+      status: progressPercent >= 100 ? 'finished' : 'reading',
+      totalPages,
+    });
+    if (saved) setIsTotalPagesEditing(false);
+  };
+
+  const cancelTotalPagesEdit = () => {
+    setTotalPagesInput(book?.totalPages ? String(book.totalPages) : '');
+    setErrorMessage(null);
+    setIsTotalPagesEditing(false);
   };
 
   const deleteBook = async () => {
@@ -272,7 +304,7 @@ export default function ReadingLifeBookScreen() {
 
     try {
       await deleteReadingLifeBook(session.user.id, bookId);
-      router.replace('/reading-life');
+      router.replace('/library');
     } catch (error) {
       setErrorMessage(getErrorMessage(error, '이 책을 삭제하지 못했습니다.'));
     } finally {
@@ -1238,9 +1270,21 @@ export default function ReadingLifeBookScreen() {
 
               <View style={styles.heroBottom}>
                 {totalPageValue ? (
-                  <View style={styles.pageReadout}>
-                    <Text style={styles.currentPageValue}>{displayCurrentPage}</Text>
-                    <Text style={styles.totalPageValue}>/ {totalPageValue}쪽</Text>
+                  <View style={styles.pageReadoutGroup}>
+                    <View style={styles.pageReadout}>
+                      <Text style={styles.currentPageValue}>{displayCurrentPage}</Text>
+                      <Text style={styles.totalPageValue}>/ {totalPageValue}쪽</Text>
+                    </View>
+                    <Pressable
+                      accessibilityRole="button"
+                      onPress={() => {
+                        setErrorMessage(null);
+                        setIsTotalPagesEditing(true);
+                      }}
+                      style={styles.totalPageEditButton}
+                    >
+                      <Text style={styles.totalPageEditText}>전체 페이지 수정</Text>
+                    </Pressable>
                   </View>
                 ) : (
                   <Text style={styles.heroBottomPage}>페이지 미설정</Text>
@@ -1253,74 +1297,103 @@ export default function ReadingLifeBookScreen() {
 
               <View style={styles.progressPanel}>
                 {totalPageValue ? (
-                  <View
-                    accessibilityLabel="현재 읽은 페이지 조절"
-                    style={styles.jogShuttleTouch}
-                    {...shuttleResponder.panHandlers}
-                  >
-                    {isShuttleDragging ? (
-                      <View style={styles.shuttleDeltaRow}>
-                        <Text style={styles.shuttlePreviousText}>이전 {shuttleStartPageRef.current}쪽</Text>
-                        {shuttleDeltaPage !== 0 ? (
-                          <Text style={styles.shuttleDeltaText}>
-                            {shuttleDeltaPage > 0 ? '+' : ''}
-                            {shuttleDeltaPage}쪽
-                          </Text>
-                        ) : null}
+                  <>
+                    <View
+                      accessibilityLabel="현재 읽은 페이지 조절"
+                      style={styles.jogShuttleTouch}
+                      {...shuttleResponder.panHandlers}
+                    >
+                      {isShuttleDragging ? (
+                        <View style={styles.shuttleDeltaRow}>
+                          <Text style={styles.shuttlePreviousText}>이전 {shuttleStartPageRef.current}쪽</Text>
+                          {shuttleDeltaPage !== 0 ? (
+                            <Text style={styles.shuttleDeltaText}>
+                              {shuttleDeltaPage > 0 ? '+' : ''}
+                              {shuttleDeltaPage}쪽
+                            </Text>
+                          ) : null}
+                        </View>
+                      ) : null}
+                      <View style={styles.jogShuttle}>
+                        <View style={styles.jogShuttleRidge}>
+                          <Animated.View
+                            style={[
+                              styles.jogShuttleGrooveTrack,
+                              { transform: [{ translateX: shuttleVisualOffset }] },
+                            ]}
+                          >
+                            {shuttleGrooves.map((groove) => (
+                              <View
+                                key={groove}
+                                style={[
+                                  styles.jogShuttleGroove,
+                                  groove % 2 === 0 ? styles.jogShuttleGrooveDeep : null,
+                                ]}
+                              />
+                            ))}
+                          </Animated.View>
+                          <LinearGradient
+                            colors={['rgba(27,28,25,0.72)', 'rgba(27,28,25,0.22)', 'rgba(27,28,25,0)']}
+                            pointerEvents="none"
+                            start={{ x: 0, y: 0.5 }}
+                            end={{ x: 1, y: 0.5 }}
+                            style={[styles.jogShuttleEdgeShade, styles.jogShuttleEdgeShadeLeft]}
+                          />
+                          <LinearGradient
+                            colors={['rgba(27,28,25,0)', 'rgba(27,28,25,0.22)', 'rgba(27,28,25,0.72)']}
+                            pointerEvents="none"
+                            start={{ x: 0, y: 0.5 }}
+                            end={{ x: 1, y: 0.5 }}
+                            style={[styles.jogShuttleEdgeShade, styles.jogShuttleEdgeShadeRight]}
+                          />
+                        </View>
                       </View>
-                    ) : null}
-                    <View style={styles.jogShuttle}>
-                      <View style={styles.jogShuttleRidge}>
-                        <Animated.View
-                          style={[
-                            styles.jogShuttleGrooveTrack,
-                            { transform: [{ translateX: shuttleVisualOffset }] },
-                          ]}
+                      {!isShuttleUnlocked && !isShuttleDragging ? (
+                        <Pressable
+                          accessibilityLabel="조그셔틀 잠금 해제"
+                          onPress={unlockShuttle}
+                          style={styles.shuttleGuard}
                         >
-                          {shuttleGrooves.map((groove) => (
-                            <View
-                              key={groove}
-                              style={[
-                                styles.jogShuttleGroove,
-                                groove % 2 === 0 ? styles.jogShuttleGrooveDeep : null,
-                              ]}
-                            />
-                          ))}
-                        </Animated.View>
-                        <LinearGradient
-                          colors={['rgba(27,28,25,0.72)', 'rgba(27,28,25,0.22)', 'rgba(27,28,25,0)']}
-                          pointerEvents="none"
-                          start={{ x: 0, y: 0.5 }}
-                          end={{ x: 1, y: 0.5 }}
-                          style={[styles.jogShuttleEdgeShade, styles.jogShuttleEdgeShadeLeft]}
-                        />
-                        <LinearGradient
-                          colors={['rgba(27,28,25,0)', 'rgba(27,28,25,0.22)', 'rgba(27,28,25,0.72)']}
-                          pointerEvents="none"
-                          start={{ x: 0, y: 0.5 }}
-                          end={{ x: 1, y: 0.5 }}
-                          style={[styles.jogShuttleEdgeShade, styles.jogShuttleEdgeShadeRight]}
-                        />
-                      </View>
+                          <LinearGradient
+                            colors={['rgba(7,20,15,0.36)', 'rgba(7,20,15,0.2)', 'rgba(247,241,229,0.18)']}
+                            start={{ x: 0, y: 0.5 }}
+                            end={{ x: 1, y: 0.5 }}
+                            style={styles.shuttleGuardSurface}
+                          >
+                            <Text style={styles.shuttleGuardTitle}>읽은 페이지를 바꾸려면</Text>
+                            <Text style={styles.shuttleGuardText}>한 번 터치한 뒤 조그셔틀을 이용하세요</Text>
+                          </LinearGradient>
+                        </Pressable>
+                      ) : null}
                     </View>
-                    {!isShuttleUnlocked && !isShuttleDragging ? (
-                      <Pressable
-                        accessibilityLabel="조그셔틀 잠금 해제"
-                        onPress={unlockShuttle}
-                        style={styles.shuttleGuard}
-                      >
-                        <LinearGradient
-                          colors={['rgba(7,20,15,0.36)', 'rgba(7,20,15,0.2)', 'rgba(247,241,229,0.18)']}
-                          start={{ x: 0, y: 0.5 }}
-                          end={{ x: 1, y: 0.5 }}
-                          style={styles.shuttleGuardSurface}
-                        >
-                          <Text style={styles.shuttleGuardTitle}>읽은 페이지를 바꾸려면</Text>
-                          <Text style={styles.shuttleGuardText}>한 번 터치한 뒤 조그셔틀을 이용하세요</Text>
-                        </LinearGradient>
-                      </Pressable>
+                    {isTotalPagesEditing ? (
+                      <View style={styles.totalPageEditor}>
+                        <View style={styles.totalPageEditorHeading}>
+                          <View style={styles.totalPageEditorCopy}>
+                            <Text style={styles.totalPageEditorLabel}>전체 페이지</Text>
+                            <Text style={styles.totalPageEditorHint}>책의 마지막 페이지 번호를 입력하세요.</Text>
+                          </View>
+                          <TextInput
+                            autoFocus
+                            keyboardType="number-pad"
+                            maxLength={6}
+                            onChangeText={(value) => setTotalPagesInput(value.replace(/[^0-9]/g, ''))}
+                            selectTextOnFocus
+                            style={styles.totalPageEditorInput}
+                            value={totalPagesInput}
+                          />
+                        </View>
+                        <View style={styles.totalPageEditorActions}>
+                          <Pressable disabled={isSaving} onPress={cancelTotalPagesEdit} style={styles.totalPageCancelButton}>
+                            <Text style={styles.totalPageCancelText}>취소</Text>
+                          </Pressable>
+                          <Pressable disabled={isSaving} onPress={saveTotalPages} style={styles.totalPageSaveButton}>
+                            {isSaving ? <ActivityIndicator color="#103D2B" /> : <Text style={styles.totalPageSaveText}>저장</Text>}
+                          </Pressable>
+                        </View>
+                      </View>
                     ) : null}
-                  </View>
+                  </>
                 ) : (
                   <View style={styles.pageSetupPanel}>
                     <View style={styles.pageField}>
@@ -1851,7 +1924,7 @@ export default function ReadingLifeBookScreen() {
           </ScrollView>
         </SafeAreaView>
       </Modal>
-      <BottomNavigation active="reading-life" />
+      <BottomNavigation active="library" />
     </SafeAreaView>
   );
 }
@@ -2244,6 +2317,20 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 5,
   },
+  pageReadoutGroup: {
+    alignItems: 'flex-start',
+  },
+  totalPageEditButton: {
+    borderBottomColor: 'rgba(216,190,136,0.72)',
+    borderBottomWidth: 1,
+    marginTop: 4,
+    paddingBottom: 2,
+  },
+  totalPageEditText: {
+    color: '#D8BE88',
+    fontSize: 10,
+    fontWeight: '900',
+  },
   currentPageValue: {
     color: '#F7F1E5',
     fontSize: 42,
@@ -2420,6 +2507,75 @@ const styles = StyleSheet.create({
   pageProgressActionText: {
     color: '#103D2B',
     fontSize: 13,
+    fontWeight: '900',
+  },
+  totalPageEditor: {
+    borderTopColor: 'rgba(247,241,229,0.14)',
+    borderTopWidth: 1,
+    marginTop: 10,
+    paddingHorizontal: 4,
+    paddingTop: 12,
+  },
+  totalPageEditorHeading: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 14,
+  },
+  totalPageEditorCopy: {
+    flex: 1,
+    minWidth: 0,
+  },
+  totalPageEditorLabel: {
+    color: '#F7F1E5',
+    fontSize: 12,
+    fontWeight: '900',
+  },
+  totalPageEditorHint: {
+    color: 'rgba(247,241,229,0.54)',
+    fontSize: 9,
+    marginTop: 2,
+  },
+  totalPageEditorInput: {
+    borderBottomColor: '#D8BE88',
+    borderBottomWidth: 2,
+    color: '#F7F1E5',
+    fontSize: 18,
+    fontWeight: '900',
+    paddingHorizontal: 4,
+    paddingVertical: 3,
+    textAlign: 'center',
+    width: 92,
+  },
+  totalPageEditorActions: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 8,
+    justifyContent: 'flex-end',
+    marginTop: 10,
+  },
+  totalPageCancelButton: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 34,
+    paddingHorizontal: 5,
+  },
+  totalPageCancelText: {
+    color: 'rgba(247,241,229,0.72)',
+    fontSize: 11,
+    fontWeight: '800',
+  },
+  totalPageSaveButton: {
+    alignItems: 'center',
+    backgroundColor: '#D8BE88',
+    borderRadius: 15,
+    justifyContent: 'center',
+    minHeight: 34,
+    minWidth: 52,
+    paddingHorizontal: 10,
+  },
+  totalPageSaveText: {
+    color: '#103D2B',
+    fontSize: 11,
     fontWeight: '900',
   },
   memoPanel: {
