@@ -1,10 +1,12 @@
 # BookSome
 
-BookSome is a mobile-first social reading app where every book can become a reader-run room.
+BookSome is a personal reading-record service with optional social Bookrooms.
 
 ## Current Stack
 
 - Expo React Native, TypeScript, and Expo Router
+- Next.js public web portal
+- React-admin operations console
 - Spring Boot 3.5 on Java 21
 - MariaDB 11.4 with Flyway migrations
 - Nginx and local image storage on Naver Cloud
@@ -13,6 +15,15 @@ BookSome is a mobile-first social reading app where every book can become a read
 
 Authentication, profiles, reading life, Bookrooms, meetups, marketplace data, and image uploads use the Spring API at `https://api.booksome.top`.
 Book lookup follows `MariaDB cache → Kakao Book Search → National Library fallback`; external API keys remain on the Spring server only.
+
+The repository contains four applications:
+
+- Expo user app: repository root (`app/`, `src/`)
+- Next.js user portal: `web/`
+- React-admin operations console: `admin/`
+- Spring API: `server/`
+
+See [`docs/deployment-architecture.md`](docs/deployment-architecture.md) for the runtime and security boundaries.
 
 ## App Development
 

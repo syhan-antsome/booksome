@@ -3,5 +3,5 @@
   "compilerOptions": {
     "strict": true
   },
-  "exclude": [".expo", "admin", "dist", "node_modules", "server", "workers"]
+  "exclude": [".expo", "admin", "dist", "node_modules", "server", "web", "workers"]
 }

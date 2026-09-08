@@ -1,0 +1,33 @@
+[Unit]
+Description=BookSome Next.js Web Portal
+After=network-online.target booksome-api.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=booksome
+Group=booksome
+WorkingDirectory=/service/booksome/web/current
+Environment=NODE_ENV=production
+Environment=HOSTNAME=127.0.0.1
+Environment=PORT=3000
+EnvironmentFile=/service/booksome/web/booksome-web.env
+ExecStart=/usr/bin/node /service/booksome/web/current/server.js
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=30
+UMask=0027
+
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+ReadWritePaths=/service/booksome/web/current/.next
+
+[Install]
+WantedBy=multi-user.target
