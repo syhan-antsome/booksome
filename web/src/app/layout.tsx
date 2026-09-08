@@ -26,7 +26,12 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: Readonly<{ children: ReactNode }>) {
   return (
-    <html className={notoSerifKr.variable} data-scroll-behavior="smooth" lang="ko">
+    <html
+      className={notoSerifKr.variable}
+      data-scroll-behavior="smooth"
+      lang="ko"
+      suppressHydrationWarning
+    >
       <body>{children}</body>
     </html>
   );
