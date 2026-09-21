@@ -30,8 +30,7 @@
       "permissions": [
         "CAMERA",
         "ACCESS_COARSE_LOCATION",
-        "ACCESS_FINE_LOCATION",
-        "POST_NOTIFICATIONS"
+        "ACCESS_FINE_LOCATION"
       ],
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
@@ -63,7 +62,6 @@
           "photosPermission": "책 표지, 프로필, 리딩룸 커버, 독서 모임 사진 업로드를 위해 사진 보관함에 접근합니다."
         }
       ],
-      "expo-notifications",
       "expo-secure-store"
     ]
   }

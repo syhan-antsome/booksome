@@ -61,24 +61,12 @@ The application expects MariaDB and the environment variables represented in `se
 
 For the Bookstore map picker, configure the Naver Cloud Platform **Maps** service, not **AI.NAVER API - MAP**. Enable Web Dynamic Map and Geocoding, then register the WebView host in the Maps Web Service URL list. Register only the protocol and host, without port numbers or paths.
 
-## Legacy Supabase Migration
-
-Supabase is no longer used by the running app. The `supabase/` directory and migration scripts remain only as historical migration material.
-
-For a controlled one-time export, copy `.env.migration.example` to `.env.migration.local`, keep the Secret Key out of source control, and run:
+## Public Web Development
 
 ```sh
-npm run migration:export:supabase
-npm run migration:prepare:mariadb
-npm run migration:download:media
+cd web
+npm install
+npm run typecheck
+npm run lint
+npm run build
 ```
-
-Generated exports are private and ignored under `data-backups/`.
-
-## Web Build
-
-```sh
-npm run build:web
-```
-
-The legacy Cloudflare Worker source remains under `workers/` only as rollback material. The running app does not call it.

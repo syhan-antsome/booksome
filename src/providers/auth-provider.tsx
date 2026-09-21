@@ -1,6 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 
-import { clearLegacySupabaseSession } from '../state/auth-session';
 import {
   getActiveSession,
   getProfile,
@@ -33,8 +32,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setProfile(change.profile);
     });
 
-    clearLegacySupabaseSession()
-      .then(() => getActiveSession())
+    getActiveSession()
       .then((activeSession) => {
         if (isMounted) setSession(activeSession);
       })

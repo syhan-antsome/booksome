@@ -34,7 +34,7 @@ yarn-error.*
 .env
 .env*.local
 
-# Local migration exports can contain private user data
+# Private data backups and migration exports
 /data-backups/
 
 # typescript
@@ -48,3 +48,4 @@ workers/media-api/worker-configuration.d.ts
 # Spring Boot server
 server/.gradle/
 server/build/
+server/bin/

@@ -187,18 +187,6 @@ export async function clearAuthSession() {
   emitAuthState({ event: 'SIGNED_OUT', session: null, profile: null });
 }
 
-export async function clearLegacySupabaseSession() {
-  const storageKeys = await AsyncStorage.getAllKeys();
-  const legacyKeys = storageKeys.filter(
-    (key) =>
-      key === 'supabase.auth.token' ||
-      (key.startsWith('sb-') && key.includes('-auth-token')) ||
-      (key.startsWith('booksome-') && key.includes('-auth-token')),
-  );
-
-  await Promise.all(legacyKeys.map((key) => AsyncStorage.removeItem(key)));
-}
-
 function emitAuthState(change: AuthStateChange) {
   for (const listener of listeners) {
     listener(change);
