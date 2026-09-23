@@ -1,5 +1,4 @@
 import type { Metadata } from 'next';
-import Link from 'next/link';
 import { ArrowIcon } from '@/components/arrow-icon';
 import { BookCover } from '@/components/book-cover';
 import { PageShell } from '@/components/page-shell';
@@ -48,13 +47,9 @@ export default async function BooksPage({ searchParams }: { searchParams: Promis
                       {book.description ? <p className="book-row__description">{book.description}</p> : null}
                       <small>{book.isbn ? `ISBN ${book.isbn}` : 'ISBN 정보 없음'}</small>
                     </div>
-                    {book.link ? (
-                      <a className="text-link" href={book.link} rel="noreferrer" target="_blank">
-                        책 정보 보기 <ArrowIcon />
-                      </a>
-                    ) : (
-                      <Link className="text-link" href="/signup">북썸 시작하기 <ArrowIcon /></Link>
-                    )}
+                    <a className="text-link" href={`/app/books/add?query=${encodeURIComponent(book.isbn || book.title)}`}>
+                      내 서재에 담기 <ArrowIcon />
+                    </a>
                   </article>
                 ))}
               </div>

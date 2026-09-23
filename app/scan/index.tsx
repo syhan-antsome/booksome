@@ -129,7 +129,7 @@ export default function ScanScreen() {
 
         {session ? (
           <View style={styles.tip}>
-            <Text style={styles.tipTitle}>MVP note</Text>
+            <Text style={styles.tipTitle}>책을 찾은 다음에는</Text>
             <Text style={styles.tipCopy}>
               {isRoomContext
                 ? '스캔된 ISBN으로 이미 열린 책장을 먼저 찾습니다.'
@@ -141,6 +141,7 @@ export default function ScanScreen() {
             </Text>
           </View>
         ) : null}
+        {!isRoomContext && !isMarketContext && !isMeetupContext ? <Pressable accessibilityRole="button" onPress={() => router.replace('/books/add')} style={styles.tip}><Text style={styles.tipTitle}>카메라 없이 제목으로 찾기 →</Text></Pressable> : null}
       </View>
     </SafeAreaView>
   );

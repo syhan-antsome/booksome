@@ -1,5 +1,7 @@
 import { Link } from 'expo-router';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text } from 'react-native';
+import { booksomeColors as c, booksomeType } from '../theme/booksome';
+import { PaperSlip } from './collector-surfaces';
 
 export function AuthRequired({
   title,
@@ -9,28 +11,27 @@ export function AuthRequired({
   copy: string;
 }) {
   return (
-    <View style={styles.panel}>
-      <Text style={styles.label}>Members only</Text>
+    <PaperSlip style={styles.panel}>
+      <Text style={styles.label}>나만의 문장을 모으는 곳</Text>
       <Text style={styles.title}>{title}</Text>
       <Text style={styles.copy}>{copy}</Text>
       <Link href="/auth" style={styles.cta}>
         로그인 / 회원가입
       </Link>
-    </View>
+    </PaperSlip>
   );
 }
 
 const styles = StyleSheet.create({
   panel: {
-    backgroundColor: '#113F35',
-    borderRadius: 28,
-    flex: 1,
+    backgroundColor: c.paperStrong,
+    borderRadius: 2,
     justifyContent: 'center',
     marginTop: 20,
     padding: 24,
   },
   label: {
-    color: '#D9C28F',
+    color: c.muted,
     fontSize: 13,
     fontWeight: '900',
     letterSpacing: 0.8,
@@ -38,14 +39,14 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
   },
   title: {
-    color: '#FFFFFF',
-    fontSize: 31,
-    fontWeight: '900',
+    color: c.forest,
+    fontFamily: booksomeType.serif,
+    fontSize: 26,
     letterSpacing: 0,
     lineHeight: 38,
   },
   copy: {
-    color: 'rgba(255,255,255,0.76)',
+    color: c.muted,
     fontSize: 16,
     fontWeight: '600',
     lineHeight: 24,
@@ -53,9 +54,9 @@ const styles = StyleSheet.create({
   },
   cta: {
     alignSelf: 'flex-start',
-    backgroundColor: '#F7F2EA',
-    borderRadius: 16,
-    color: '#113F35',
+    backgroundColor: c.forest,
+    borderRadius: 28,
+    color: c.paperStrong,
     fontSize: 15,
     fontWeight: '900',
     marginTop: 24,

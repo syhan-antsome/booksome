@@ -7,7 +7,9 @@
     "android": "expo start --android --port 8081",
     "ios": "expo start --ios --port 8081",
     "web": "expo start --web --port 8081",
-    "typecheck": "tsc --noEmit"
+    "build:reader": "BOOKSOME_WEB_EXPORT=true EXPO_PUBLIC_WEB_SESSION=true EXPO_PUBLIC_NAVER_MAPS_BASE_URL=/app expo export --platform web --output-dir web/public/app && cp public/naver-map-picker.html public/naver-map-preview.html web/public/app/",
+    "typecheck": "tsc --noEmit",
+    "test:reading": "node --test tests/*.test.mjs"
   },
   "dependencies": {
     "@expo-google-fonts/noto-serif-kr": "^0.4.3",

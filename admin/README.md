@@ -27,3 +27,5 @@ The production rollout also requires:
 3. `BOOKSOME_ADMIN_EMAILS` and the admin origin in the API environment.
 4. The generated `dist/` files under `/var/www/booksome-admin/current`.
 5. The Nginx server block in `deploy/nginx-admin.conf.example`.
+
+After the one-time Nginx setup, run `./deploy.sh admin` from the repository root. The script builds the static site, creates a versioned release under `/var/www/booksome-admin/releases/`, switches the `current` symlink atomically, validates Nginx, checks the public URL, and restores the preceding release on failure.

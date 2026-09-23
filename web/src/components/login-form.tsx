@@ -1,12 +1,10 @@
 'use client';
 
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import { useState, type FormEvent } from 'react';
 import { ArrowIcon } from '@/components/arrow-icon';
 
 export function LoginForm({ nextPath = '/me' }: { nextPath?: string }) {
-  const router = useRouter();
   const [error, setError] = useState('');
   const [pending, setPending] = useState(false);
 
@@ -22,8 +20,7 @@ export function LoginForm({ nextPath = '/me' }: { nextPath?: string }) {
       });
       const body = (await response.json()) as { message?: string };
       if (!response.ok) throw new Error(body.message || '로그인하지 못했습니다.');
-      router.replace(safeNextPath(nextPath));
-      router.refresh();
+      window.location.assign(safeNextPath(nextPath));
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : '로그인하지 못했습니다.');
     } finally { setPending(false); }
@@ -43,5 +40,6 @@ export function LoginForm({ nextPath = '/me' }: { nextPath?: string }) {
 }
 
 function safeNextPath(value: string) {
-  return value.startsWith('/') && !value.startsWith('//') ? value : '/me';
+  if (value === '/me') return '/app/library';
+  return /^\/(app(?:\/|$)|rooms(?:\/|$)|books(?:\?|$))/.test(value) && !value.includes('\\') ? value : '/app/library';
 }

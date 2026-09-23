@@ -30,9 +30,12 @@ BookSome은 하나의 공통 API 규약을 사용하는 네 개의 애플리케�
 
 - 공개 경로: `/`, `/books`, `/rooms`, `/rooms/[slug]`, `/about`, `/terms`, `/privacy`
 - 인증 경로: `/login`, `/signup`, `/password-reset`
-- 로그인 사용자 경로: `/me`
+- 독서 앱 진입점: `/app/`, `/app/books/add`, `/app/library`, `/app/reading-life/[id]`
+- 기존 계정 진입점: `/me`는 `/app/library`로 이동
 
-공개 웹 포털의 초기 범위는 의도적으로 작게 유지합니다. 웹 제품의 방향성이 검증될 때까지 독서 기록의 생성·조회·수정·삭제 기능은 모바일 중심으로 제공합니다. 이후에도 현재 배포 경계를 변경하지 않고 동일한 Spring 엔드포인트를 이용해 웹 기능을 추가할 수 있습니다.
+공개 웹의 ‘첫 책 찾아보기’는 `/app/books/add`로 연결됩니다. `/app/`은 Expo 모바일 앱의 브라우저 빌드를 제공하므로, 별도의 웹 독서 CRUD를 중복 구현하지 않고 책 등록·기록·완독 회고를 같은 코드로 사용합니다. Next.js 빌드 전에 Expo를 내보내며 결과물은 `web/public/app/`에 생성됩니다. 배포 시 이 폴더를 포함한 `public/`을 함께 복사해야 합니다.
+
+이 브라우저 빌드는 `EXPO_PUBLIC_WEB_SESSION=true`를 사용합니다. 로그인·가입은 기존 Next.js 인증 API와 HTTP-only 쿠키를 사용하고, 도메인 요청은 `/api/reader/**`가 Spring으로 전달합니다. 액세스·리프레시 토큰은 브라우저 JavaScript나 로컬 저장소에 전달하지 않습니다. 네이티브 앱은 기존 SecureStore 기반 인증을 유지합니다. 따라서 `/app/`은 Next.js와 동일한 도메인에서 제공해야 합니다.
 
 ## 운영 명령어
 

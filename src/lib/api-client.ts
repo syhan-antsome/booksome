@@ -5,6 +5,7 @@ import {
   type ApiAuthSession,
   type AuthSession,
 } from '../state/auth-session';
+import { usesWebSession } from './web-session';
 
 type ApiRequestOptions = {
   authenticated?: boolean | 'optional';
@@ -20,12 +21,14 @@ const apiBaseUrl = (process.env.EXPO_PUBLIC_API_BASE_URL ?? 'https://api.booksom
 const refreshWindowSeconds = 45;
 
 let refreshPromise: Promise<AuthSession> | null = null;
+let webRefreshPromise: Promise<boolean> | null = null;
 
 export async function apiRequest<T>(
   path: string,
   init: RequestInit = {},
   options: ApiRequestOptions = {},
 ): Promise<T> {
+  if (usesWebSession) return webApiRequest<T>(path, init, options);
   const authenticationMode = options.authenticated ?? true;
   const authenticationRequired = authenticationMode === true;
   const retryOnUnauthorized = options.retryOnUnauthorized ?? true;
@@ -59,6 +62,23 @@ export async function apiRequest<T>(
     return readResponse<T>(retryResponse);
   }
 
+  return readResponse<T>(response);
+}
+
+async function webApiRequest<T>(path: string, init: RequestInit, options: ApiRequestOptions): Promise<T> {
+  const headers = new Headers(init.headers);
+  headers.set('X-Booksome-Client', 'reader');
+  if (init.body && !(init.body instanceof FormData)) headers.set('Content-Type', 'application/json');
+  const url = `/api/reader${normalizePath(path).replace(/^\/api/, '')}`;
+  const request = () => safeFetch(url, { ...init, headers, credentials: 'same-origin', cache: 'no-store' });
+  let response = await request();
+  if (response.status === 401 && options.retryOnUnauthorized !== false) {
+    // Coalesce simultaneous refreshes because Spring rotates refresh tokens.
+    if (!webRefreshPromise) webRefreshPromise = safeFetch('/api/auth/session', { credentials: 'same-origin', cache: 'no-store' })
+      .then(result => result.ok).finally(() => { webRefreshPromise = null; });
+    if (await webRefreshPromise) response = await request();
+    else await clearAuthSession();
+  }
   return readResponse<T>(response);
 }
 

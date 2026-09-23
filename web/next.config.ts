@@ -6,8 +6,13 @@ const nextConfig: NextConfig = {
   turbopack: {
     root: process.cwd()
   },
+  async rewrites() {
+    // Real assets win; only reader routes fall back to the Expo SPA shell.
+    return { fallback: [{ source: '/app/:path*', destination: '/app/index.html' }] };
+  },
   async headers() {
     return [
+      { source: '/app/:path*', headers: [{ key: 'X-Robots-Tag', value: 'noindex' }, { key: 'Cache-Control', value: 'no-cache' }] },
       {
         source: '/:path*',
         headers: [

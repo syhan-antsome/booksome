@@ -1,351 +1,170 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { router, useFocusEffect } from 'expo-router';
-import { useCallback, useMemo, useState } from 'react';
-import {
-  ActivityIndicator,
-  Image,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { useCallback, useState } from 'react';
+import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-
-import { AuthRequired } from '../src/components/auth-required';
-import { BottomNavigation } from '../src/components/bottom-navigation';
-import { formatReadingPagePosition } from '../src/lib/reading-format';
+import { BookObject } from '../src/components/book-object';
+import { Cloth, PaperGrain, PaperSlip, TornEdge } from '../src/components/collector-surfaces';
+import { TabPage } from '../src/components/tab-page';
+import { readingNoteText } from '../src/lib/reading-memory';
 import { useAuth } from '../src/providers/auth-provider';
-import {
-  listReadingLifeBooks,
-  listReadingLifeNotes,
-  type ReadingLifeBook,
-  type ReadingLifeNote,
-} from '../src/services/reading-life';
-import { booksomeColors, booksomeLayout } from '../src/theme/booksome';
+import { listReadingLifeBooks, listReadingLifeNotes, type ReadingLifeBook, type ReadingLifeNote } from '../src/services/reading-life';
+import { booksomeColors as c, booksomeLayout, booksomeType } from '../src/theme/booksome';
 
 export default function TodayScreen() {
-  const { isLoading: isAuthLoading, profile, session } = useAuth();
+  const { session, isLoading: authLoading } = useAuth();
+  const { width } = useWindowDimensions();
   const [books, setBooks] = useState<ReadingLifeBook[]>([]);
   const [notes, setNotes] = useState<ReadingLifeNote[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [loadError, setLoadError] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  useFocusEffect(useCallback(() => {
+    let active = true;
+    if (!session) { setBooks([]); setNotes([]); return; }
+    setLoading(true); setError('');
+    listReadingLifeBooks(session.user.id).then(async items => {
+      const book = items.find(item => item.status === 'reading') ?? items[0];
+      const records = book ? await listReadingLifeNotes(session.user.id, book.id) : [];
+      if (active) { setBooks(items); setNotes([...records].sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt))); }
+    }).catch(cause => { if (active) setError(cause instanceof Error ? cause.message : '서재를 불러오지 못했습니다.'); })
+      .finally(() => { if (active) setLoading(false); });
+    return () => { active = false; };
+  }, [session?.user.id]));
 
-  useFocusEffect(
-    useCallback(() => {
-      let isMounted = true;
-      const userId = session?.user.id;
+  const book = books.find(item => item.status === 'reading') ?? books[0];
+  const note = notes.find(item => readingNoteText(item) && readingNoteText(item) !== '오늘은 여기까지 읽었어요.');
+  const photo = notes.find(item => item.mediaUrl);
+  const bookWidth = Math.min(width, booksomeLayout.maxContentWidth) * 0.44;
+  const openBook = (compose = false) => book
+    ? router.push({ pathname: '/reading-life/[id]', params: { id: book.id, ...(compose ? { section: 'quote' } : {}) } })
+    : router.push('/books/add');
 
-      if (!userId) {
-        setBooks([]);
-        setNotes([]);
-        setIsLoading(false);
-        return undefined;
-      }
-
-      setIsLoading(true);
-      setLoadError('');
-      listReadingLifeBooks(userId)
-        .then(async (nextBooks) => {
-          const current = nextBooks.find((book) => book.status === 'reading') ?? nextBooks[0] ?? null;
-          const nextNotes = current ? await listReadingLifeNotes(userId, current.id) : [];
-          if (!isMounted) return;
-          setBooks(nextBooks);
-          setNotes(nextNotes.toSorted((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt)));
-        })
-        .catch((error) => {
-          if (isMounted) setLoadError(error instanceof Error ? error.message : '오늘의 독서를 불러오지 못했습니다.');
-        })
-        .finally(() => {
-          if (isMounted) setIsLoading(false);
-        });
-
-      return () => {
-        isMounted = false;
-      };
-    }, [session?.user.id]),
-  );
-
-  const currentBook = books.find((book) => book.status === 'reading') ?? books[0] ?? null;
-  const weeklyActivity = useMemo(() => buildWeeklyActivity(notes, currentBook), [currentBook, notes]);
-  const recentNotes = notes.slice(0, 2);
-  const readingBookCount = books.filter((book) => book.status === 'reading').length;
-  const displayName = profile?.display_name ?? '북썸 독자';
-
-  return (
-    <SafeAreaView style={styles.safeArea}>
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+  return <TabPage><SafeAreaView edges={['top', 'left', 'right']} style={styles.safe}>
+    <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
+      <View style={styles.top}>
+        <PaperGrain />
         <View style={styles.header}>
-          <View style={styles.headerCopy}>
-            <Text style={styles.greeting}>{getGreeting()}, {displayName}님</Text>
-            <Text style={styles.pageTitle}>오늘</Text>
-          </View>
-          <Text style={styles.wordmark}>BookSome</Text>
+          <Text style={styles.brand}>BookSome</Text>
+          <Pressable accessibilityRole="button" accessibilityLabel="책 찾기" onPress={() => router.push('/books/add')} style={styles.search}><Ionicons name="search-outline" size={29} color={c.forest} /></Pressable>
         </View>
-
-        {!isAuthLoading && !session ? (
-          <AuthRequired
-            title="나만의 독서 기록을 시작해보세요."
-            copy="책과 문장, 읽은 페이지를 안전하게 보관하려면 로그인이 필요합니다."
-          />
-        ) : null}
-
-        {isLoading ? (
-          <View style={styles.loadingRow}>
-            <ActivityIndicator color={booksomeColors.forest} />
-            <Text style={styles.loadingText}>오늘의 책을 펼치는 중입니다</Text>
-          </View>
-        ) : null}
-
-        {loadError ? <Text style={styles.errorText}>{loadError}</Text> : null}
-
-        {session ? (
-          <>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>오늘의 독서</Text>
-              <Pressable accessibilityRole="button" onPress={() => router.push('/scan')} style={styles.textAction}>
-                <Text style={styles.textActionLabel}>새 책 등록</Text>
-                <Ionicons color={booksomeColors.forest} name="chevron-forward" size={15} />
-              </Pressable>
-            </View>
-
-            {currentBook ? (
-              <View style={styles.currentBookSection}>
-                <Pressable
-                  accessibilityLabel={`${currentBook.title} 독서 기록 열기`}
-                  onPress={() => router.push(`/reading-life/${currentBook.id}`)}
-                  style={styles.currentBookRow}
-                >
-                  <BookCover book={currentBook} style={styles.currentCover} />
-                  <View style={styles.currentBookCopy}>
-                    <Text numberOfLines={2} style={styles.currentBookTitle}>{currentBook.title}</Text>
-                    <Text numberOfLines={1} style={styles.currentBookAuthor}>{currentBook.author}</Text>
-                    <View style={styles.progressHeading}>
-                      <Text style={styles.progressPercent}>{currentBook.progressPercent}%</Text>
-                      <Text style={styles.pageProgress}>{formatReadingPagePosition(currentBook)}</Text>
-                    </View>
-                    <View style={styles.progressTrack}>
-                      <View style={[styles.progressFill, { width: `${currentBook.progressPercent}%` }]} />
-                    </View>
-                    <View style={styles.continueButton}>
-                      <Ionicons color={booksomeColors.white} name="create-outline" size={17} />
-                      <Text style={styles.continueButtonText}>이어 기록하기</Text>
-                    </View>
-                  </View>
-                </Pressable>
-              </View>
-            ) : (
-              <Pressable onPress={() => router.push('/scan')} style={styles.emptyBook}>
-                <View style={styles.emptyIcon}>
-                  <Ionicons color={booksomeColors.forest} name="barcode-outline" size={27} />
-                </View>
-                <View style={styles.emptyCopy}>
-                  <Text style={styles.emptyTitle}>오늘 읽을 책을 등록해보세요</Text>
-                  <Text style={styles.emptyBody}>바코드를 비추면 내 서재와 첫 기록이 바로 열립니다.</Text>
-                </View>
-                <Ionicons color={booksomeColors.forest} name="chevron-forward" size={19} />
-              </Pressable>
-            )}
-
-            <View style={styles.weekSection}>
-              <View style={styles.weekHeading}>
-                <Text style={styles.sectionTitle}>이번 주</Text>
-                <Text style={styles.weekSummary}>기록 {weeklyActivity.noteCount}개 · 읽는 책 {readingBookCount}권</Text>
-              </View>
-              <View style={styles.weekDays}>
-                {weeklyActivity.days.map((day) => (
-                  <View key={day.key} style={styles.weekDay}>
-                    <Text style={[styles.weekdayLabel, day.isToday ? styles.weekdayLabelToday : null]}>{day.label}</Text>
-                    <View style={[styles.dayMark, day.isActive ? styles.dayMarkActive : null, day.isToday ? styles.dayMarkToday : null]}>
-                      {day.isActive ? <Ionicons color={booksomeColors.white} name="checkmark" size={15} /> : null}
-                    </View>
-                  </View>
-                ))}
-              </View>
-            </View>
-
-            <View style={styles.recentSection}>
-              <View style={styles.sectionHeader}>
-                <Text style={styles.sectionTitle}>최근 기록</Text>
-                {currentBook ? (
-                  <Pressable onPress={() => router.push(`/reading-life/${currentBook.id}`)} style={styles.textAction}>
-                    <Text style={styles.textActionLabel}>전체 보기</Text>
-                    <Ionicons color={booksomeColors.forest} name="chevron-forward" size={15} />
-                  </Pressable>
-                ) : null}
-              </View>
-              {recentNotes.length ? (
-                <View style={styles.noteList}>
-                  {recentNotes.map((note) => <RecentNote key={note.id} note={note} />)}
-                </View>
-              ) : (
-                <Pressable
-                  disabled={!currentBook}
-                  onPress={() => currentBook && router.push(`/reading-life/${currentBook.id}`)}
-                  style={styles.emptyNotes}
-                >
-                  <Ionicons color={booksomeColors.ochre} name="bookmark-outline" size={22} />
-                  <Text style={styles.emptyNotesText}>
-                    {currentBook ? '첫 문장이나 생각을 남겨보세요.' : '책을 등록하면 기록이 여기에 모입니다.'}
-                  </Text>
-                </Pressable>
-              )}
-            </View>
-          </>
-        ) : null}
-      </ScrollView>
-      <BottomNavigation active="today" />
-    </SafeAreaView>
-  );
-}
-
-function BookCover({ book, style }: { book: ReadingLifeBook; style: object }) {
-  if (book.externalCoverUrl) {
-    return <Image resizeMode="cover" source={{ uri: book.externalCoverUrl }} style={style} />;
-  }
-  return (
-    <View style={[style, styles.coverFallback]}>
-      <Text numberOfLines={3} style={styles.coverFallbackTitle}>{book.title}</Text>
-    </View>
-  );
-}
-
-function RecentNote({ note }: { note: ReadingLifeNote }) {
-  const isQuote = Boolean(note.quoteText);
-  const text = note.quoteText || note.body || '사진으로 남긴 독서 기록';
-  return (
-    <View style={styles.noteRow}>
-      <View style={[styles.noteIcon, isQuote ? styles.noteIconQuote : styles.noteIconThought]}>
-        <Ionicons
-          color={isQuote ? booksomeColors.forest : booksomeColors.ochre}
-          name={isQuote ? 'chatbox-ellipses-outline' : 'create-outline'}
-          size={19}
-        />
-      </View>
-      <View style={styles.noteCopy}>
-        <View style={styles.noteMetaRow}>
-          <Text style={[styles.noteKind, isQuote ? null : styles.noteKindThought]}>{isQuote ? '문장' : '생각'}</Text>
-          <Text style={styles.noteDate}>{formatNoteDate(note.createdAt)}</Text>
+        <View style={styles.greeting}>
+          <Text style={styles.greetingText}>오늘도,{ '\n' }좋은 문장을 만나길</Text>
+          <View style={styles.pencilLine} />
         </View>
-        <Text numberOfLines={3} style={styles.noteText}>{isQuote ? `“${text}”` : text}</Text>
-        {note.pageLabel ? <Text style={styles.notePage}>p. {note.pageLabel.replace(/^p\.\s*/i, '')}</Text> : null}
+        {authLoading || loading ? <View style={styles.loading}><ActivityIndicator color={c.forest} /><Text style={styles.muted}>책장을 펼치고 있어요</Text></View> : <View style={styles.bookStage}>
+          <View style={styles.bookArt}>
+            <PaperSlip style={styles.behindBook}><Text style={styles.behindText}>{book ? '한 권의 책,\n나만의 시간.' : '새로운\n이야기의\n시작.'}</Text></PaperSlip>
+            <Pressable accessibilityRole="button" accessibilityLabel={book ? book.title + ' 독서 기록 열기' : '첫 책 찾아보기'} onPress={() => openBook()}>
+              <BookObject width={bookWidth} title={book?.title ?? '나의\n첫 책'} author={book?.author} uri={book?.externalCoverUrl} tilt={-5} progress={book?.progressPercent} />
+            </Pressable>
+          </View>
+          <View style={styles.bookCopy}>
+            <Text numberOfLines={3} style={[styles.bookTitle, (book?.title.length ?? 0) > 4 && styles.mediumTitle, (book?.title.length ?? 0) > 12 && styles.longTitle]}>{book?.title ?? '나의 첫\n책 한 권'}</Text>
+            <Text numberOfLines={2} style={styles.author}>{book?.author ?? '어떤 책을 읽고 있나요?'}</Text>
+            {book ? <Text style={styles.position}><Text style={styles.currentPage}>{book.currentPage}</Text>{book.totalPages ? ' / ' + book.totalPages + '쪽' : '쪽까지 읽었어요'}</Text> : <Text style={styles.invitation}>책을 담고,{ '\n' }마음을 남겨요.</Text>}
+            <Pressable accessibilityRole="button" accessibilityLabel={book ? book.status === 'finished' ? '내 기록 펼치기' : '이어서 기록하기' : '책 찾아보기'} onPress={() => openBook()} style={({ pressed }) => [styles.continue, width < 360 && styles.compactButton, pressed && styles.pressed]}>
+              <Text style={[styles.continueText, width < 360 && styles.compactContinue]}>{book ? book.status === 'finished' ? '내 기록 펼치기' : '이어서 기록하기' : '책 찾아보기'}</Text>
+              {width >= 360 ? <Ionicons name="arrow-forward" size={17} color={c.paperStrong} /> : null}
+            </Pressable>
+          </View>
+        </View>}
+        {error ? <Text accessibilityRole="alert" style={styles.error}>{error}</Text> : null}
       </View>
-    </View>
-  );
+      <Cloth style={styles.collection}>
+        <TornEdge color={c.cloth} style={styles.collectionEdge} />
+        <View style={styles.collectionHeader}>
+          <Text style={styles.collectionTitle}>내가 남긴 문장</Text>
+          {book && notes.length > 0 ? <Pressable accessibilityRole="button" onPress={() => openBook()} style={styles.more}><Text style={styles.moreText}>모두 보기</Text><Ionicons name="arrow-forward" size={16} color="#D8DDCA" /></Pressable> : null}
+        </View>
+        <View style={[styles.noteStage, photo && styles.noteStageWithPhoto]}>
+          <Pressable accessibilityRole="button" accessibilityLabel={note ? '내 기록 다시 보기' : '첫 문장 남기기'} onPress={() => openBook(!note)} style={styles.notePressable}>
+            <PaperSlip style={[styles.note, photo && styles.noteWithPhoto]}>
+              <Text numberOfLines={photo ? 3 : 4} style={styles.quote}>{note ? readingNoteText(note) : book ? '어떤 문장에서\n잠시 멈추었나요?' : '읽고 지나간 책이,\n내 안에 남도록.'}</Text>
+              <View style={styles.quoteUnderline} />
+              <Text style={styles.page}>{note?.pageLabel ? 'p. ' + note.pageLabel.replace(/^p\.\s*/i, '') : note ? '나의 생각' : '한 문장부터 남겨보세요  →'}</Text>
+            </PaperSlip>
+          </Pressable>
+          {photo?.mediaUrl ? <Pressable accessibilityRole="button" accessibilityLabel="사진 기록 다시 보기" onPress={() => openBook()} style={styles.polaroid}><Image source={{ uri: photo.mediaUrl }} style={styles.photo} resizeMode="cover" /><Text numberOfLines={1} style={styles.photoCaption}>{photo.pageLabel ? 'p. ' + photo.pageLabel : '내가 머문 페이지'}</Text></Pressable> : null}
+        </View>
+        <Text style={styles.collectionFoot}>{note ? '다시 펼칠 때마다,\n그때의 나를 만나요.' : '나만의 문장과 사진이\n이곳에 차곡차곡 모여요.'}</Text>
+        {!session && !authLoading ? <Pressable accessibilityRole="button" onPress={() => router.push('/auth')} style={styles.login}><Text style={styles.moreText}>이미 기록 중이라면 로그인</Text><Ionicons name="arrow-forward" color="#D8DDCA" size={18} /></Pressable> : null}
+      </Cloth>
+      {book ? <View style={styles.afterword}>
+        <Text style={styles.afterTitle}>이 책과 보낸 이번 주</Text>
+        <View style={styles.week}>{weekDays(notes).map(day => <View key={day.label} style={styles.day}><Text style={styles.dayLabel}>{day.label}</Text><View style={[styles.dayMark, day.active && styles.dayActive]}>{day.active ? <Ionicons name="checkmark" color={c.paperStrong} size={15} /> : <Text style={styles.dayDot}>·</Text>}</View></View>)}</View>
+        <Pressable accessibilityRole="button" onPress={() => router.push('/library')} style={styles.libraryLink}><Text style={styles.libraryLinkText}>내 서재의 다른 책도 펼쳐보기</Text><Ionicons name="arrow-forward" color={c.forest} size={20} /></Pressable>
+      </View> : null}
+    </ScrollView>
+  </SafeAreaView></TabPage>;
 }
 
-function buildWeeklyActivity(notes: ReadingLifeNote[], currentBook: ReadingLifeBook | null) {
-  const today = new Date();
-  const monday = new Date(today);
-  const day = today.getDay();
-  monday.setHours(0, 0, 0, 0);
-  monday.setDate(today.getDate() - ((day + 6) % 7));
-  const activeKeys = new Set(
-    notes
-      .map((note) => new Date(note.createdAt))
-      .filter((date) => date >= monday)
-      .map(toDateKey),
-  );
-  if (currentBook && new Date(currentBook.updatedAt) >= monday) activeKeys.add(toDateKey(new Date(currentBook.updatedAt)));
-  const labels = ['월', '화', '수', '목', '금', '토', '일'];
-  const todayKey = toDateKey(today);
-  return {
-    noteCount: notes.filter((note) => new Date(note.createdAt) >= monday).length,
-    days: labels.map((label, index) => {
-      const date = new Date(monday);
-      date.setDate(monday.getDate() + index);
-      const key = toDateKey(date);
-      return { key, label, isActive: activeKeys.has(key), isToday: key === todayKey };
-    }),
-  };
-}
-
-function getGreeting() {
-  const hour = new Date().getHours();
-  if (hour < 11) return '좋은 아침이에요';
-  if (hour < 18) return '오늘도 반가워요';
-  return '편안한 저녁이에요';
-}
-
-function formatNoteDate(value: string) {
-  const date = new Date(value);
-  const now = new Date();
-  const prefix = toDateKey(date) === toDateKey(now) ? '오늘' : `${date.getMonth() + 1}.${date.getDate()}`;
-  return `${prefix} · ${date.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}`;
-}
-
-function toDateKey(date: Date) {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
+function weekDays(notes: ReadingLifeNote[]) {
+  const monday = new Date(); monday.setHours(0, 0, 0, 0); monday.setDate(monday.getDate() - ((monday.getDay() + 6) % 7));
+  const key = (date: Date) => [date.getFullYear(), date.getMonth(), date.getDate()].join('-');
+  const active = new Set(notes.map(note => key(new Date(note.createdAt))));
+  return ['월', '화', '수', '목', '금', '토', '일'].map((label, index) => {
+    const date = new Date(monday); date.setDate(date.getDate() + index);
+    return { label, active: active.has(key(date)) };
+  });
 }
 
 const styles = StyleSheet.create({
-  safeArea: { backgroundColor: booksomeColors.paper, flex: 1 },
-  content: {
-    alignSelf: 'center',
-    maxWidth: booksomeLayout.maxContentWidth,
-    paddingBottom: booksomeLayout.bottomNavSpace + 24,
-    paddingHorizontal: booksomeLayout.pageGutter,
-    paddingTop: 18,
-    width: '100%',
-  },
-  header: { alignItems: 'flex-start', flexDirection: 'row', justifyContent: 'space-between', marginBottom: 28 },
-  headerCopy: { flex: 1, minWidth: 0 },
-  greeting: { color: booksomeColors.muted, fontSize: 13, fontWeight: '700', marginBottom: 6 },
-  pageTitle: { color: booksomeColors.ink, fontSize: 32, fontWeight: '900', letterSpacing: -1 },
-  wordmark: { color: booksomeColors.forest, fontFamily: 'serif', fontSize: 21, fontWeight: '700', marginTop: 12 },
-  loadingRow: { alignItems: 'center', flexDirection: 'row', gap: 10, justifyContent: 'center', paddingVertical: 48 },
-  loadingText: { color: booksomeColors.muted, fontSize: 13, fontWeight: '700' },
-  errorText: { color: booksomeColors.danger, fontSize: 13, lineHeight: 19, marginBottom: 18 },
-  sectionHeader: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between', marginBottom: 14 },
-  sectionTitle: { color: booksomeColors.ink, fontSize: 19, fontWeight: '900', letterSpacing: -0.4 },
-  textAction: { alignItems: 'center', flexDirection: 'row', gap: 2, minHeight: 34, paddingLeft: 10 },
-  textActionLabel: { color: booksomeColors.forest, fontSize: 12, fontWeight: '800' },
-  currentBookSection: { borderBottomColor: booksomeColors.line, borderBottomWidth: StyleSheet.hairlineWidth, paddingBottom: 24 },
-  currentBookRow: { flexDirection: 'row', gap: 18 },
-  currentCover: { backgroundColor: '#D8D0C1', borderRadius: 4, height: 164, width: 108 },
-  coverFallback: { alignItems: 'center', backgroundColor: booksomeColors.forest, justifyContent: 'center', padding: 10 },
-  coverFallbackTitle: { color: booksomeColors.white, fontFamily: 'serif', fontSize: 14, fontWeight: '700', lineHeight: 19, textAlign: 'center' },
-  currentBookCopy: { flex: 1, minWidth: 0, paddingTop: 5 },
-  currentBookTitle: { color: booksomeColors.ink, fontSize: 22, fontWeight: '900', letterSpacing: -0.5, lineHeight: 28 },
-  currentBookAuthor: { color: booksomeColors.muted, fontSize: 14, marginTop: 6 },
-  progressHeading: { alignItems: 'flex-end', flexDirection: 'row', justifyContent: 'space-between', marginTop: 18 },
-  progressPercent: { color: booksomeColors.forest, fontFamily: 'serif', fontSize: 28, fontWeight: '700' },
-  pageProgress: { color: booksomeColors.muted, fontSize: 11, fontWeight: '700', paddingBottom: 4 },
-  progressTrack: { backgroundColor: '#E4DED3', borderRadius: 3, height: 5, marginTop: 5, overflow: 'hidden' },
-  progressFill: { backgroundColor: booksomeColors.forest, borderRadius: 3, height: '100%' },
-  continueButton: { alignItems: 'center', backgroundColor: booksomeColors.forest, borderRadius: 8, flexDirection: 'row', gap: 7, justifyContent: 'center', marginTop: 17, minHeight: 42 },
-  continueButtonText: { color: booksomeColors.white, fontSize: 13, fontWeight: '900' },
-  emptyBook: { alignItems: 'center', borderColor: booksomeColors.line, borderRadius: 10, borderWidth: 1, flexDirection: 'row', gap: 13, padding: 17 },
-  emptyIcon: { alignItems: 'center', backgroundColor: booksomeColors.forestSoft, borderRadius: 8, height: 48, justifyContent: 'center', width: 48 },
-  emptyCopy: { flex: 1, minWidth: 0 },
-  emptyTitle: { color: booksomeColors.ink, fontSize: 15, fontWeight: '900' },
-  emptyBody: { color: booksomeColors.muted, fontSize: 12, lineHeight: 17, marginTop: 4 },
-  weekSection: { borderBottomColor: booksomeColors.line, borderBottomWidth: StyleSheet.hairlineWidth, paddingBottom: 23, paddingTop: 23 },
-  weekHeading: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between', marginBottom: 18 },
-  weekSummary: { color: booksomeColors.forest, fontSize: 12, fontWeight: '800' },
-  weekDays: { flexDirection: 'row', justifyContent: 'space-between' },
-  weekDay: { alignItems: 'center', flex: 1, gap: 8 },
-  weekdayLabel: { color: booksomeColors.muted, fontSize: 11, fontWeight: '700' },
-  weekdayLabelToday: { color: booksomeColors.forest, fontWeight: '900' },
-  dayMark: { alignItems: 'center', backgroundColor: '#E9E3D8', borderRadius: 16, height: 29, justifyContent: 'center', width: 29 },
-  dayMarkActive: { backgroundColor: booksomeColors.forest },
-  dayMarkToday: { borderColor: booksomeColors.ochre, borderWidth: 2 },
-  recentSection: { paddingTop: 23 },
-  noteList: { gap: 0 },
-  noteRow: { alignItems: 'flex-start', borderBottomColor: booksomeColors.line, borderBottomWidth: StyleSheet.hairlineWidth, flexDirection: 'row', gap: 13, paddingVertical: 15 },
-  noteIcon: { alignItems: 'center', borderRadius: 23, height: 46, justifyContent: 'center', width: 46 },
-  noteIconQuote: { backgroundColor: booksomeColors.forestSoft },
-  noteIconThought: { backgroundColor: booksomeColors.ochreSoft },
-  noteCopy: { flex: 1, minWidth: 0 },
-  noteMetaRow: { alignItems: 'center', flexDirection: 'row', gap: 8, marginBottom: 7 },
-  noteKind: { color: booksomeColors.forest, fontSize: 12, fontWeight: '900' },
-  noteKindThought: { color: booksomeColors.ochre },
-  noteDate: { color: booksomeColors.muted, fontSize: 11 },
-  noteText: { color: booksomeColors.ink, fontFamily: 'serif', fontSize: 15, lineHeight: 23 },
-  notePage: { color: booksomeColors.muted, fontSize: 11, marginTop: 7 },
-  emptyNotes: { alignItems: 'center', borderColor: booksomeColors.line, borderRadius: 9, borderWidth: 1, flexDirection: 'row', gap: 10, justifyContent: 'center', padding: 22 },
-  emptyNotesText: { color: booksomeColors.muted, fontSize: 13, fontWeight: '700' },
+  safe: { flex: 1, backgroundColor: c.paper },
+  content: { alignSelf: 'center', width: '100%', maxWidth: booksomeLayout.maxContentWidth, paddingBottom: booksomeLayout.bottomNavSpace },
+  top: { paddingTop: 12, paddingBottom: 28, overflow: 'hidden' },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 22, marginBottom: 14 },
+  brand: { fontFamily: booksomeType.serif, fontSize: 33, lineHeight: 49, color: c.forest, letterSpacing: -1.5 },
+  search: { minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center' },
+  greeting: { alignSelf: 'flex-start', marginLeft: 25, marginBottom: 20, transform: [{ rotate: '-5deg' }] },
+  greetingText: { fontFamily: booksomeType.serif, fontSize: 18, lineHeight: 27, color: c.forest },
+  pencilLine: { width: 116, height: 1.5, backgroundColor: '#8DA580', marginLeft: 47, marginTop: 4, transform: [{ rotate: '-7deg' }] },
+  loading: { height: 270, alignItems: 'center', justifyContent: 'center', gap: 16 },
+  muted: { color: c.muted, fontSize: 14 },
+  bookStage: { flexDirection: 'row', alignItems: 'center', paddingLeft: 26, paddingRight: 16, gap: 20 },
+  bookArt: { position: 'relative', paddingVertical: 5 },
+  behindBook: { position: 'absolute', top: 58, left: -14, width: '86%', height: '67%', transform: [{ rotate: '-10deg' }], padding: 15 },
+  behindText: { fontFamily: booksomeType.serif, color: '#86927E', fontSize: 13, lineHeight: 23 },
+  bookCopy: { flex: 1, minWidth: 0, paddingBottom: 6 },
+  bookTitle: { fontFamily: booksomeType.serif, color: c.forest, fontSize: 36, lineHeight: 49, letterSpacing: -1 },
+  mediumTitle: { fontSize: 28, lineHeight: 40 },
+  longTitle: { fontSize: 23, lineHeight: 34 },
+  author: { color: '#777E68', fontSize: 13, lineHeight: 21, marginTop: 10 },
+  position: { color: '#808573', fontSize: 13, lineHeight: 23, marginTop: 24 },
+  currentPage: { color: c.forest, fontWeight: '700', fontSize: 17 },
+  invitation: { color: c.muted, fontSize: 14, lineHeight: 23, marginTop: 18 },
+  continue: { backgroundColor: c.forest, flexDirection: 'row', gap: 7, alignItems: 'center', justifyContent: 'center', minHeight: 46, borderRadius: 30, paddingHorizontal: 10, paddingVertical: 12, marginTop: 18 },
+  continueText: { color: c.paperStrong, fontSize: 13, fontWeight: '600', flexShrink: 1, lineHeight: 20 },
+  compactContinue: { fontSize: 12 },
+  compactButton: { paddingHorizontal: 6 },
+  pressed: { opacity: 0.82 },
+  error: { color: c.danger, marginHorizontal: 24, marginTop: 18, lineHeight: 22 },
+  collection: { paddingHorizontal: 23, paddingTop: 22, paddingBottom: 26 },
+  collectionEdge: { position: 'absolute', top: -8, left: 0, right: 0 },
+  collectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
+  collectionTitle: { fontFamily: booksomeType.serif, fontSize: 17, color: '#E1E3D1' },
+  more: { flexDirection: 'row', gap: 8, alignItems: 'center', minHeight: 44 },
+  moreText: { color: '#D8DDCA', fontSize: 12, lineHeight: 21 },
+  noteStage: { minHeight: 192 },
+  noteStageWithPhoto: { minHeight: 280 },
+  notePressable: { transform: [{ rotate: '-3deg' }] },
+  note: { minHeight: 185, paddingTop: 26, paddingBottom: 22 },
+  noteWithPhoto: { paddingRight: 120 },
+  quote: { fontFamily: booksomeType.serif, fontSize: 21, lineHeight: 35, color: c.forest, letterSpacing: -0.6 },
+  quoteUnderline: { backgroundColor: '#99AF89', height: 1.5, width: '67%', marginTop: 13, transform: [{ rotate: '-2deg' }] },
+  page: { color: '#5F7765', fontSize: 12, marginTop: 18, lineHeight: 19 },
+  polaroid: { position: 'absolute', right: -8, top: 100, backgroundColor: c.paperStrong, padding: 6, width: 125, transform: [{ rotate: '8deg' }], boxShadow: '0px 6px 12px rgba(0,0,0,.2)' },
+  photo: { width: '100%', height: 137 },
+  photoCaption: { fontFamily: booksomeType.serif, color: c.forest, fontSize: 10, paddingTop: 8, paddingBottom: 3, textAlign: 'center' },
+  collectionFoot: { fontFamily: booksomeType.serif, color: '#AEC0A9', fontSize: 14, lineHeight: 25, marginTop: 24, marginLeft: 5, transform: [{ rotate: '-3deg' }] },
+  login: { flexDirection: 'row', alignItems: 'center', gap: 14, marginTop: 22, minHeight: 44 },
+  afterword: { padding: 24, paddingTop: 30 },
+  afterTitle: { fontFamily: booksomeType.serif, fontSize: 18, color: c.forest },
+  week: { flexDirection: 'row', justifyContent: 'space-between', marginVertical: 22 },
+  day: { alignItems: 'center', gap: 9 },
+  dayLabel: { color: c.muted, fontSize: 11 },
+  dayMark: { height: 29, width: 29, borderRadius: 15, backgroundColor: '#EEE5BF', alignItems: 'center', justifyContent: 'center' },
+  dayActive: { backgroundColor: c.forest },
+  dayDot: { color: '#A4A083' },
+  libraryLink: { borderTopWidth: 1, borderTopColor: c.line, paddingTop: 20, flexDirection: 'row', justifyContent: 'space-between', gap: 8 },
+  libraryLinkText: { fontSize: 13, color: c.forest },
 });

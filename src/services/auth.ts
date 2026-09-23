@@ -1,5 +1,7 @@
 import { apiRequest } from '../lib/api-client';
+import { usesWebSession, webSessionRequest } from '../lib/web-session';
 import {
+  applyBrowserSession,
   applyApiAuthSession,
   clearAuthSession,
   getStoredAuthSession,
@@ -23,6 +25,7 @@ type CurrentSessionResponse = {
 };
 
 export async function signInWithEmail(email: string, password: string) {
+  if (usesWebSession) return applyBrowserSession(await webSessionRequest<CurrentSessionResponse>('/api/auth/login', { email, password }));
   const response = await apiRequest<ApiAuthSession>(
     '/api/auth/sign-in',
     {
@@ -40,6 +43,7 @@ export async function signUpWithEmail(input: {
   password: string;
   displayName: string;
 }) {
+  if (usesWebSession) return applyBrowserSession(await webSessionRequest<CurrentSessionResponse>('/api/auth/signup', input));
   const response = await apiRequest<ApiAuthSession>(
     '/api/auth/sign-up',
     {
@@ -53,6 +57,7 @@ export async function signUpWithEmail(input: {
 }
 
 export async function requestPasswordReset(email: string) {
+  if (usesWebSession) return webSessionRequest<{ accepted: boolean }>('/api/auth/password-reset/request', { email });
   return apiRequest<{ accepted: boolean }>(
     '/api/auth/password-reset/request',
     {
@@ -64,6 +69,7 @@ export async function requestPasswordReset(email: string) {
 }
 
 export async function updatePassword(email: string, code: string, newPassword: string) {
+  if (usesWebSession) return webSessionRequest<void>('/api/auth/password-reset/confirm', { email, code, newPassword });
   return apiRequest<void>(
     '/api/auth/password-reset/confirm',
     {
@@ -89,6 +95,11 @@ export async function confirmEmailVerification(code: string) {
 }
 
 export async function signOut() {
+  if (usesWebSession) {
+    await webSessionRequest('/api/auth/logout', {});
+    await clearAuthSession();
+    return;
+  }
   const session = await getStoredAuthSession();
   try {
     if (session) {
@@ -107,6 +118,12 @@ export async function signOut() {
 }
 
 export async function getActiveSession() {
+  if (usesWebSession) {
+    const response = await fetch('/api/auth/session', { credentials: 'same-origin', cache: 'no-store' });
+    if (response.status === 401) { await clearAuthSession(); return null; }
+    if (!response.ok) throw new Error('로그인 상태를 확인하지 못했습니다. 다시 시도해주세요.');
+    return applyBrowserSession(await response.json() as CurrentSessionResponse).session;
+  }
   const storedSession = await getStoredAuthSession();
   if (!storedSession) return null;
 

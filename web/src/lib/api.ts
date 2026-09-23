@@ -17,12 +17,11 @@ export function getApiBaseUrl() {
 }
 
 export async function apiFetch(path: string, init: RequestInit = {}) {
+  const headers = new Headers(init.headers);
+  if (!headers.has('Accept')) headers.set('Accept', 'application/json');
   return fetch(`${getApiBaseUrl()}${normalizePath(path)}`, {
     ...init,
-    headers: {
-      Accept: 'application/json',
-      ...init.headers
-    }
+    headers
   });
 }
 

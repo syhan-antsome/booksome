@@ -164,6 +164,18 @@ export function restoreAuthState(session: AuthSession, profile: ProfileRecord) {
   emitAuthState({ event: 'RESTORED', session, profile });
 }
 
+export function applyBrowserSession(response: { user: ApiAuthUser; profile: ApiProfile }) {
+  // Browser state contains display data only. Credentials stay in HTTP-only
+  // cookies; the native token fields are intentionally empty and never used.
+  const session: AuthSession = {
+    access_token: '', refresh_token: '', token_type: 'Bearer',
+    expires_in: 0, expires_at: 0, user: mapApiAuthUser(response.user),
+  };
+  const profile = mapApiProfile(response.profile);
+  restoreAuthState(session, profile);
+  return { session, profile, user: session.user };
+}
+
 export function updateAuthProfile(profile: ProfileRecord) {
   memoryProfile = profile;
   emitAuthState({ event: 'PROFILE_UPDATED', session: memorySession ?? null, profile });

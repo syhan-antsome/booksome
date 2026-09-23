@@ -5,7 +5,7 @@ export default function robots(): MetadataRoute.Robots {
     rules: {
       userAgent: '*',
       allow: '/',
-      disallow: ['/api/', '/login', '/signup', '/password-reset', '/me']
+      disallow: ['/api/', '/app/', '/login', '/signup', '/password-reset', '/me']
     },
     sitemap: 'https://booksome.top/sitemap.xml'
   };

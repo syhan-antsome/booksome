@@ -1,7 +1,8 @@
 export const booksomeColors = {
-  paper: '#F7F2EA',
-  paperStrong: '#FFFDF8',
-  forest: '#103D2B',
+  paper: '#FFF6D7',
+  paperStrong: '#FFFAEB',
+  forest: '#143E32',
+  cloth: '#214F40',
   forestSoft: '#E7EFE8',
   ink: '#18241D',
   muted: '#6C756E',
@@ -17,3 +18,5 @@ export const booksomeLayout = {
   pageGutter: 20,
   bottomNavSpace: 112,
 } as const;
+
+export const booksomeType = { serif: 'NotoSerifKR_500Medium' } as const;

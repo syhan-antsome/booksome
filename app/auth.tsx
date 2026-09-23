@@ -35,10 +35,11 @@ const authHeroSource = toImageSource(authHeroImage);
 const sseomdiReadingSource = toImageSource(sseomdiReadingImage);
 
 export default function AuthScreen() {
-  const params = useLocalSearchParams<{ email?: string; reset?: string }>();
+  const params = useLocalSearchParams<{ email?: string; reset?: string; next?: string; mode?: string }>();
   const { session } = useAuth();
   const { height } = useWindowDimensions();
-  const [mode, setMode] = useState<'sign-in' | 'sign-up'>('sign-in');
+  const [mode, setMode] = useState<'sign-in' | 'sign-up'>(params.mode === 'sign-up' ? 'sign-up' : 'sign-in');
+  const nextPath = typeof params.next === 'string' && /^\/(books\/add(?:\?|$)|library$|record$)/.test(params.next) ? params.next : '/';
   const [displayName, setDisplayName] = useState('');
   const [email, setEmail] = useState(typeof params.email === 'string' ? params.email : '');
   const [password, setPassword] = useState('');
@@ -61,7 +62,7 @@ export default function AuthScreen() {
         : '필명으로 책에 머물고, 질문과 문장을 안전하게 남겨보세요.',
     [mode],
   );
-  const heroHeight = Math.max(300, Math.min(390, height * 0.43));
+  const heroHeight = Math.max(220, Math.min(280, height * 0.3));
 
   const submit = async () => {
     setFeedback(null);
@@ -81,7 +82,7 @@ export default function AuthScreen() {
     try {
       if (mode === 'sign-in') {
         await signInWithEmail(email.trim(), password);
-        router.replace('/');
+        router.replace(nextPath as '/');
       } else {
         const result = await signUpWithEmail({
           email: email.trim(),
@@ -90,8 +91,10 @@ export default function AuthScreen() {
         });
 
         if (result.session) {
-          await requestEmailVerification();
-          router.replace('/auth/verify-email');
+          // Account creation already establishes a session. Email delivery must
+          // not strand a new reader before their first book when SMTP is off.
+          void requestEmailVerification().catch(() => undefined);
+          router.replace((nextPath === '/' ? '/books/add' : nextPath) as '/');
           return;
         }
 
@@ -133,7 +136,6 @@ export default function AuthScreen() {
             </View>
 
             <View style={styles.heroCopy}>
-              <Text style={styles.heroEyebrow}>READING SOCIAL</Text>
               <Text style={styles.title}>{title}</Text>
               <Text style={styles.copy}>{copy}</Text>
             </View>
@@ -200,12 +202,12 @@ export default function AuthScreen() {
                 </View>
               ) : null}
 
-              <Pressable onPress={submit} style={styles.submitButton} disabled={isSubmitting}>
+              <Pressable accessibilityRole="button" onPress={submit} style={styles.submitButton} disabled={isSubmitting}>
                 {isSubmitting ? (
                   <ActivityIndicator color="#FFFFFF" />
                 ) : (
                   <Text style={styles.submitText}>
-                    {mode === 'sign-in' ? '북썸으로 입장하기' : '프로필 만들기'}
+                    {mode === 'sign-in' ? '로그인하고 이어가기' : '가입하고 내 책 담기'}
                   </Text>
                 )}
               </Pressable>

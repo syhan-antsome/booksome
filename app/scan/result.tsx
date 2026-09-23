@@ -67,8 +67,7 @@ export default function ScanResultScreen() {
     !isLookingUpBook &&
     !isCheckingDuplicate &&
     !isAddingToReadingLife &&
-    !duplicateBook &&
-    (isRoomContext || isMarketContext || isMeetupContext || totalPagesValue !== null);
+    !duplicateBook;
 
   useEffect(() => {
     let isMounted = true;
@@ -211,8 +210,8 @@ export default function ScanResultScreen() {
       return;
     }
 
-    if (!totalPagesValue) {
-      setRegistrationError('책의 마지막 페이지 번호를 입력해주세요.');
+    if (totalPagesInput.trim() && !totalPagesValue) {
+      setRegistrationError('전체 페이지는 1 이상의 숫자로 입력해주세요. 비워두어도 등록할 수 있어요.');
       return;
     }
 
@@ -224,11 +223,11 @@ export default function ScanResultScreen() {
       const customCover = customCoverAsset ? await uploadCustomCover() : null;
       const externalCoverUrl = customCover?.mediaUrl ?? selectedBook.imageUrl ?? null;
 
-      await addBookToReadingLife(session.user.id, selectedBook, {
+      const savedBook = await addBookToReadingLife(session.user.id, selectedBook, {
         externalCoverUrl,
         totalPages: totalPagesValue,
       });
-      router.replace('/library');
+      router.replace({ pathname: '/reading-life/[id]', params: { id: savedBook.id, welcome: '1' } });
     } catch (error) {
       setRegistrationError(getErrorMessage(error, '내 책장에 등록하지 못했습니다.'));
     } finally {
@@ -417,7 +416,7 @@ export default function ScanResultScreen() {
 
               {selectedBook && !isRoomContext && !isMarketContext && !isCheckingDuplicate && !duplicateBook ? (
                 <View style={styles.pagePanel}>
-                  <Text style={styles.pageLabel}>마지막 페이지</Text>
+                  <Text style={styles.pageLabel}>전체 페이지 · 선택</Text>
                   <TextInput
                     keyboardType="number-pad"
                     onChangeText={(value) => setTotalPagesInput(value.replace(/[^0-9]/g, ''))}
@@ -429,7 +428,7 @@ export default function ScanResultScreen() {
                     value={totalPagesInput}
                   />
                   <Text style={styles.pageHint}>
-                    앞으로 현재 페이지를 입력하면 이 마지막 페이지를 기준으로 진행률이 계산됩니다.
+                    지금 몰라도 괜찮아요. 책을 등록한 뒤에 입력할 수 있습니다.
                   </Text>
                 </View>
               ) : null}

@@ -37,6 +37,8 @@ npm run web
 
 The default web preview runs at `http://localhost:8081`.
 
+The public portal also hosts the same reading UI at `/app/`, including title search, book registration, private notes, progress, and a personal completion recap. To verify the full public-web-to-reader flow, install dependencies in the repository root and in `web/`, then run `npm run dev` from `web/`. Its build hook exports the Expo browser app automatically; browser authentication uses the portal's HTTP-only cookies. See [`web/README.md`](web/README.md) for the shared build and deployment contract, and [`docs/reading-pilot.md`](docs/reading-pilot.md) for the first-user validation plan.
+
 Important app environment variables:
 
 ```text
@@ -70,3 +72,23 @@ npm run typecheck
 npm run lint
 npm run build
 ```
+
+## Deployment
+
+All production applications are deployed through the single root script:
+
+```sh
+./deploy.sh setup   # first server installation only
+./deploy.sh api
+./deploy.sh web
+./deploy.sh admin
+./deploy.sh all
+```
+
+On `naverai`, `all` checks the server and automatically runs `setup` when the web/admin prerequisites are missing. You can also run `setup` separately. It installs the pinned official Node.js 20 binary after SHA-256 verification, installs/enables the web systemd unit, writes the web build environment from the local public Naver Maps client ID, and prepares web/admin release directories. If sudo requires a password, the script requests it through an SSH terminal and never stores it.
+
+The default SSH host is `naverai` (`syhan@101.79.28.235`, configured in the local SSH config); override it with `--host` or `BOOKSOME_DEPLOY_HOST`. The script refuses a dirty worktree unless `--allow-dirty` is explicit. It builds and verifies artifacts, keeps versioned releases, switches the active release atomically, performs health checks, and restores the preceding binary/release when a check fails. Use `./deploy.sh --help` and `./deploy.sh all --dry-run` before the first deployment.
+
+The server's existing API, MariaDB, Nginx/Let's Encrypt certificate, and `booksome` system user are the base prerequisites. `./deploy.sh setup` handles the remaining web/admin preparation. The deploy account must have sudo access. If limited `NOPASSWD` access is not configured, the script opens an SSH terminal and asks for the sudo password without storing it. Web builds run on the Linux server so Next.js native dependencies match production. The generated web environment uses owner/group `root:booksome` and mode `0640` so the isolated `booksome` build user can read it.
+
+Automatic rollback restores application artifacts only. Flyway database migrations are forward-only, so schema changes must remain backward compatible with the preceding API release.

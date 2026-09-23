@@ -62,6 +62,8 @@ The `deploy/` directory contains templates for:
 
 Production paths use `/service/booksome`, matching the server layout.
 
+After the one-time service and environment setup, run `./deploy.sh api` from the repository root. The script executes tests and `bootJar`, uploads a versioned JAR, switches `/service/booksome/app/booksome-api.jar`, restarts the service, verifies `/api/health`, and restores the preceding JAR on failure. Flyway migrations themselves are not rolled back.
+
 ## Transactional email
 
 Password reset and email verification use 8-digit codes that expire after 15 minutes. Configure a verified SMTP sender before enabling mail:

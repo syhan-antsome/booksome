@@ -1,15 +1,17 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AuthRequired } from '../src/components/auth-required';
-import { BottomNavigation } from '../src/components/bottom-navigation';
+import { TabPage } from '../src/components/tab-page';
+import { PaperGrain } from '../src/components/collector-surfaces';
+import { BookObject } from '../src/components/book-object';
 import { formatReadingPagePosition } from '../src/lib/reading-format';
 import { useAuth } from '../src/providers/auth-provider';
 import { listReadingLifeBooks, type ReadingLifeBook } from '../src/services/reading-life';
-import { booksomeColors, booksomeLayout } from '../src/theme/booksome';
+import { booksomeColors, booksomeLayout, booksomeType } from '../src/theme/booksome';
 
 export default function RecordScreen() {
   const { isLoading: isAuthLoading, session } = useAuth();
@@ -44,7 +46,7 @@ export default function RecordScreen() {
   );
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <TabPage><SafeAreaView edges={['top', 'left', 'right']} style={styles.safeArea}><PaperGrain />
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
           <Text style={styles.wordmark}>BookSome</Text>
@@ -64,16 +66,10 @@ export default function RecordScreen() {
               {books.map((book, index) => (
                 <Pressable
                   key={book.id}
-                  onPress={() => router.push(`/reading-life/${book.id}`)}
+                  onPress={() => router.push({ pathname: '/reading-life/[id]', params: { id: book.id, section: 'quote' } })}
                   style={[styles.bookRow, index === 0 ? styles.bookRowFirst : null]}
                 >
-                  {book.externalCoverUrl ? (
-                    <Image resizeMode="cover" source={{ uri: book.externalCoverUrl }} style={styles.cover} />
-                  ) : (
-                    <View style={[styles.cover, styles.coverFallback]}>
-                      <Text numberOfLines={2} style={styles.coverFallbackText}>{book.title}</Text>
-                    </View>
-                  )}
+                  <BookObject width={88} title={book.title} author={book.author} uri={book.externalCoverUrl} tilt={-3} />
                   <View style={styles.bookCopy}>
                     {index === 0 ? <Text style={styles.recommendedLabel}>최근 읽은 책</Text> : null}
                     <Text numberOfLines={2} style={styles.bookTitle}>{book.title}</Text>
@@ -97,8 +93,8 @@ export default function RecordScreen() {
               ) : null}
             </View>
 
-            <Pressable onPress={() => router.push('/scan')} style={styles.addBookButton}>
-              <Ionicons color={booksomeColors.forest} name="barcode-outline" size={22} />
+            <Pressable accessibilityRole="button" onPress={() => router.push('/books/add')} style={styles.addBookButton}>
+              <Ionicons color={booksomeColors.forest} name="search-outline" size={22} />
               <View style={styles.addBookCopy}>
                 <Text style={styles.addBookTitle}>새 책 등록</Text>
                 <Text style={styles.addBookBody}>바코드 또는 검색으로 책을 추가합니다.</Text>
@@ -108,39 +104,39 @@ export default function RecordScreen() {
           </>
         ) : null}
       </ScrollView>
-      <BottomNavigation active="record" />
-    </SafeAreaView>
+
+    </SafeAreaView></TabPage>
   );
 }
 
 const styles = StyleSheet.create({
   safeArea: { backgroundColor: booksomeColors.paper, flex: 1 },
   content: { alignSelf: 'center', maxWidth: booksomeLayout.maxContentWidth, paddingBottom: booksomeLayout.bottomNavSpace + 24, paddingHorizontal: booksomeLayout.pageGutter, paddingTop: 18, width: '100%' },
-  header: { marginBottom: 26 },
-  wordmark: { color: booksomeColors.forest, fontFamily: 'serif', fontSize: 17, fontWeight: '700', marginBottom: 21 },
-  pageTitle: { color: booksomeColors.ink, fontSize: 31, fontWeight: '900', letterSpacing: -1 },
-  subtitle: { color: booksomeColors.muted, fontSize: 14, marginTop: 7 },
+  header: { marginBottom: 26, backgroundColor: booksomeColors.cloth, marginHorizontal: -20, marginTop: -18, padding: 26, paddingTop: 30, paddingBottom: 32 },
+  wordmark: { color: '#CAD6BB', fontFamily: booksomeType.serif, fontSize: 18, marginBottom: 24 },
+  pageTitle: { color: booksomeColors.paperStrong, fontFamily: booksomeType.serif, fontSize: 30, letterSpacing: -1 },
+  subtitle: { color: '#CCD7C0', fontSize: 14, marginTop: 12 },
   loader: { marginVertical: 48 },
   errorText: { color: booksomeColors.danger, fontSize: 13, marginBottom: 18 },
   bookList: { gap: 0 },
-  bookRow: { alignItems: 'center', borderBottomColor: booksomeColors.line, borderBottomWidth: StyleSheet.hairlineWidth, flexDirection: 'row', gap: 14, paddingVertical: 18 },
-  bookRowFirst: { paddingTop: 0 },
+  bookRow: { alignItems: 'center', borderBottomColor: booksomeColors.line, borderBottomWidth: StyleSheet.hairlineWidth, backgroundColor: booksomeColors.paperStrong, flexDirection: 'row', gap: 20, padding: 18, marginBottom: 16 },
+  bookRowFirst: { paddingTop: 18 },
   cover: { backgroundColor: '#D8D0C1', borderRadius: 3, height: 124, width: 82 },
   coverFallback: { alignItems: 'center', backgroundColor: booksomeColors.forest, justifyContent: 'center', padding: 8 },
   coverFallbackText: { color: booksomeColors.white, fontFamily: 'serif', fontSize: 11, fontWeight: '700', textAlign: 'center' },
   bookCopy: { flex: 1, minWidth: 0 },
-  recommendedLabel: { color: booksomeColors.ochre, fontSize: 10, fontWeight: '900', marginBottom: 5 },
-  bookTitle: { color: booksomeColors.ink, fontSize: 17, fontWeight: '900', lineHeight: 22 },
+  recommendedLabel: { color: booksomeColors.ochre, fontSize: 10, fontWeight: '700', marginBottom: 5 },
+  bookTitle: { color: booksomeColors.ink, fontSize: 17, fontWeight: '700', lineHeight: 22 },
   bookAuthor: { color: booksomeColors.muted, fontSize: 12, marginTop: 4 },
-  bookProgress: { color: booksomeColors.forest, fontSize: 11, fontWeight: '800', marginTop: 8 },
+  bookProgress: { color: booksomeColors.forest, fontSize: 11, fontWeight: '600', marginTop: 8 },
   actionsPreview: { flexDirection: 'row', gap: 10, marginTop: 12 },
   actionPreview: { alignItems: 'center', flexDirection: 'row', gap: 4 },
   actionPreviewText: { color: booksomeColors.muted, fontSize: 10, fontWeight: '700' },
   emptyState: { alignItems: 'center', borderColor: booksomeColors.line, borderRadius: 10, borderWidth: 1, padding: 30 },
-  emptyTitle: { color: booksomeColors.ink, fontSize: 15, fontWeight: '900', marginTop: 12 },
+  emptyTitle: { color: booksomeColors.ink, fontSize: 15, fontWeight: '700', marginTop: 12 },
   emptyBody: { color: booksomeColors.muted, fontSize: 12, lineHeight: 18, marginTop: 6, maxWidth: 260, textAlign: 'center' },
   addBookButton: { alignItems: 'center', borderColor: booksomeColors.forest, borderRadius: 9, borderWidth: 1, flexDirection: 'row', gap: 12, marginTop: 24, padding: 16 },
   addBookCopy: { flex: 1 },
-  addBookTitle: { color: booksomeColors.forest, fontSize: 14, fontWeight: '900' },
+  addBookTitle: { color: booksomeColors.forest, fontSize: 14, fontWeight: '700' },
   addBookBody: { color: booksomeColors.muted, fontSize: 11, marginTop: 4 },
 });

@@ -1,20 +1,19 @@
-import { LinearGradient } from 'expo-linear-gradient';
 import { Link, useFocusEffect } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
 import {
   Image,
-  type ImageSourcePropType,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
   View,
-  useWindowDimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import bookroomSignboardImage from '../../assets/bookroom-signboard.jpg';
-import { BottomNavigation } from '../../src/components/bottom-navigation';
+import { TabPage } from '../../src/components/tab-page';
+import { PaperGrain } from '../../src/components/collector-surfaces';
+import { BookObject } from '../../src/components/book-object';
+import { booksomeColors, booksomeLayout, booksomeType } from '../../src/theme/booksome';
 import { featuredRooms, type FeaturedRoom } from '../../src/data/rooms';
 import { useAuth } from '../../src/providers/auth-provider';
 import { getMediaUrl } from '../../src/services/media';
@@ -31,14 +30,11 @@ type CoverStyle = {
   width: number;
 };
 
-const bookroomSignboardRatio = 803 / 1400;
-const bookroomSignboardSource = bookroomSignboardImage as ImageSourcePropType;
 const feedMoreLabelLength = 260;
 const feedDropLeadLength = 58;
 
 export default function RoomsScreen() {
   const { session } = useAuth();
-  const { width } = useWindowDimensions();
   const [feedItems, setFeedItems] = useState<BookroomFeedItem[]>([]);
   const [remoteRooms, setRemoteRooms] = useState<RoomSummary[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -79,21 +75,11 @@ export default function RoomsScreen() {
   const filteredFeed = feedItems;
   const filteredRooms = rooms.slice(0, 6);
   const shelfRooms = rooms.slice(0, 8);
-  const signboardHeight = Math.round(Math.min(width, 520) * bookroomSignboardRatio);
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <View style={[styles.signboardBackdrop, { height: signboardHeight }]}>
-        <Image resizeMode="cover" source={bookroomSignboardSource} style={styles.signboardImage} />
-        <LinearGradient
-          colors={['rgba(246,243,237,0)', '#F6F3ED']}
-          locations={[0, 1]}
-          pointerEvents="none"
-          style={styles.signboardFade}
-        />
-      </View>
+    <TabPage><SafeAreaView edges={['top', 'left', 'right']} style={styles.safeArea}><PaperGrain />
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <View style={{ height: signboardHeight }} />
+        <View style={styles.collectorHeader}><Text style={styles.collectorBrand}>BookSome</Text><Text style={styles.collectorTitle}>함께 읽는 북룸</Text><Text style={styles.collectorCopy}>같은 책에 머문, 서로 다른 생각들.</Text></View>
         <View style={styles.pageSurface}>
           {shelfRooms.length > 0 ? (
             <View style={styles.bookStage}>
@@ -210,8 +196,8 @@ export default function RoomsScreen() {
           ) : null}
         </View>
       </ScrollView>
-      <BottomNavigation active="rooms" />
-    </SafeAreaView>
+
+    </SafeAreaView></TabPage>
   );
 }
 
@@ -255,17 +241,7 @@ function AuthorAvatar({ item, style }: { item: BookroomFeedItem; style: CoverSty
 }
 
 function BookCover({ room, style }: { room: FeaturedRoom; style: CoverStyle }) {
-  const coverUrl = getRoomImageUrl(room);
-
-  if (coverUrl) {
-    return <Image resizeMode="cover" source={{ uri: coverUrl }} style={style} />;
-  }
-
-  return (
-    <View style={[style, styles.coverFallback, { backgroundColor: room.accent }]}>
-      <Text style={styles.coverFallbackText}>BOOK</Text>
-    </View>
-  );
+  return <BookObject title={room.title} author={room.author} uri={getRoomImageUrl(room)} width={style.width} tilt={-2} />;
 }
 
 function getFeedPreviewText(item: BookroomFeedItem) {
@@ -360,12 +336,17 @@ function getRoomCoverUrl(coverPath: string) {
 }
 
 const styles = StyleSheet.create({
+  collectorHeader: { padding: 24, paddingTop: 22, paddingBottom: 28 },
+  collectorBrand: { color: booksomeColors.forest, fontFamily: booksomeType.serif, fontSize: 20, marginBottom: 22 },
+  collectorTitle: { color: booksomeColors.forest, fontFamily: booksomeType.serif, fontSize: 28 },
+  collectorCopy: { color: booksomeColors.muted, fontSize: 14, marginTop: 12 },
   safeArea: {
-    backgroundColor: '#F6F3ED',
+    backgroundColor: booksomeColors.paper,
     flex: 1,
   },
   content: {
-    paddingBottom: 92,
+    alignSelf: 'center', width: '100%', maxWidth: booksomeLayout.maxContentWidth,
+    paddingBottom: booksomeLayout.bottomNavSpace,
   },
   signboardBackdrop: {
     backgroundColor: '#F6F3ED',

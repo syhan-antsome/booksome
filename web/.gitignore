@@ -4,3 +4,4 @@ node_modules/
 .env.production.local
 npm-debug.log*
 *.tsbuildinfo
+/public/app/

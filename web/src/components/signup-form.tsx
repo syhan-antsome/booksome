@@ -1,12 +1,10 @@
 'use client';
 
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import { useState, type FormEvent } from 'react';
 import { ArrowIcon } from '@/components/arrow-icon';
 
 export function SignupForm() {
-  const router = useRouter();
   const [error, setError] = useState('');
   const [pending, setPending] = useState(false);
 
@@ -22,7 +20,9 @@ export function SignupForm() {
       });
       const body = (await response.json()) as { message?: string };
       if (!response.ok) throw new Error(body.message || '가입하지 못했습니다.');
-      router.replace('/me'); router.refresh();
+      // /app is an Expo document, not a Next.js page: perform a full navigation.
+      // eslint-disable-next-line @next/next/no-location-assign-relative-destination
+      window.location.assign('/app/books/add');
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : '가입하지 못했습니다.');
     } finally { setPending(false); }

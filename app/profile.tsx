@@ -18,7 +18,9 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AuthRequired } from '../src/components/auth-required';
-import { BottomNavigation } from '../src/components/bottom-navigation';
+import { booksomeColors, booksomeType, booksomeLayout } from '../src/theme/booksome';
+import { TabPage } from '../src/components/tab-page';
+import { PaperGrain } from '../src/components/collector-surfaces';
 import { useAuth } from '../src/providers/auth-provider';
 import { updateProfile } from '../src/services/auth';
 import { getMediaUrl, uploadImageAsset } from '../src/services/media';
@@ -55,15 +57,15 @@ export default function ProfileScreen() {
 
   if (!isLoading && !session) {
     return (
-      <SafeAreaView style={styles.safeArea}>
+      <TabPage><SafeAreaView edges={['top', 'left', 'right']} style={styles.safeArea}><PaperGrain />
         <View style={styles.requiredWrap}>
           <AuthRequired
             title="나의 책 생활"
             copy="닉네임, 프로필 사진, 독서 기록은 로그인 후 사용할 수 있습니다."
           />
         </View>
-        <BottomNavigation active="profile" />
-      </SafeAreaView>
+
+      </SafeAreaView></TabPage>
     );
   }
 
@@ -174,7 +176,7 @@ export default function ProfileScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <TabPage><SafeAreaView edges={['top', 'left', 'right']} style={styles.safeArea}><PaperGrain />
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.keyboardWrap}>
         <ScrollView
           contentContainerStyle={[styles.content, { paddingBottom: Math.max(insets.bottom + 112, 132) }]}
@@ -311,8 +313,8 @@ export default function ProfileScreen() {
           </View>
         </View>
       </Modal>
-      <BottomNavigation active="profile" />
-    </SafeAreaView>
+
+    </SafeAreaView></TabPage>
   );
 }
 
@@ -328,7 +330,7 @@ function getProfileAvatarUrl(avatarPath: string | null | undefined) {
 
 const styles = StyleSheet.create({
   safeArea: {
-    backgroundColor: '#F7F4EE',
+    backgroundColor: booksomeColors.paper,
     flex: 1,
   },
   keyboardWrap: {
@@ -339,6 +341,7 @@ const styles = StyleSheet.create({
     padding: 18,
   },
   content: {
+    width: '100%', maxWidth: booksomeLayout.maxContentWidth, alignSelf: 'center',
     paddingHorizontal: 18,
     paddingTop: 18,
   },
@@ -348,6 +351,7 @@ const styles = StyleSheet.create({
     paddingBottom: 14,
   },
   title: {
+    fontFamily: booksomeType.serif,
     color: '#18231F',
     fontSize: 22,
     fontWeight: '600',
@@ -359,6 +363,7 @@ const styles = StyleSheet.create({
     marginTop: 5,
   },
   profileSection: {
+    backgroundColor: booksomeColors.forestSoft, borderRadius: 4, marginVertical: 20, paddingHorizontal: 18,
     alignItems: 'center',
     flexDirection: 'row',
     paddingVertical: 18,
