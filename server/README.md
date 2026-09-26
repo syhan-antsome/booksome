@@ -62,21 +62,21 @@ The `deploy/` directory contains templates for:
 
 Production paths use `/service/booksome`, matching the server layout.
 
-After the one-time service and environment setup, run `./deploy.sh api` from the repository root. The script executes tests and `bootJar`, uploads a versioned JAR, switches `/service/booksome/app/booksome-api.jar`, restarts the service, verifies `/api/health`, and restores the preceding JAR on failure. Flyway migrations themselves are not rolled back.
+Set the current OCI host and SSH key using the [deployment command reference](../docs/deploy-commands.md). After the one-time service and environment setup, run `./deploy.sh api` from the repository root. The script executes tests and `bootJar`, uploads a versioned JAR, switches `/service/booksome/app/booksome-api.jar`, restarts the service, verifies `/api/health`, and restores the preceding JAR on failure. Flyway migrations themselves are not rolled back.
 
 ## Transactional email
 
-Password reset and email verification use 8-digit codes that expire after 15 minutes. Configure a verified SMTP sender before enabling mail:
+Password reset and email verification use 8-digit codes that expire after 15 minutes. The Oracle deployment submits mail to localhost-only Postfix, which relays to Gmail on port 587 with authenticated, certificate-verified TLS. Configure and test the relay before enabling app mail:
 
 ```text
 BOOKSOME_MAIL_ENABLED=true
-BOOKSOME_MAIL_FROM=no-reply@mail.booksome.top
-BOOKSOME_SMTP_HOST=smtp.resend.com
-BOOKSOME_SMTP_PORT=587
-BOOKSOME_SMTP_USERNAME=resend
-BOOKSOME_SMTP_PASSWORD=<Resend API key>
-BOOKSOME_SMTP_AUTH=true
-BOOKSOME_SMTP_STARTTLS=true
+BOOKSOME_MAIL_FROM="북썸 BookSome <libre3155@gmail.com>"
+BOOKSOME_SMTP_HOST=127.0.0.1
+BOOKSOME_SMTP_PORT=25
+BOOKSOME_SMTP_USERNAME=
+BOOKSOME_SMTP_PASSWORD=
+BOOKSOME_SMTP_AUTH=false
+BOOKSOME_SMTP_STARTTLS=false
 ```
 
-Keep the SMTP password only in the server environment file. Never commit it.
+The lack of app-side SMTP authentication/TLS applies only to the loopback connection. Never expose this Postfix listener publicly. The Gmail app password is stored in root-only `/etc/postfix/sasl_passwd` and its database, not in the app environment or Git. Use `deploy/configure-postfix-gmail-test.sh` only while app mail is disabled, and use the same Gmail address for SMTP login and the sender. After changing the Google account password, recreate its app password and update Postfix before resuming mail.

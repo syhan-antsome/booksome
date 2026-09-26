@@ -47,7 +47,7 @@ The production process binds to `127.0.0.1:3000`. Nginx terminates TLS and proxi
 
 Do not switch the live root domain until the local portal has been reviewed and the API origin/cookie flow has been smoke-tested on HTTPS.
 
-Use `./deploy.sh web` from the repository root for production deployment. It transfers source and builds on the Linux server so native Next.js dependencies match the runtime, then creates a versioned release and atomically updates `/service/booksome/web/current`. The script verifies `/` and `/app/books/add`, restarts `booksome-web`, and restores the preceding release on failure.
+Set the current OCI host and SSH key using the [deployment command reference](../docs/deploy-commands.md), then use `./deploy.sh web` from the repository root for production deployment. It transfers source and builds on the Linux server so native Next.js dependencies match the runtime, then creates a versioned release and atomically updates `/service/booksome/web/current`. The script verifies `/` and `/app/books/add`, restarts `booksome-web`, and restores the preceding release on failure.
 
 On a new server, first run `./deploy.sh setup` from the repository root. The first successful web deployment replaces the temporary root-domain response with `web/deploy/nginx-booksome.conf` only after the Node service passes its local health checks; an Nginx or public HTTPS failure restores both the preceding Nginx configuration and web release.
 

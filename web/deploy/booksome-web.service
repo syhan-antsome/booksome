@@ -7,11 +7,11 @@ Wants=network-online.target
 Type=simple
 User=booksome
 Group=booksome
-WorkingDirectory=/service/booksome/web/current
+WorkingDirectory=/service/booksome/web
 Environment=NODE_ENV=production
 Environment=HOSTNAME=127.0.0.1
 Environment=PORT=3000
-EnvironmentFile=/service/booksome/web/booksome-web.env
+EnvironmentFile=/etc/booksome/booksome-web.env
 ExecStart=/usr/local/bin/node /service/booksome/web/current/server.js
 Restart=on-failure
 RestartSec=5
@@ -27,7 +27,7 @@ ProtectKernelTunables=true
 ProtectKernelModules=true
 ProtectControlGroups=true
 RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
-ReadWritePaths=/service/booksome/web/current/.next
+ReadWritePaths=/service/booksome/web/releases
 
 [Install]
 WantedBy=multi-user.target

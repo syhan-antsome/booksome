@@ -3,6 +3,7 @@ set -Eeuo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 DEPLOY_HOST="${BOOKSOME_DEPLOY_HOST:-naverai}"
+DEPLOY_IDENTITY="${BOOKSOME_DEPLOY_IDENTITY:-}"
 KEEP_RELEASES="${BOOKSOME_KEEP_RELEASES:-5}"
 TARGET=""
 DRY_RUN=false
@@ -22,6 +23,7 @@ BookSome 배포
 
 옵션:
   --host <ssh-host>   SSH 호스트 또는 ~/.ssh/config 별칭 (기본값: naverai)
+  --identity <path>  SSH 개인키 파일 경로 (별칭에 키가 없을 때)
   --keep <개수>       서버에 보관할 릴리스 수 (기본값: 5)
   --skip-build        기존 로컬 빌드 결과를 사용 (api/admin만 지원)
   --allow-dirty       커밋하지 않은 변경도 배포
@@ -59,6 +61,11 @@ while (($#)); do
       DEPLOY_HOST="$2"
       shift 2
       ;;
+    --identity)
+      (($# >= 2)) || die "--identity 뒤에 개인키 파일 경로가 필요합니다."
+      DEPLOY_IDENTITY="$2"
+      shift 2
+      ;;
     --keep)
       (($# >= 2)) || die "--keep 뒤에 보관 개수가 필요합니다."
       KEEP_RELEASES="$2"
@@ -76,6 +83,7 @@ done
 [[ -n "$TARGET" ]] || { usage; exit 2; }
 [[ "$KEEP_RELEASES" =~ ^[1-9][0-9]*$ ]] || die "--keep은 1 이상의 정수여야 합니다."
 [[ "$DEPLOY_HOST" =~ ^[A-Za-z0-9._@:-]+$ ]] || die "SSH 호스트 형식이 올바르지 않습니다."
+[[ -z "$DEPLOY_IDENTITY" || -r "$DEPLOY_IDENTITY" ]] || die "SSH 개인키를 읽을 수 없습니다: $DEPLOY_IDENTITY"
 if [[ "$SKIP_BUILD" == true && ("$TARGET" == web || "$TARGET" == all) ]]; then
   die "웹은 서버 운영체제에서 빌드하므로 --skip-build를 사용할 수 없습니다."
 fi
@@ -86,6 +94,13 @@ need ssh
 need scp
 need tar
 need npm
+
+ssh() {
+  if [[ -n "$DEPLOY_IDENTITY" ]]; then command ssh -i "$DEPLOY_IDENTITY" "$@"; else command ssh "$@"; fi
+}
+scp() {
+  if [[ -n "$DEPLOY_IDENTITY" ]]; then command scp -i "$DEPLOY_IDENTITY" "$@"; else command scp "$@"; fi
+}
 
 GIT_SHA="$(git rev-parse --short HEAD)"
 DIRTY_SUFFIX=""
@@ -125,7 +140,7 @@ log "배포 계획"
 printf '  대상: %s\n  호스트: %s\n  릴리스: %s\n  보관: %s개\n' "$TARGET" "$DEPLOY_HOST" "$RELEASE_ID" "$KEEP_RELEASES"
 
 if [[ "$DRY_RUN" == true ]]; then
-  [[ "$TARGET" == setup ]] && printf '  Setup: Node.js 20 설치 → 웹 service/env/디렉터리 → 관리자 디렉터리/Nginx 준비\n'
+  [[ "$TARGET" == setup ]] && printf '  Setup: Node.js 24 LTS 확인 → 웹 service/env/디렉터리 → 관리자 디렉터리/Nginx 준비\n'
   [[ "$TARGET" == all ]] && printf '  Setup: 서버 준비 상태 확인 후 필요한 경우 자동 실행\n'
   selected api && printf '  API: 로컬 테스트/JAR → /service/booksome/releases/api/%s → booksome-api 재시작/헬스 체크\n' "$RELEASE_ID"
   selected web && printf '  Web: 소스 전송 → 서버 npm ci/build → /service/booksome/web/releases/%s → booksome-web 재시작/헬스 체크\n' "$RELEASE_ID"
@@ -208,7 +223,9 @@ deploy_setup() {
     'NEXT_PUBLIC_API_BASE_URL=https://api.booksome.top' \
     'EXPO_PUBLIC_API_BASE_URL=https://api.booksome.top' \
     "EXPO_PUBLIC_NAVER_MAPS_CLIENT_ID=$naver_id" >"$env_file"
-  tar -czf "$archive" \
+  COPYFILE_DISABLE=1 tar -czf "$archive" \
+    --exclude='._*' \
+    --exclude='.DS_Store' \
     -C web/deploy booksome-web.service \
     -C "$TMP_DIR" booksome-web.env \
     -C "$ROOT_DIR/admin/deploy" nginx-admin.conf.example
@@ -218,13 +235,14 @@ deploy_setup() {
   cat >"$remote_script_local" <<'REMOTE_SETUP'
 set -Eeuo pipefail
 upload="$1"; remote_script="$2"
-node_version=20.19.6
+node_version=24.21.0
 work="$(mktemp -d /tmp/booksome-node.XXXXXX)"
+export PATH=/usr/local/bin:$PATH
 cleanup() { rm -rf -- "$work"; rm -f -- "$upload" "$remote_script"; }
 trap cleanup EXIT
 
 install_node() {
-  if command -v node >/dev/null 2>&1 && node -e 'const [major,minor]=process.versions.node.split(".").map(Number); process.exit(major>20 || (major===20 && minor>=9) ? 0 : 1)'; then
+  if command -v node >/dev/null 2>&1 && node -e 'const major=Number(process.versions.node.split(".")[0]); process.exit(major>=24 && major<26 ? 0 : 1)'; then
     return
   fi
   command -v sha256sum >/dev/null
@@ -256,17 +274,28 @@ chown -R booksome:booksome /service/booksome/web
 chmod 2750 /service/booksome/web /service/booksome/web/builds /service/booksome/web/releases /service/booksome/web/nginx-backups
 mkdir -p "$work/assets"
 tar -xzf "$upload" -C "$work/assets"
-install -o root -g booksome -m 0640 "$work/assets/booksome-web.env" /service/booksome/web/booksome-web.env
+install -d -o root -g booksome -m 0750 /etc/booksome
+install -o root -g booksome -m 0640 "$work/assets/booksome-web.env" /etc/booksome/booksome-web.env
+ln -sfn /etc/booksome/booksome-web.env /service/booksome/web/booksome-web.env
 install -o root -g root -m 0644 "$work/assets/booksome-web.service" /etc/systemd/system/booksome-web.service
 mkdir -p /var/www/booksome-admin/releases
 chmod 0755 /var/www/booksome-admin /var/www/booksome-admin/releases
-if [[ ! -f /etc/nginx/conf.d/booksome-admin.conf ]]; then
-  install -o root -g root -m 0644 "$work/assets/nginx-admin.conf.example" /etc/nginx/conf.d/booksome-admin.conf
-fi
 systemctl daemon-reload
-systemctl enable booksome-web.service
-nginx -t
-systemctl reload nginx
+if [[ -f /service/booksome/web/current/server.js ]]; then
+  systemctl enable booksome-web.service
+else
+  systemctl disable booksome-web.service
+fi
+if [[ -f /etc/letsencrypt/live/booksome.top/fullchain.pem && -f /etc/letsencrypt/live/booksome.top/privkey.pem ]]; then
+  if [[ ! -f /etc/nginx/conf.d/booksome-admin.conf ]]; then
+    install -o root -g root -m 0644 "$work/assets/nginx-admin.conf.example" /etc/nginx/conf.d/booksome-admin.conf
+  fi
+  nginx -t
+  systemctl enable --now nginx
+  systemctl reload nginx
+else
+  echo "TLS 인증서가 없어 관리자 Nginx 설정은 인증서 발급 후 적용합니다."
+fi
 echo "NODE=$(node --version)"
 echo "NPM=$(npm --version)"
 echo "SETUP_COMPLETE=true"
@@ -340,6 +369,7 @@ if ! root systemctl restart "$service" || ! health; then
   fi
   exit 1
 fi
+root systemctl enable "$service"
 
 current="$(readlink -f "$app_dir/booksome-api.jar")"
 mapfile -t dirs < <(find "$releases" -mindepth 1 -maxdepth 1 -type d -printf '%T@ %p\n' | sort -rn | cut -d' ' -f2-)
@@ -359,7 +389,9 @@ REMOTE_API
 
 package_web_source() {
   local archive="$1"
-  tar -czf "$archive" \
+  COPYFILE_DISABLE=1 tar -czf "$archive" \
+    --exclude='._*' \
+    --exclude='.DS_Store' \
     --exclude='web/public/app' \
     --exclude='web/node_modules' \
     --exclude='web/.next' \
@@ -385,6 +417,7 @@ deploy_web() {
   cat >"$remote_script_local" <<'REMOTE_WEB'
 set -Eeuo pipefail
 release_id="$1"; keep="$2"; upload="$3"; remote_script="$4"; nginx_upload="$5"
+export PATH=/usr/local/bin:$PATH
 web_base=/service/booksome/web
 build_dir="$web_base/builds/$release_id"
 release_dir="$web_base/releases/$release_id"
@@ -407,6 +440,13 @@ health() {
   done
   return 1
 }
+public_health() {
+  for _ in {1..10}; do
+    curl -fsS --max-time 10 --resolve booksome.top:443:127.0.0.1 https://booksome.top/app/books/add >/dev/null && return 0
+    sleep 1
+  done
+  return 1
+}
 cleanup() { root rm -f -- "$upload" "$remote_script" "$nginx_upload"; root rm -rf -- "$build_dir"; }
 trap cleanup EXIT
 
@@ -424,7 +464,8 @@ as_booksome test -r "$env_file" || {
 root mkdir -p "$build_dir" "$web_base/releases" "$web_base/builds"
 root tar -xzf "$upload" -C "$build_dir"
 root chown -R booksome:booksome "$build_dir"
-as_booksome bash -c 'set -a; source "$1"; set +a; for key in BOOKSOME_API_INTERNAL_URL NEXT_PUBLIC_API_BASE_URL EXPO_PUBLIC_API_BASE_URL EXPO_PUBLIC_NAVER_MAPS_CLIENT_ID; do [[ -n "${!key:-}" ]] || { echo "필수 웹 환경값이 없습니다: $key" >&2; exit 1; }; done; cd "$2"; npm ci --no-audit --no-fund; npm --prefix web ci --no-audit --no-fund; cd web; ./node_modules/.bin/next typegen; npm run typecheck; npm run lint; npm run build' _ "$env_file" "$build_dir"
+root install -d -o booksome -g booksome -m 0750 "$web_base/.npm"
+as_booksome env npm_config_cache="$web_base/.npm" bash -c 'set -euo pipefail; set -a; source "$1"; set +a; for key in BOOKSOME_API_INTERNAL_URL NEXT_PUBLIC_API_BASE_URL EXPO_PUBLIC_API_BASE_URL EXPO_PUBLIC_NAVER_MAPS_CLIENT_ID; do [[ -n "${!key:-}" ]] || { echo "필수 웹 환경값이 없습니다: $key" >&2; exit 1; }; done; cd "$2"; npm ci --no-audit --no-fund; npm --prefix web ci --no-audit --no-fund; cd web; ./node_modules/.bin/next typegen; npm run typecheck; npm run lint; npm run build' _ "$env_file" "$build_dir"
 
 root mkdir -p "$release_dir/.next"
 root cp -a "$build_dir/web/.next/standalone/." "$release_dir/"
@@ -466,16 +507,22 @@ fi
 
 nginx_active=/etc/nginx/conf.d/booksome.conf
 nginx_backup="$web_base/nginx-backups/booksome.conf.$release_id"
+nginx_bootstrap=/etc/nginx/conf.d/booksome-acme.conf
+nginx_bootstrap_backup="$web_base/nginx-backups/booksome-acme.conf.$release_id"
 root mkdir -p "$web_base/nginx-backups"
 [[ -f "$nginx_active" ]] && root cp -a "$nginx_active" "$nginx_backup"
+[[ -f "$nginx_bootstrap" ]] && root cp -a "$nginx_bootstrap" "$nginx_bootstrap_backup"
 root install -o root -g root -m 0644 "$nginx_upload" "$nginx_active"
-if ! root nginx -t || ! root systemctl reload nginx || ! curl -fsS --max-time 10 --resolve booksome.top:443:127.0.0.1 https://booksome.top/app/books/add >/dev/null; then
+[[ ! -f "$nginx_bootstrap" ]] || root rm -f -- "$nginx_bootstrap"
+if ! root nginx -t || ! root systemctl reload nginx || ! public_health; then
   echo "Nginx 전환 검사 실패. 이전 설정과 웹 릴리스로 복구합니다." >&2
-  [[ -f "$nginx_backup" ]] && root cp -a "$nginx_backup" "$nginx_active"
+  if [[ -f "$nginx_backup" ]]; then root cp -a "$nginx_backup" "$nginx_active"; else root rm -f -- "$nginx_active"; fi
+  [[ ! -f "$nginx_bootstrap_backup" ]] || root cp -a "$nginx_bootstrap_backup" "$nginx_bootstrap"
   root nginx -t && root systemctl reload nginx || true
   rollback_release
   exit 1
 fi
+root systemctl enable "$service"
 
 current="$(readlink -f "$current_link")"
 mapfile -t dirs < <(find "$web_base/releases" -mindepth 1 -maxdepth 1 -type d -printf '%T@ %p\n' | sort -rn | cut -d' ' -f2-)
@@ -503,7 +550,7 @@ deploy_admin() {
     env VITE_API_BASE_URL="${VITE_API_BASE_URL:-https://api.booksome.top}" npm --prefix admin run build
   fi
   [[ -f admin/dist/index.html ]] || die "관리자 빌드 결과가 없습니다: admin/dist/index.html"
-  tar -czf "$archive" -C admin/dist .
+  COPYFILE_DISABLE=1 tar -czf "$archive" --exclude='._*' --exclude='.DS_Store' -C admin/dist .
   upload="$(remote_temp admin)"
   remote_script="$(remote_script_temp admin)"
 

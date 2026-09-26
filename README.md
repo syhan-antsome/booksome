@@ -9,7 +9,7 @@ BookSome is a personal reading-record service with optional social Bookrooms.
 - React-admin operations console
 - Spring Boot 3.5 on Java 21
 - MariaDB 11.4 with Flyway migrations
-- Nginx and local image storage on Naver Cloud
+- Nginx and local image storage on Oracle Cloud Infrastructure
 - JWT access tokens with rotating refresh tokens
 - Kakao Book Search for covers and rich metadata, with National Library of Korea fallback
 
@@ -75,20 +75,23 @@ npm run build
 
 ## Deployment
 
-All production applications are deployed through the single root script:
+Quick reference: [배포 명령어](docs/deploy-commands.md). Current server status and mail configuration: [OCI 서버 문서](docs/oracle-cloud-setup.md).
+
+All production applications are deployed through the single root script. Set the current OCI host and key in each new terminal:
 
 ```sh
-./deploy.sh setup   # first server installation only
+export BOOKSOME_DEPLOY_HOST=rocky@161.33.4.136
+export BOOKSOME_DEPLOY_IDENTITY=/Users/sangyonghan/SSH/oracle-cloud/ssh-key-2026-09-24.key
+
+./deploy.sh all --dry-run
 ./deploy.sh api
 ./deploy.sh web
 ./deploy.sh admin
 ./deploy.sh all
 ```
 
-On `naverai`, `all` checks the server and automatically runs `setup` when the web/admin prerequisites are missing. You can also run `setup` separately. It installs the pinned official Node.js 20 binary after SHA-256 verification, installs/enables the web systemd unit, writes the web build environment from the local public Naver Maps client ID, and prepares web/admin release directories. If sudo requires a password, the script requests it through an SSH terminal and never stores it.
+The script's fallback SSH host is still the former `naverai`; use the environment variables above or explicit `--host` and `--identity` options for OCI. A dirty worktree is refused unless `--allow-dirty` is explicit. API/admin artifacts are built locally; the public web and its embedded Expo reader are built on the Linux server. Releases are versioned, switched atomically, and checked for health.
 
-The default SSH host is `naverai` (`syhan@101.79.28.235`, configured in the local SSH config); override it with `--host` or `BOOKSOME_DEPLOY_HOST`. The script refuses a dirty worktree unless `--allow-dirty` is explicit. It builds and verifies artifacts, keeps versioned releases, switches the active release atomically, performs health checks, and restores the preceding binary/release when a check fails. Use `./deploy.sh --help` and `./deploy.sh all --dry-run` before the first deployment.
+Initial setup on the current server is complete. `./deploy.sh setup` prepares web/admin prerequisites on a server that already has the API, MariaDB, Nginx, and the `booksome` service user. It checks/installs Node.js 24, writes the web build environment, and prepares release paths. `all` runs this setup automatically only if web/admin prerequisites are missing. It is not a complete blank-server bootstrap. SSH needs sudo access; when necessary, the script asks for the sudo password through the terminal without storing it.
 
-The server's existing API, MariaDB, Nginx/Let's Encrypt certificate, and `booksome` system user are the base prerequisites. `./deploy.sh setup` handles the remaining web/admin preparation. The deploy account must have sudo access. If limited `NOPASSWD` access is not configured, the script opens an SSH terminal and asks for the sudo password without storing it. Web builds run on the Linux server so Next.js native dependencies match production. The generated web environment uses owner/group `root:booksome` and mode `0640` so the isolated `booksome` build user can read it.
-
-Automatic rollback restores application artifacts only. Flyway database migrations are forward-only, so schema changes must remain backward compatible with the preceding API release.
+Rollback restores the failing service's preceding artifact when available. Earlier successful stages of `all` are not automatically rolled back. Flyway database migrations are forward-only, so schema changes must remain backward compatible with the preceding API release.

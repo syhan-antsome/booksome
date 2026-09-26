@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -17,6 +18,7 @@ import javax.crypto.spec.SecretKeySpec;
 
 import app.booksome.api.common.error.ApiException;
 import app.booksome.api.mail.AuthEmailSender;
+import app.booksome.api.mail.BooksomeMailProperties;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -54,8 +56,29 @@ class AuthCodeServiceTest {
             refreshTokenService,
             authCodeHasher,
             authEmailSender,
+            new BooksomeMailProperties(true, "no-reply@example.com"),
             Clock.fixed(NOW, ZoneOffset.UTC)
         );
+    }
+
+    @Test
+    void reportsUnavailableMailBeforeLookingUpAnyAccount() {
+        AuthCodeService disabledMailService = new AuthCodeService(
+            userAccountRepository,
+            passwordResetTokenRepository,
+            emailVerificationTokenRepository,
+            passwordEncoder,
+            refreshTokenService,
+            authCodeHasher,
+            authEmailSender,
+            new BooksomeMailProperties(false, "no-reply@example.com"),
+            Clock.fixed(NOW, ZoneOffset.UTC)
+        );
+
+        assertThatThrownBy(() -> disabledMailService.requestPasswordReset("reader@example.com"))
+            .isInstanceOf(ApiException.class)
+            .hasMessage("이메일 발송 설정이 아직 완료되지 않았습니다.");
+        verifyNoInteractions(userAccountRepository, passwordResetTokenRepository, authEmailSender);
     }
 
     @Test

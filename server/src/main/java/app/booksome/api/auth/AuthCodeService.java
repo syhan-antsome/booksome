@@ -9,6 +9,7 @@ import java.util.UUID;
 
 import app.booksome.api.common.error.ApiException;
 import app.booksome.api.mail.AuthEmailSender;
+import app.booksome.api.mail.BooksomeMailProperties;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -30,6 +31,7 @@ public class AuthCodeService {
     private final RefreshTokenService refreshTokenService;
     private final AuthCodeHasher authCodeHasher;
     private final AuthEmailSender authEmailSender;
+    private final BooksomeMailProperties mailProperties;
     private final Clock clock;
     private final SecureRandom secureRandom = new SecureRandom();
 
@@ -41,6 +43,7 @@ public class AuthCodeService {
         RefreshTokenService refreshTokenService,
         AuthCodeHasher authCodeHasher,
         AuthEmailSender authEmailSender,
+        BooksomeMailProperties mailProperties,
         Clock clock
     ) {
         this.userAccountRepository = userAccountRepository;
@@ -50,11 +53,19 @@ public class AuthCodeService {
         this.refreshTokenService = refreshTokenService;
         this.authCodeHasher = authCodeHasher;
         this.authEmailSender = authEmailSender;
+        this.mailProperties = mailProperties;
         this.clock = clock;
     }
 
     @Transactional
     public void requestPasswordReset(String rawEmail) {
+        if (!mailProperties.enabled()) {
+            throw new ApiException(
+                HttpStatus.SERVICE_UNAVAILABLE,
+                "mail_not_configured",
+                "이메일 발송 설정이 아직 완료되지 않았습니다."
+            );
+        }
         String email = normalizeEmail(rawEmail);
         UserAccount user = userAccountRepository.findByEmailIgnoreCase(email)
             .filter(UserAccount::isActive)

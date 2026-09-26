@@ -9,7 +9,7 @@ Type=simple
 User=booksome
 Group=booksome
 WorkingDirectory=/service/booksome/app
-EnvironmentFile=/service/booksome/app/booksome.env
+EnvironmentFile=/etc/booksome/booksome.env
 ExecStart=/usr/bin/java -Xms512m -Xmx2g -XX:+UseG1GC -Duser.timezone=UTC -jar /service/booksome/app/booksome-api.jar
 SuccessExitStatus=143
 Restart=on-failure
