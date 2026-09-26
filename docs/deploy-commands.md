@@ -1,16 +1,18 @@
 # 북썸 배포 명령어
 
-현재 운영 서버는 **OCI 오사카 · `161.33.4.136`**입니다. 아래 명령은 Mac 터미널에서 실행합니다.
+현재 운영 서버는 **OCI 오사카 · `161.33.4.136`**, 배포 계정은 **`syhan`**입니다. 아래 명령은 Mac 터미널에서 실행합니다.
 
 ## 터미널을 열 때 한 번 설정
 
 ```bash
 cd /Users/sangyonghan/development/booksome
-export BOOKSOME_DEPLOY_HOST=rocky@161.33.4.136
+export BOOKSOME_DEPLOY_HOST=syhan@161.33.4.136
 export BOOKSOME_DEPLOY_IDENTITY=/Users/sangyonghan/SSH/oracle-cloud/ssh-key-2026-09-24.key
 ```
 
-환경변수는 현재 터미널에만 적용됩니다. 이를 생략하면 스크립트가 예전 기본 호스트 `naverai`를 사용하므로, 새 터미널에서는 다시 설정합니다.
+환경변수는 현재 터미널에만 적용됩니다. 스크립트의 기본 호스트도 `syhan@161.33.4.136`이며, 개인키 경로는 새 터미널에서 다시 지정합니다. 이전에 `rocky` 등으로 설정한 `BOOKSOME_DEPLOY_HOST`가 남아 있다면 위 명령으로 덮어씁니다.
+
+배포 중 필요한 작업마다 `syhan`의 sudo 비밀번호를 요청할 수 있습니다. 대화형 터미널에서 실행하며, `--yes`를 붙여도 sudo 비밀번호 입력은 필요합니다. 실제 API·웹 프로세스는 `booksome` 서비스 계정으로 실행됩니다.
 
 ## 자주 쓰는 배포 명령
 
@@ -26,7 +28,7 @@ Android APK 설치는 위 서버 배포에 포함되지 않습니다. API 빌드
 환경변수 없이 전체 배포하려면:
 
 ```bash
-./deploy.sh all --host rocky@161.33.4.136 --identity /Users/sangyonghan/SSH/oracle-cloud/ssh-key-2026-09-24.key
+./deploy.sh all --host syhan@161.33.4.136 --identity /Users/sangyonghan/SSH/oracle-cloud/ssh-key-2026-09-24.key
 ```
 
 ## 옵션

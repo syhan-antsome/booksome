@@ -2,7 +2,7 @@
 set -Eeuo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-DEPLOY_HOST="${BOOKSOME_DEPLOY_HOST:-naverai}"
+DEPLOY_HOST="${BOOKSOME_DEPLOY_HOST:-syhan@161.33.4.136}"
 DEPLOY_IDENTITY="${BOOKSOME_DEPLOY_IDENTITY:-}"
 KEEP_RELEASES="${BOOKSOME_KEEP_RELEASES:-5}"
 TARGET=""
@@ -22,7 +22,7 @@ BookSome 배포
   ./deploy.sh <setup|api|web|admin|all> [옵션]
 
 옵션:
-  --host <ssh-host>   SSH 호스트 또는 ~/.ssh/config 별칭 (기본값: naverai)
+  --host <ssh-host>   SSH 호스트 또는 ~/.ssh/config 별칭 (기본값: syhan@161.33.4.136)
   --identity <path>  SSH 개인키 파일 경로 (별칭에 키가 없을 때)
   --keep <개수>       서버에 보관할 릴리스 수 (기본값: 5)
   --skip-build        기존 로컬 빌드 결과를 사용 (api/admin만 지원)
@@ -34,7 +34,7 @@ BookSome 배포
 예시:
   ./deploy.sh web
   ./deploy.sh setup
-  ./deploy.sh api --host naverai
+  ./deploy.sh api --host syhan@161.33.4.136
   ./deploy.sh all --allow-dirty
 
 필요 조건:

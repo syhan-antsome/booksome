@@ -80,7 +80,7 @@ Quick reference: [배포 명령어](docs/deploy-commands.md). Current server sta
 All production applications are deployed through the single root script. Set the current OCI host and key in each new terminal:
 
 ```sh
-export BOOKSOME_DEPLOY_HOST=rocky@161.33.4.136
+export BOOKSOME_DEPLOY_HOST=syhan@161.33.4.136
 export BOOKSOME_DEPLOY_IDENTITY=/Users/sangyonghan/SSH/oracle-cloud/ssh-key-2026-09-24.key
 
 ./deploy.sh all --dry-run
@@ -90,7 +90,7 @@ export BOOKSOME_DEPLOY_IDENTITY=/Users/sangyonghan/SSH/oracle-cloud/ssh-key-2026
 ./deploy.sh all
 ```
 
-The script's fallback SSH host is still the former `naverai`; use the environment variables above or explicit `--host` and `--identity` options for OCI. A dirty worktree is refused unless `--allow-dirty` is explicit. API/admin artifacts are built locally; the public web and its embedded Expo reader are built on the Linux server. Releases are versioned, switched atomically, and checked for health.
+The script's default SSH host is `syhan@161.33.4.136`; use the environment variables above or explicit `--host` and `--identity` options to override the connection. The `syhan` account prompts for its sudo password during deployment; run the command from an interactive terminal. The `booksome` service account continues to run the API and web processes. A dirty worktree is refused unless `--allow-dirty` is explicit. API/admin artifacts are built locally; the public web and its embedded Expo reader are built on the Linux server. Releases are versioned, switched atomically, and checked for health.
 
 Initial setup on the current server is complete. `./deploy.sh setup` prepares web/admin prerequisites on a server that already has the API, MariaDB, Nginx, and the `booksome` service user. It checks/installs Node.js 24, writes the web build environment, and prepares release paths. `all` runs this setup automatically only if web/admin prerequisites are missing. It is not a complete blank-server bootstrap. SSH needs sudo access; when necessary, the script asks for the sudo password through the terminal without storing it.
 

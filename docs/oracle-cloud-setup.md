@@ -1,6 +1,6 @@
 # Oracle Cloud 북썸 서버 준비 상태
 
-2026-09-26 기준 서버: `161.33.4.136`, Rocky Linux 9.8 ARM64, 약 11 GiB RAM / 149 GiB 루트 디스크. `rocky`는 비대화형 sudo가 가능하며 `syhan`은 SSH 접근과 `booksome` 그룹 권한을 갖는다.
+2026-09-26 기준 서버: `161.33.4.136`, Rocky Linux 9.8 ARM64, 약 11 GiB RAM / 149 GiB 루트 디스크. 일상적인 SSH 접속·배포·운영 계정은 `syhan`으로 통일한다. `syhan`은 SSH 접근, `booksome` 그룹 및 전체 sudo 권한을 갖고 있으며 sudo 실행 시 비밀번호가 필요하다. `rocky`는 비대화형 sudo가 가능한 초기 설정·긴급 복구용 계정으로 유지한다. API·웹 서비스 실행 계정은 `booksome`이다.
 
 ## 설치 완료
 
@@ -33,10 +33,10 @@
 3. Mac의 수동 오프사이트 백업과 별도로 서버 밖 저장소에 DB·업로드 미디어의 **자동** 백업과 복원 시험을 구성한다. DB 3306, 내부 API 8080, 웹 3000은 공개하지 않는다. 로컬 `data-backups/`는 Git에서 제외한다.
 4. 폰 앱에서 새 임시 비밀번호로 실제 로그인과 화면을 확인한다. 백업 시각(2026-08-22) 이후의 서버 데이터는 이 백업에 포함되지 않는다.
 
-기존 복원 비밀번호 파일은 서버에서만 확인한다. 사용자 컴퓨터의 터미널에서 `ssh -i /Users/sangyonghan/SSH/oracle-cloud/ssh-key-2026-09-24.key rocky@161.33.4.136 'sudo cat /etc/booksome/restore-login-password'`를 실행하면 된다. 채팅이나 Git에 비밀번호를 복사하지 않는다.
+기존 복원 비밀번호 파일은 서버에서만 확인한다. 사용자 컴퓨터의 터미널에서 `ssh -tt -i /Users/sangyonghan/SSH/oracle-cloud/ssh-key-2026-09-24.key syhan@161.33.4.136 'sudo cat /etc/booksome/restore-login-password'`를 실행하고 `syhan`의 sudo 비밀번호를 입력하면 된다. 채팅이나 Git에 비밀번호를 복사하지 않는다.
 
 ## 배포 명령 형식
 
 자주 쓰는 복사·실행용 명령은 [배포 명령어](deploy-commands.md)에 정리했다.
 
-`deploy.sh`는 `--host rocky@161.33.4.136 --identity /Users/sangyonghan/SSH/oracle-cloud/ssh-key-2026-09-24.key`로 새 서버를 지정한다. 예전 기본 호스트 `naverai`를 사용하지 않도록 `--host`를 명시한다. 정식 웹·API·관리자 HTTP 설정에도 Certbot 갱신용 ACME 경로를 유지한다. 현재 공개 웹 릴리스는 배포 스크립트의 초기 health 확인 시간 문제를 수동 복구한 뒤 전환했으며, 다음 릴리스에서는 보강된 `public_health` 재시도를 검증한다.
+`deploy.sh`의 기본 호스트는 `syhan@161.33.4.136`이다. 명시적으로 지정하려면 `--host syhan@161.33.4.136 --identity /Users/sangyonghan/SSH/oracle-cloud/ssh-key-2026-09-24.key`를 사용한다. 정식 웹·API·관리자 HTTP 설정에도 Certbot 갱신용 ACME 경로를 유지한다. 현재 공개 웹 릴리스는 배포 스크립트의 초기 health 확인 시간 문제를 수동 복구한 뒤 전환했으며, 다음 릴리스에서는 보강된 `public_health` 재시도를 검증한다.
