@@ -5,15 +5,16 @@ import {
   ActivityIndicator,
   Image,
   PanResponder,
-  Pressable,
   StyleSheet,
   Text,
-  type GestureResponderEvent,
-  type PanResponderGestureState,
   useWindowDimensions,
   View,
+  type GestureResponderEvent,
+  type PanResponderGestureState,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Touch as Pressable } from '../../src/components/app-ui';
+import { booksomeColors as uiColors } from '../../src/theme/booksome';
 
 import {
   clearReadingImageCropRequest,
@@ -587,7 +588,7 @@ function getErrorMessage(error: unknown, fallback: string) {
 
 const styles = StyleSheet.create({
   safeArea: {
-    backgroundColor: '#EEF1DF',
+    backgroundColor: uiColors.background,
     flex: 1,
   },
   header: {
@@ -600,14 +601,14 @@ const styles = StyleSheet.create({
   },
   headerButton: {
     alignItems: 'center',
-    backgroundColor: 'rgba(247,241,229,0.84)',
+    backgroundColor: 'rgba(250,249,247,0.84)',
     borderRadius: 999,
     height: 42,
     justifyContent: 'center',
     width: 42,
   },
   headerButtonText: {
-    color: '#103D2B',
+    color: uiColors.action,
     fontSize: 31,
     fontWeight: '800',
     lineHeight: 34,
@@ -616,28 +617,28 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   eyebrow: {
-    color: '#8B7653',
+    color: uiColors.muted,
     fontSize: 10,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   title: {
-    color: '#14251B',
+    color: uiColors.ink,
     fontSize: 24,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 29,
   },
   resetButton: {
     alignItems: 'center',
-    backgroundColor: 'rgba(16,61,43,0.08)',
+    backgroundColor: 'rgba(38,37,38,0.08)',
     borderRadius: 999,
     height: 38,
     justifyContent: 'center',
     paddingHorizontal: 14,
   },
   resetButtonText: {
-    color: '#103D2B',
+    color: uiColors.action,
     fontSize: 12,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   cropStage: {
     alignItems: 'center',
@@ -654,7 +655,7 @@ const styles = StyleSheet.create({
   },
   cropFrame: {
     backgroundColor: '#162018',
-    borderColor: 'rgba(16,61,43,0.1)',
+    borderColor: 'rgba(38,37,38,0.1)',
     borderRadius: 24,
     borderWidth: 1,
     bottom: 0,
@@ -716,20 +717,20 @@ const styles = StyleSheet.create({
     paddingTop: 8,
   },
   guideText: {
-    color: '#6D766F',
+    color: uiColors.muted,
     fontSize: 12,
     fontWeight: '800',
     textAlign: 'center',
   },
   errorText: {
-    color: '#A43D20',
+    color: uiColors.danger,
     fontSize: 13,
     fontWeight: '800',
     textAlign: 'center',
   },
   applyButton: {
     alignItems: 'center',
-    backgroundColor: '#116653',
+    backgroundColor: uiColors.action,
     borderRadius: 999,
     height: 50,
     justifyContent: 'center',
@@ -737,7 +738,7 @@ const styles = StyleSheet.create({
   applyButtonText: {
     color: '#FFFFFF',
     fontSize: 15,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   disabled: {
     opacity: 0.52,
@@ -750,13 +751,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
   },
   emptyTitle: {
-    color: '#14251B',
+    color: uiColors.ink,
     fontSize: 18,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   emptyButton: {
     alignItems: 'center',
-    backgroundColor: '#116653',
+    backgroundColor: uiColors.action,
     borderRadius: 999,
     height: 44,
     justifyContent: 'center',
@@ -765,6 +766,6 @@ const styles = StyleSheet.create({
   emptyButtonText: {
     color: '#FFFFFF',
     fontSize: 14,
-    fontWeight: '900',
+    fontWeight: '700',
   },
 });

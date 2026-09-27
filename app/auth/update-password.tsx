@@ -4,17 +4,17 @@ import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
-  Pressable,
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { PasswordInput, Touch as Pressable, Input as TextInput } from '../../src/components/app-ui';
+import { BrandLogo } from '../../src/components/brand-logo';
+import { booksomeColors as uiColors } from '../../src/theme/booksome';
 
 import { BackButton } from '../../src/components/back-button';
-import { BottomNavigation } from '../../src/components/bottom-navigation';
 import { requestPasswordReset, updatePassword } from '../../src/services/auth';
 
 export default function UpdatePasswordScreen() {
@@ -105,11 +105,11 @@ export default function UpdatePasswordScreen() {
         >
           <View style={styles.topBar}>
             <BackButton />
-            <Text style={styles.brand}>BookSome</Text>
+            <BrandLogo width={142} />
           </View>
 
           <View style={styles.hero}>
-            <Text style={styles.eyebrow}>PASSWORD RESET</Text>
+
             <Text style={styles.title}>새 비밀번호를 정해주세요</Text>
             <Text style={styles.copy}>가입 이메일로 코드를 받은 뒤 새 비밀번호를 정해주세요.</Text>
           </View>
@@ -121,7 +121,7 @@ export default function UpdatePasswordScreen() {
               keyboardType="email-address"
               onChangeText={setEmail}
               placeholder="가입한 이메일"
-              placeholderTextColor="#8D8A83"
+              placeholderTextColor={uiColors.muted}
               style={styles.input}
               value={email}
             />
@@ -130,7 +130,7 @@ export default function UpdatePasswordScreen() {
               onPress={sendCode}
               style={[styles.codeButton, (isSendingCode || isSubmitting) && styles.submitButtonDisabled]}
             >
-              {isSendingCode ? <ActivityIndicator color="#103D2B" /> : <Text style={styles.codeButtonText}>{codeSent ? '인증 코드 다시 받기' : '인증 코드 받기'}</Text>}
+              {isSendingCode ? <ActivityIndicator color={uiColors.action} /> : <Text style={styles.codeButtonText}>{codeSent ? '인증 코드 다시 받기' : '인증 코드 받기'}</Text>}
             </Pressable>
 
             {feedback ? (
@@ -150,25 +150,25 @@ export default function UpdatePasswordScreen() {
                   maxLength={8}
                   onChangeText={(value) => setCode(value.replace(/[^0-9]/g, ''))}
                   placeholder="8자리 인증 코드"
-                  placeholderTextColor="#8D8A83"
+                  placeholderTextColor={uiColors.muted}
                   style={styles.input}
                   value={code}
                 />
-                <TextInput
+                <PasswordInput
                   editable={!isSubmitting}
                   onChangeText={setPassword}
                   placeholder="새 비밀번호 (10자 이상)"
-                  placeholderTextColor="#8D8A83"
-                  secureTextEntry
+                  placeholderTextColor={uiColors.muted}
+                  autoComplete="new-password"
                   style={styles.input}
                   value={password}
                 />
-                <TextInput
+                <PasswordInput
                   editable={!isSubmitting}
                   onChangeText={setConfirmPassword}
                   placeholder="새 비밀번호 확인"
-                  placeholderTextColor="#8D8A83"
-                  secureTextEntry
+                  placeholderTextColor={uiColors.muted}
+                  autoComplete="new-password"
                   style={styles.input}
                   value={confirmPassword}
                 />
@@ -193,14 +193,13 @@ export default function UpdatePasswordScreen() {
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
-      <BottomNavigation active="profile" />
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   safeArea: {
-    backgroundColor: '#0D2F22',
+    backgroundColor: uiColors.background,
     flex: 1,
   },
   keyboard: {
@@ -208,11 +207,11 @@ const styles = StyleSheet.create({
   },
   content: {
     alignSelf: 'center',
-    backgroundColor: '#F7F1E5',
+    backgroundColor: uiColors.background,
     flexGrow: 1,
     maxWidth: 430,
     padding: 20,
-    paddingBottom: 188,
+    paddingBottom: 48,
     width: '100%',
   },
   topBar: {
@@ -220,32 +219,22 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
   },
-  brand: {
-    color: '#103D2B',
-    fontSize: 17,
-    fontWeight: '900',
-  },
   hero: {
     paddingBottom: 28,
-    paddingTop: 64,
-  },
-  eyebrow: {
-    color: '#8F6A42',
-    fontSize: 11,
-    fontWeight: '900',
+    paddingTop: 36,
   },
   title: {
-    color: '#14251B',
-    fontSize: 34,
-    fontWeight: '900',
+    color: uiColors.ink,
+    fontSize: 28,
+    fontWeight: '700',
     letterSpacing: 0,
     lineHeight: 39,
     marginTop: 10,
   },
   copy: {
-    color: '#5F574D',
+    color: uiColors.muted,
     fontSize: 15,
-    fontWeight: '800',
+    fontWeight: '400',
     lineHeight: 22,
     marginTop: 12,
     maxWidth: 290,
@@ -253,21 +242,10 @@ const styles = StyleSheet.create({
   form: {
     gap: 12,
   },
-  loadingRow: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    gap: 10,
-    paddingVertical: 8,
-  },
-  loadingText: {
-    color: '#526154',
-    fontSize: 13,
-    fontWeight: '800',
-  },
   input: {
-    backgroundColor: '#FFF9EF',
-    borderRadius: 22,
-    color: '#14251B',
+    backgroundColor: uiColors.background,
+    borderRadius: 16,
+    color: uiColors.ink,
     fontSize: 16,
     fontWeight: '700',
     minHeight: 58,
@@ -275,8 +253,8 @@ const styles = StyleSheet.create({
   },
   submitButton: {
     alignItems: 'center',
-    backgroundColor: '#103D2B',
-    borderRadius: 23,
+    backgroundColor: uiColors.action,
+    borderRadius: 24,
     justifyContent: 'center',
     marginTop: 8,
     minHeight: 58,
@@ -287,23 +265,23 @@ const styles = StyleSheet.create({
   submitText: {
     color: '#FFFFFF',
     fontSize: 16,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   codeButton: {
     alignItems: 'center',
-    borderColor: '#103D2B',
-    borderRadius: 22,
+    borderColor: uiColors.action,
+    borderRadius: 24,
     borderWidth: 1,
     justifyContent: 'center',
     minHeight: 54,
   },
   codeButtonText: {
-    color: '#103D2B',
+    color: uiColors.action,
     fontSize: 15,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   feedback: {
-    color: '#103D2B',
+    color: uiColors.action,
     fontSize: 14,
     fontWeight: '700',
     lineHeight: 21,
@@ -318,11 +296,11 @@ const styles = StyleSheet.create({
     paddingVertical: 13,
   },
   feedbackPanelSuccess: {
-    backgroundColor: '#E3EDE5',
-    borderColor: 'rgba(16,61,43,0.18)',
+    backgroundColor: uiColors.accentSoft,
+    borderColor: 'rgba(38,37,38,0.18)',
   },
   feedbackPanelError: {
-    backgroundColor: '#F8E8E4',
+    backgroundColor: uiColors.accentSoft,
     borderColor: 'rgba(138,52,43,0.18)',
   },
   secondaryButton: {
@@ -331,8 +309,8 @@ const styles = StyleSheet.create({
     minHeight: 44,
   },
   secondaryText: {
-    color: '#103D2B',
+    color: uiColors.action,
     fontSize: 14,
-    fontWeight: '900',
+    fontWeight: '700',
   },
 });

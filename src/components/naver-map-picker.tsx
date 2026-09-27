@@ -3,13 +3,14 @@ import { useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Modal,
-  Pressable,
   SafeAreaView,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
 import { WebView, type WebViewMessageEvent } from 'react-native-webview';
+import { booksomeColors as uiColors } from '../theme/booksome';
+import { Touch as Pressable } from './app-ui';
 
 type NaverMapPickerProps = {
   initialArea?: string;
@@ -91,7 +92,7 @@ export function NaverMapPicker({ initialArea, visible, onClose, onSelect }: Nave
             originWhitelist={['*']}
             renderLoading={() => (
               <View style={styles.loading}>
-                <ActivityIndicator color="#103D2B" />
+                <ActivityIndicator color={uiColors.action} />
                 <Text style={styles.loadingText}>지도를 여는 중입니다</Text>
               </View>
             )}
@@ -154,7 +155,7 @@ function cleanAreaLabel(value: string) {
 
 const styles = StyleSheet.create({
   safeArea: {
-    backgroundColor: '#F6EEE1',
+    backgroundColor: uiColors.background,
     flex: 1,
   },
   header: {
@@ -166,20 +167,20 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
   },
   eyebrow: {
-    color: '#8F6A42',
+    color: uiColors.action,
     fontSize: 11,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   title: {
-    color: '#14251B',
+    color: uiColors.ink,
     fontSize: 20,
-    fontWeight: '900',
+    fontWeight: '700',
     marginTop: 4,
   },
   closeButton: {
     alignItems: 'center',
-    backgroundColor: '#103D2B',
-    borderRadius: 19,
+    backgroundColor: uiColors.action,
+    borderRadius: 24,
     minHeight: 38,
     justifyContent: 'center',
     paddingHorizontal: 15,
@@ -187,14 +188,14 @@ const styles = StyleSheet.create({
   closeText: {
     color: '#FFFFFF',
     fontSize: 13,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   webView: {
-    backgroundColor: '#F6EEE1',
+    backgroundColor: uiColors.background,
     flex: 1,
   },
   errorToast: {
-    backgroundColor: '#A43D20',
+    backgroundColor: uiColors.danger,
     borderRadius: 20,
     left: 18,
     paddingHorizontal: 14,
@@ -207,12 +208,12 @@ const styles = StyleSheet.create({
   errorToastText: {
     color: '#FFFFFF',
     fontSize: 13,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 19,
   },
   loading: {
     alignItems: 'center',
-    backgroundColor: '#F6EEE1',
+    backgroundColor: uiColors.background,
     bottom: 0,
     gap: 10,
     justifyContent: 'center',
@@ -222,22 +223,22 @@ const styles = StyleSheet.create({
     top: 0,
   },
   loadingText: {
-    color: '#526154',
+    color: uiColors.muted,
     fontSize: 13,
     fontWeight: '800',
   },
   missingKeyPanel: {
-    borderTopColor: 'rgba(143,106,66,0.16)',
+    borderTopColor: 'rgba(38,37,38,0.16)',
     borderTopWidth: 1,
     padding: 24,
   },
   missingTitle: {
-    color: '#103D2B',
+    color: uiColors.ink,
     fontSize: 20,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   missingCopy: {
-    color: '#667167',
+    color: uiColors.muted,
     fontSize: 14,
     fontWeight: '700',
     lineHeight: 21,

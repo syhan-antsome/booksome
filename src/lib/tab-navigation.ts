@@ -1,9 +1,10 @@
-export const tabOrder = ['today', 'library', 'record', 'rooms', 'profile'] as const;
+export const tabOrder = ['library', 'rooms', 'profile'] as const;
 export type BottomNavKey = typeof tabOrder[number];
-export const tabPaths = ['/', '/library', '/record', '/rooms', '/profile'] as const;
+export const tabPaths = ['/', '/rooms', '/profile'] as const;
 
 export function tabForPath(path: string): BottomNavKey | undefined {
   const normalized = path === '/' ? '/' : path.replace(/\/$/, '');
+  if (normalized === '/library') return 'library';
   const index = tabPaths.findIndex(item => item === normalized);
   return index < 0 ? undefined : tabOrder[index];
 }

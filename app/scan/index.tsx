@@ -1,8 +1,10 @@
-import { useState } from 'react';
-import { CameraView, type BarcodeScanningResult, useCameraPermissions } from 'expo-camera';
+import { CameraView, useCameraPermissions, type BarcodeScanningResult } from 'expo-camera';
 import { router, useLocalSearchParams } from 'expo-router';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { useState } from 'react';
+import { StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Touch as Pressable } from '../../src/components/app-ui';
+import { booksomeColors as uiColors } from '../../src/theme/booksome';
 
 import { AuthRequired } from '../../src/components/auth-required';
 import { ScreenHeader } from '../../src/components/screen-header';
@@ -42,13 +44,13 @@ export default function ScanScreen() {
           ...(isMarketContext ? { context: 'market-listing' } : {}),
           ...(isMeetupContext
             ? {
-                context: 'meetup-book',
-                meetupCity: getStringParam(params.meetupCity),
-                meetupDescription: getStringParam(params.meetupDescription),
-                meetupDistrict: getStringParam(params.meetupDistrict),
-                meetupProvince: getStringParam(params.meetupProvince),
-                meetupTitle: getStringParam(params.meetupTitle),
-              }
+              context: 'meetup-book',
+              meetupCity: getStringParam(params.meetupCity),
+              meetupDescription: getStringParam(params.meetupDescription),
+              meetupDistrict: getStringParam(params.meetupDistrict),
+              meetupProvince: getStringParam(params.meetupProvince),
+              meetupTitle: getStringParam(params.meetupTitle),
+            }
             : {}),
         },
       });
@@ -134,10 +136,10 @@ export default function ScanScreen() {
               {isRoomContext
                 ? '스캔된 ISBN으로 이미 열린 책장을 먼저 찾습니다.'
                 : isMarketContext
-                  ? '스캔된 책 정보는 책가게 등록 화면에 자동으로 채워집니다.'
+                  ? '스캔된 책 정보는 책 내놓기 화면에 자동으로 채워집니다.'
                   : isMeetupContext
                     ? '스캔된 책 정보는 새 모임의 시작 책으로 채워집니다.'
-                  : '스캔된 책은 나의 독서생활에 저장되고, 이후 진행률과 메모를 이어서 붙일 수 있습니다.'}
+                    : '스캔된 책은 나의 독서생활에 저장되고, 이후 진행률과 메모를 이어서 붙일 수 있습니다.'}
             </Text>
           </View>
         ) : null}
@@ -153,7 +155,7 @@ function normalizeIsbn(value: string) {
 
 function getScanSubtitle(isRoomContext: boolean, isMarketContext: boolean, isMeetupContext = false) {
   if (isRoomContext) return '바코드로 책장을 찾습니다.';
-  if (isMarketContext) return '바코드로 책가게 등록 정보를 채웁니다.';
+  if (isMarketContext) return '바코드로 책 내놓기 정보를 채웁니다.';
   if (isMeetupContext) return '바코드로 시작 책을 고릅니다.';
   return '스캔한 책을 나의 독서생활에 담습니다.';
 }
@@ -164,7 +166,7 @@ function getStringParam(value: string | string[] | undefined) {
 
 const styles = StyleSheet.create({
   safeArea: {
-    backgroundColor: '#F7F2EA',
+    backgroundColor: uiColors.background,
     flex: 1,
   },
   content: {
@@ -172,7 +174,7 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   scannerFrame: {
-    backgroundColor: '#142326',
+    backgroundColor: uiColors.ink,
     borderRadius: 30,
     flex: 1,
     marginTop: 28,
@@ -194,7 +196,7 @@ const styles = StyleSheet.create({
     width: '74%',
   },
   scanCorner: {
-    borderColor: '#F4D38A',
+    borderColor: uiColors.action,
     height: 42,
     position: 'absolute',
     width: 42,
@@ -226,7 +228,7 @@ const styles = StyleSheet.create({
   scanGuide: {
     color: '#FFFFFF',
     fontSize: 13,
-    fontWeight: '900',
+    fontWeight: '700',
     marginTop: 20,
     textShadowColor: 'rgba(0,0,0,0.45)',
     textShadowOffset: { height: 1, width: 0 },
@@ -242,15 +244,15 @@ const styles = StyleSheet.create({
     right: 18,
   },
   feedbackEyebrow: {
-    color: '#116653',
+    color: uiColors.action,
     fontSize: 12,
-    fontWeight: '900',
+    fontWeight: '700',
     letterSpacing: 0,
   },
   feedbackTitle: {
-    color: '#142326',
+    color: uiColors.ink,
     fontSize: 22,
-    fontWeight: '900',
+    fontWeight: '700',
     letterSpacing: 0,
     marginTop: 5,
   },
@@ -263,8 +265,8 @@ const styles = StyleSheet.create({
   },
   feedbackButton: {
     alignItems: 'center',
-    backgroundColor: '#116653',
-    borderRadius: 16,
+    backgroundColor: uiColors.action,
+    borderRadius: 24,
     justifyContent: 'center',
     marginTop: 16,
     minHeight: 46,
@@ -273,7 +275,7 @@ const styles = StyleSheet.create({
   feedbackButtonText: {
     color: '#FFFFFF',
     fontSize: 14,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   permissionPanel: {
     alignItems: 'center',
@@ -284,7 +286,7 @@ const styles = StyleSheet.create({
   permissionTitle: {
     color: '#FFFFFF',
     fontSize: 22,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   permissionCopy: {
     color: 'rgba(255,255,255,0.72)',
@@ -295,30 +297,30 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   permissionButton: {
-    backgroundColor: '#F7F2EA',
-    borderRadius: 17,
+    backgroundColor: uiColors.background,
+    borderRadius: 24,
     marginTop: 20,
     paddingHorizontal: 20,
     paddingVertical: 13,
   },
   permissionButtonText: {
-    color: '#142326',
+    color: uiColors.ink,
     fontSize: 15,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   tip: {
-    backgroundColor: '#ECE5D8',
+    backgroundColor: uiColors.line,
     borderRadius: 22,
     marginTop: 18,
     padding: 18,
   },
   tipTitle: {
-    color: '#116653',
+    color: uiColors.ink,
     fontSize: 13,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   tipCopy: {
-    color: '#4E5958',
+    color: uiColors.muted,
     fontSize: 14,
     fontWeight: '700',
     lineHeight: 21,

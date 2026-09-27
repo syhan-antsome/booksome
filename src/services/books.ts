@@ -10,7 +10,7 @@ export type BookSearchItem = {
   imageUrl: string | null;
   link: string | null;
   description: string;
-  source: 'naver' | 'kakao' | 'nl-seoji';
+  source: 'naver' | 'kakao' | 'nl-seoji' | 'manual';
   sourcePayload: unknown;
 };
 

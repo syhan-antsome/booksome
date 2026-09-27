@@ -1,14 +1,18 @@
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { router } from 'expo-router';
-import { Pressable, StyleSheet, Text } from 'react-native';
+import { StyleSheet } from 'react-native';
+import { booksomeColors as c } from '../theme/booksome';
+import { Touch as Pressable } from './app-ui';
 
 export function BackButton({ fallbackHref = '/' }: { fallbackHref?: '/' | '/rooms' }) {
   return (
     <Pressable
       accessibilityLabel="뒤로"
+      accessibilityRole="button"
       onPress={() => (router.canGoBack() ? router.back() : router.replace(fallbackHref))}
       style={styles.button}
     >
-      <Text style={styles.icon}>‹</Text>
+      <Ionicons name="arrow-back" size={23} color={c.ink} />
     </Pressable>
   );
 }
@@ -16,17 +20,10 @@ export function BackButton({ fallbackHref = '/' }: { fallbackHref?: '/' | '/room
 const styles = StyleSheet.create({
   button: {
     alignItems: 'center',
-    backgroundColor: 'rgba(247, 241, 229, 0.9)',
-    borderRadius: 22,
+    backgroundColor: c.surface,
+    borderRadius: 24,
     height: 44,
     justifyContent: 'center',
     width: 44,
-  },
-  icon: {
-    color: '#103D2B',
-    fontSize: 34,
-    fontWeight: '800',
-    lineHeight: 38,
-    marginTop: -3,
   },
 });

@@ -4,16 +4,16 @@ import {
   ActivityIndicator,
   Alert,
   Image,
-  Pressable,
   ScrollView,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Touch as Pressable } from '../../src/components/app-ui';
+import { booksomeColors as uiColors } from '../../src/theme/booksome';
 
 import { AuthRequired } from '../../src/components/auth-required';
-import { BottomNavigation } from '../../src/components/bottom-navigation';
 import { ScreenHeader } from '../../src/components/screen-header';
 import { useAuth } from '../../src/providers/auth-provider';
 import {
@@ -63,7 +63,7 @@ export default function MarketManageScreen() {
         setMyListings(nextListings);
       })
       .catch((error) => {
-        if (isMounted) setErrorMessage(getErrorMessage(error, '내 책가게 정보를 불러오지 못했습니다.'));
+        if (isMounted) setErrorMessage(getErrorMessage(error, '내 거래 정보를 불러오지 못했습니다.'));
       })
       .finally(() => {
         if (isMounted) setIsLoading(false);
@@ -111,13 +111,13 @@ export default function MarketManageScreen() {
         <ScreenHeader
           eyebrow="My Bookstore"
           subtitle="문의와 내가 올린 책을 한곳에서 봅니다."
-          title="내 책가게"
+          title="내 거래"
           tone="clay"
         />
 
         {!session ? (
           <AuthRequired
-            title="내 책가게는 로그인 후 사용할 수 있습니다."
+            title="내 거래는 로그인 후 사용할 수 있습니다."
             copy="내가 보낸 문의와 올린 책이 계정에 연결됩니다."
           />
         ) : null}
@@ -140,8 +140,8 @@ export default function MarketManageScreen() {
 
             {isLoading ? (
               <View style={styles.loadingPanel}>
-                <ActivityIndicator color="#103D2B" />
-                <Text style={styles.loadingText}>책가게를 정리하는 중입니다</Text>
+                <ActivityIndicator color={uiColors.action} />
+                <Text style={styles.loadingText}>북마켓를 정리하는 중입니다</Text>
               </View>
             ) : null}
 
@@ -189,7 +189,7 @@ export default function MarketManageScreen() {
                 {myListings.length === 0 && !isLoading ? (
                   <View style={styles.emptyBlock}>
                     <Text style={styles.emptyTitle}>올린 책이 없습니다</Text>
-                    <Text style={styles.emptyCopy}>책가게에 첫 책을 내놓아 보세요.</Text>
+                    <Text style={styles.emptyCopy}>북마켓에 첫 책을 내놓아 보세요.</Text>
                   </View>
                 ) : null}
 
@@ -280,7 +280,6 @@ export default function MarketManageScreen() {
           </>
         ) : null}
       </ScrollView>
-      <BottomNavigation active="rooms" />
     </SafeAreaView>
   );
 }
@@ -322,7 +321,7 @@ function getErrorMessage(error: unknown, fallback: string) {
 
 const styles = StyleSheet.create({
   safeArea: {
-    backgroundColor: '#F6EEE1',
+    backgroundColor: uiColors.background,
     flex: 1,
   },
   content: {
@@ -330,7 +329,7 @@ const styles = StyleSheet.create({
     paddingBottom: 124,
   },
   tabRail: {
-    borderBottomColor: 'rgba(143,106,66,0.16)',
+    borderBottomColor: 'rgba(38,37,38,0.16)',
     borderBottomWidth: 1,
     flexDirection: 'row',
     gap: 8,
@@ -342,15 +341,15 @@ const styles = StyleSheet.create({
     paddingVertical: 13,
   },
   tabButtonActive: {
-    borderBottomColor: '#103D2B',
+    borderBottomColor: uiColors.action,
   },
   tabText: {
-    color: '#7D6B55',
+    color: uiColors.muted,
     fontSize: 14,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   tabTextActive: {
-    color: '#103D2B',
+    color: uiColors.action,
   },
   loadingPanel: {
     alignItems: 'center',
@@ -359,12 +358,12 @@ const styles = StyleSheet.create({
     paddingVertical: 18,
   },
   loadingText: {
-    color: '#526154',
+    color: uiColors.muted,
     fontSize: 13,
     fontWeight: '800',
   },
   errorText: {
-    color: '#A43D20',
+    color: uiColors.danger,
     fontSize: 13,
     fontWeight: '800',
     lineHeight: 19,
@@ -374,17 +373,17 @@ const styles = StyleSheet.create({
     marginTop: 20,
   },
   emptyBlock: {
-    borderTopColor: 'rgba(143,106,66,0.16)',
+    borderTopColor: 'rgba(38,37,38,0.16)',
     borderTopWidth: 1,
     paddingVertical: 24,
   },
   emptyTitle: {
-    color: '#103D2B',
+    color: uiColors.ink,
     fontSize: 18,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   emptyCopy: {
-    color: '#667167',
+    color: uiColors.muted,
     fontSize: 13,
     fontWeight: '700',
     lineHeight: 20,
@@ -392,7 +391,7 @@ const styles = StyleSheet.create({
   },
   threadRow: {
     alignItems: 'center',
-    borderBottomColor: 'rgba(143,106,66,0.14)',
+    borderBottomColor: 'rgba(38,37,38,0.14)',
     borderBottomWidth: 1,
     flexDirection: 'row',
     gap: 14,
@@ -400,7 +399,7 @@ const styles = StyleSheet.create({
   },
   threadThumb: {
     alignItems: 'center',
-    backgroundColor: '#D8BE88',
+    backgroundColor: uiColors.accentSoft,
     borderRadius: 16,
     height: 70,
     justifyContent: 'center',
@@ -412,44 +411,44 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   thumbText: {
-    color: '#103D2B',
+    color: uiColors.action,
     fontSize: 10,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   threadCopy: {
     flex: 1,
     minWidth: 0,
   },
   threadRole: {
-    color: '#8F6A42',
+    color: uiColors.action,
     fontSize: 11,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   rowTitle: {
-    color: '#14251B',
+    color: uiColors.ink,
     fontSize: 16,
-    fontWeight: '900',
+    fontWeight: '700',
     marginTop: 5,
   },
   rowMeta: {
-    color: '#667167',
+    color: uiColors.muted,
     fontSize: 13,
     fontWeight: '700',
     marginTop: 6,
   },
   rowLocation: {
-    color: '#8F6A42',
+    color: uiColors.action,
     fontSize: 12,
-    fontWeight: '900',
+    fontWeight: '700',
     marginTop: 5,
   },
   rowTime: {
-    color: '#8F6A42',
+    color: uiColors.action,
     fontSize: 12,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   myListingRow: {
-    borderBottomColor: 'rgba(143,106,66,0.14)',
+    borderBottomColor: 'rgba(38,37,38,0.14)',
     borderBottomWidth: 1,
     paddingVertical: 14,
   },
@@ -464,7 +463,7 @@ const styles = StyleSheet.create({
     paddingTop: 12,
   },
   statusAction: {
-    backgroundColor: 'rgba(16,61,43,0.09)',
+    backgroundColor: 'rgba(38,37,38,0.09)',
     borderRadius: 999,
     paddingHorizontal: 13,
     paddingVertical: 8,
@@ -473,11 +472,11 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(164,61,32,0.08)',
   },
   statusActionText: {
-    color: '#103D2B',
+    color: uiColors.action,
     fontSize: 12,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   statusActionDangerText: {
-    color: '#A43D20',
+    color: uiColors.danger,
   },
 });

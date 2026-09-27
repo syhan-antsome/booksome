@@ -1,18 +1,17 @@
-import * as Location from 'expo-location';
-import { Link, useFocusEffect } from 'expo-router';
+import { Link, router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Image, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { EmptyState, Input, Touch as Pressable } from '../../src/components/app-ui';
+import { booksomeColors as uiColors } from '../../src/theme/booksome';
 
-import { AuthRequired } from '../../src/components/auth-required';
-import { BottomNavigation } from '../../src/components/bottom-navigation';
 import { ScreenHeader } from '../../src/components/screen-header';
 import { useAuth } from '../../src/providers/auth-provider';
 import { listMeetups, type Meetup } from '../../src/services/meetups';
 
 export default function MeetupsScreen() {
   const { session } = useAuth();
-  const [status, setStatus] = useState<string | null>(null);
+  const [region, setRegion] = useState('');
   const [meetups, setMeetups] = useState<Meetup[]>([]);
   const [isLoadingMeetups, setIsLoadingMeetups] = useState(false);
   const [meetupError, setMeetupError] = useState<string | null>(null);
@@ -29,7 +28,7 @@ export default function MeetupsScreen() {
           if (isMounted) setMeetups(items);
         })
         .catch((error) => {
-          if (isMounted) setMeetupError(getErrorMessage(error, '북모임을 불러오지 못했습니다.'));
+          if (isMounted) setMeetupError(getErrorMessage(error, '독서 모임을 불러오지 못했습니다.'));
         })
         .finally(() => {
           if (isMounted) setIsLoadingMeetups(false);
@@ -41,21 +40,7 @@ export default function MeetupsScreen() {
     }, []),
   );
 
-  const requestLocation = async () => {
-    const permission = await Location.requestForegroundPermissionsAsync();
-
-    if (!permission.granted) {
-      setStatus('위치 권한이 거부되었습니다. 지역명 수동 선택 플로우를 제공합니다.');
-      return;
-    }
-
-    const location = await Location.getCurrentPositionAsync({});
-    setStatus(
-      `현재 위치 기준으로 주변 모임을 탐색할 준비가 되었습니다. (${location.coords.latitude.toFixed(
-        3,
-      )}, ${location.coords.longitude.toFixed(3)})`,
-    );
-  };
+  const visibleMeetups = meetups.filter(meetup => !region.trim() || (meetup.city ?? '').toLowerCase().includes(region.trim().toLowerCase()));
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -63,40 +48,24 @@ export default function MeetupsScreen() {
         <ScreenHeader
           action={
             <Link asChild href={session ? '/meetups/new' : '/auth'}>
-              <Pressable accessibilityLabel="북모임 만들기" style={styles.headerAction}>
+              <Pressable accessibilityLabel="독서 모임 만들기" style={styles.headerAction}>
                 <Text style={styles.headerActionText}>＋</Text>
               </Pressable>
             </Link>
           }
-          title="북모임"
+          title="독서 모임"
+          subtitle="함께 읽을 책과 사람들을 만나보세요."
           tone="ink"
         />
 
-        {!session ? (
-          <AuthRequired
-            title="주변 독서 모임은 로그인 후 추천됩니다."
-            copy="내 위치와 관심 책을 기준으로 가까운 모임을 보여주기 위해 계정이 필요합니다."
-          />
-        ) : null}
+        <Input accessibilityLabel="독서 모임 지역 검색" value={region} onChangeText={setRegion} placeholder="도시·동네 이름으로 찾기" style={{ marginBottom: 24 }} />
 
-        {session ? (
-          <Pressable onPress={requestLocation} style={styles.locationAction}>
-            <Text style={styles.locationActionText}>가까운 모임 찾기</Text>
-          </Pressable>
-        ) : null}
-
-        {session && status ? (
-          <View style={styles.statusBox}>
-            <Text style={styles.statusText}>{status}</Text>
-          </View>
-        ) : null}
-
-        {isLoadingMeetups ? <ActivityIndicator color="#142326" style={styles.loader} /> : null}
+        {isLoadingMeetups ? <ActivityIndicator color={uiColors.ink} style={styles.loader} /> : null}
         {meetupError ? <Text style={styles.errorText}>{meetupError}</Text> : null}
 
-        {meetups.length > 0 ? (
+        {visibleMeetups.length > 0 ? (
           <View style={styles.meetupList}>
-            {meetups.map((meetup) => (
+            {visibleMeetups.map((meetup) => (
               <View key={meetup.id} style={styles.meetupCard}>
                 <Text style={styles.meetupCity}>{meetup.city ?? '지역 미정'}</Text>
                 <Text style={styles.meetupTitle}>{meetup.title}</Text>
@@ -126,12 +95,9 @@ export default function MeetupsScreen() {
             ))}
           </View>
         ) : !isLoadingMeetups && !meetupError ? (
-          <View style={styles.emptyPanel}>
-            <Text style={styles.emptyText}>아직 열린 북모임이 없습니다.</Text>
-          </View>
+          <EmptyState title={region ? "이 지역의 모임이 아직 없어요" : "함께 읽을 사람을 만나볼까요?"} copy="먼저 모임을 만들고, 함께 읽고 싶은 책을 골라보세요." action="독서 모임 만들기" onAction={() => router.push(session ? "/meetups/new" : "/auth")} />
         ) : null}
       </ScrollView>
-      <BottomNavigation active="rooms" />
     </SafeAreaView>
   );
 }
@@ -160,7 +126,7 @@ function getMeetupBookMetaText(meetup: Meetup) {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#F7F2EA',
+    backgroundColor: uiColors.background,
   },
   content: {
     padding: 20,
@@ -173,42 +139,16 @@ const styles = StyleSheet.create({
     width: 36,
   },
   headerActionText: {
-    color: '#142326',
+    color: uiColors.ink,
     fontSize: 24,
     fontWeight: '500',
     lineHeight: 27,
-  },
-  locationAction: {
-    alignItems: 'center',
-    backgroundColor: '#142326',
-    borderRadius: 6,
-    marginTop: 18,
-    paddingVertical: 12,
-  },
-  locationActionText: {
-    color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  statusBox: {
-    borderBottomColor: 'rgba(20,35,38,0.12)',
-    borderBottomWidth: 1,
-    borderTopColor: 'rgba(20,35,38,0.12)',
-    borderTopWidth: 1,
-    marginTop: 18,
-    paddingVertical: 12,
-  },
-  statusText: {
-    color: '#4E5958',
-    fontSize: 13,
-    fontWeight: '400',
-    lineHeight: 19,
   },
   loader: {
     marginTop: 26,
   },
   errorText: {
-    color: '#8C3E38',
+    color: uiColors.danger,
     fontSize: 13,
     fontWeight: '500',
     lineHeight: 19,
@@ -229,7 +169,7 @@ const styles = StyleSheet.create({
     marginBottom: 7,
   },
   meetupTitle: {
-    color: '#142326',
+    color: uiColors.ink,
     fontSize: 20,
     fontWeight: '600',
     lineHeight: 26,
@@ -263,23 +203,10 @@ const styles = StyleSheet.create({
     marginTop: 1,
   },
   meetupCopy: {
-    color: '#6A7473',
+    color: uiColors.muted,
     fontSize: 13,
     fontWeight: '400',
     lineHeight: 19,
     marginTop: 7,
-  },
-  emptyPanel: {
-    borderBottomColor: 'rgba(20,35,38,0.12)',
-    borderBottomWidth: 1,
-    borderTopColor: 'rgba(20,35,38,0.12)',
-    borderTopWidth: 1,
-    marginTop: 20,
-    paddingVertical: 18,
-  },
-  emptyText: {
-    color: '#697370',
-    fontSize: 13,
-    fontWeight: '400',
   },
 });

@@ -8,45 +8,45 @@ import {
   Modal,
   PanResponder,
   Platform,
-  Pressable,
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
-  type GestureResponderEvent,
   View,
+  type GestureResponderEvent,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Svg, { Path, Rect } from 'react-native-svg';
+import { Button, Touch as Pressable, Input as TextInput } from '../../src/components/app-ui';
+import { setFeaturedReadingLifeBook } from '../../src/services/reading-life';
+import { booksomeColors as uiColors } from '../../src/theme/booksome';
 
 import { AuthRequired } from '../../src/components/auth-required';
-import { BottomNavigation } from '../../src/components/bottom-navigation';
-import { ScreenHeader } from '../../src/components/screen-header';
-import { ReadingProgress } from '../../src/components/reading-progress';
-import { ReadingMemory } from '../../src/components/reading-memory';
 import { useReadingDialog } from '../../src/components/reading-dialog';
-import { booksomeColors, booksomeLayout } from '../../src/theme/booksome';
+import { ReadingMemory } from '../../src/components/reading-memory';
+import { ReadingProgress } from '../../src/components/reading-progress';
+import { ScreenHeader } from '../../src/components/screen-header';
 import { useAuth } from '../../src/providers/auth-provider';
+import { uploadImageAsset } from '../../src/services/media';
 import {
   createReadingLifeNote,
   deleteReadingLifeBook,
   deleteReadingLifeNote,
   getReadingLifeBook,
   listReadingLifeNotes,
+  updateReadingLifeBook,
+  updateReadingLifeNote,
   type ReadingLifeBook,
   type ReadingLifeNote,
   type ReadingVisibility,
   type UpdateReadingLifeBookInput,
-  updateReadingLifeBook,
-  updateReadingLifeNote,
 } from '../../src/services/reading-life';
-import { uploadImageAsset } from '../../src/services/media';
 import {
   consumeReadingImageCropResult,
   createReadingImageCropRequest,
   type ReadingImageCropAsset,
   type ReadingImageCropTarget,
 } from '../../src/state/reading-image-crop';
+import { booksomeColors, booksomeLayout } from '../../src/theme/booksome';
 
 const highlightNotePrefix = '__booksome_highlight_v2__:';
 const legacyHighlightNotePrefix = '__booksome_highlight_v1__:';
@@ -117,6 +117,7 @@ export default function ReadingLifeBookScreen() {
   const [highlightPenColor, setHighlightPenColor] = useState<HighlightPenColor>(defaultHighlightPenColor);
   const [highlightCanvasSize, setHighlightCanvasSize] = useState({ width: 0, height: 0 });
   const [isHighlightDrawing, setIsHighlightDrawing] = useState(false);
+  const [isShuttleDragging, setIsShuttleDragging] = useState(false);
   const highlightDraftStrokeRef = useRef<HighlightStroke | null>(null);
   const pendingCropTokenRef = useRef<string | null>(null);
   const [previewImage, setPreviewImage] = useState<{
@@ -185,20 +186,20 @@ export default function ReadingLifeBookScreen() {
     const query = noteSearchQuery.trim().toLowerCase();
     const filteredNotes = query
       ? notes.filter((note) => {
-          const searchableText = [
-            note.quoteText,
-            getVisibleNoteBody(note.body),
-            note.pageLabel,
-            note.currentPageSnapshot > 0 ? `${note.currentPageSnapshot}쪽` : null,
-            note.progressPercentSnapshot > 0 ? `${note.progressPercentSnapshot}%` : null,
-            note.kind === 'photo' ? '사진' : note.quoteText ? '문장' : '글',
-          ]
-            .filter(Boolean)
-            .join(' ')
-            .toLowerCase();
+        const searchableText = [
+          note.quoteText,
+          getVisibleNoteBody(note.body),
+          note.pageLabel,
+          note.currentPageSnapshot > 0 ? `${note.currentPageSnapshot}쪽` : null,
+          note.progressPercentSnapshot > 0 ? `${note.progressPercentSnapshot}%` : null,
+          note.kind === 'photo' ? '사진' : note.quoteText ? '문장' : '글',
+        ]
+          .filter(Boolean)
+          .join(' ')
+          .toLowerCase();
 
-          return searchableText.includes(query);
-        })
+        return searchableText.includes(query);
+      })
       : notes;
 
     return [...filteredNotes].sort((firstNote, secondNote) => {
@@ -664,15 +665,15 @@ export default function ReadingLifeBookScreen() {
       const uploaded =
         !editingNoteId || highlightAssetChanged
           ? await uploadImageAsset({
-              kind: 'post-media',
-              entityId: `reading-${bookId}`,
-              uri: uploadAsset.uri,
-              ownerId: session.user.id,
-              mimeType: uploadAsset.mimeType,
-              width: uploadAsset.width,
-              height: uploadAsset.height,
-              fileName: uploadAsset.fileName,
-            })
+            kind: 'post-media',
+            entityId: `reading-${bookId}`,
+            uri: uploadAsset.uri,
+            ownerId: session.user.id,
+            mimeType: uploadAsset.mimeType,
+            width: uploadAsset.width,
+            height: uploadAsset.height,
+            fileName: uploadAsset.fileName,
+          })
           : null;
       const input = {
         body: createHighlightNoteBody({
@@ -786,15 +787,15 @@ export default function ReadingLifeBookScreen() {
       const uploaded =
         !editingNoteId || photoAssetChanged
           ? await uploadImageAsset({
-              kind: 'post-media',
-              entityId: `reading-${bookId}`,
-              uri: uploadAsset.uri,
-              ownerId: session.user.id,
-              mimeType: uploadAsset.mimeType,
-              width: uploadAsset.width,
-              height: uploadAsset.height,
-              fileName: uploadAsset.fileName,
-            })
+            kind: 'post-media',
+            entityId: `reading-${bookId}`,
+            uri: uploadAsset.uri,
+            ownerId: session.user.id,
+            mimeType: uploadAsset.mimeType,
+            width: uploadAsset.width,
+            height: uploadAsset.height,
+            fileName: uploadAsset.fileName,
+          })
           : null;
       const input = {
         body: photoBody.trim() || null,
@@ -902,7 +903,7 @@ export default function ReadingLifeBookScreen() {
   const pageInputField = (
     <View style={styles.notePageField}>
       <View style={styles.notePageHeader}>
-        <Text style={styles.notePageFieldLabel}>기록 페이지</Text>
+        <Text style={styles.notePageFieldLabel}>기록 페이지 · 선택</Text>
         <Pressable onPress={useCurrentPositionForNote} style={styles.notePageUseCurrentButton}>
           <Text style={styles.notePageUseCurrentText}>현재 위치 넣기</Text>
         </Pressable>
@@ -912,7 +913,7 @@ export default function ReadingLifeBookScreen() {
           keyboardType="number-pad"
           onChangeText={changeNotePageLabel}
           placeholder="선택"
-          placeholderTextColor="#9A927F"
+          placeholderTextColor={uiColors.muted}
           style={styles.notePageInput}
           value={pageLabel}
         />
@@ -928,7 +929,7 @@ export default function ReadingLifeBookScreen() {
         ref={scrollRef}
         alwaysBounceVertical
         contentContainerStyle={styles.content}
-        scrollEnabled={!isHighlightDrawing}
+        scrollEnabled={!isHighlightDrawing && !isShuttleDragging}
         showsVerticalScrollIndicator={false}
         style={styles.scroll}
       >
@@ -943,7 +944,7 @@ export default function ReadingLifeBookScreen() {
 
         {isLoading ? (
           <View style={styles.loadingPanel}>
-            <ActivityIndicator color="#103D2B" />
+            <ActivityIndicator color={uiColors.action} />
             <Text style={styles.loadingText}>책장을 펼치는 중입니다</Text>
           </View>
         ) : null}
@@ -957,7 +958,14 @@ export default function ReadingLifeBookScreen() {
               <Pressable accessibilityRole="button" onPress={() => setShowWelcome(false)} style={styles.laterAction}><Text style={styles.welcomeCopy}>책을 조금 더 읽고 남길게요</Text></Pressable>
             </View> : null}
             {savedMessage ? <View accessibilityLiveRegion="polite" style={styles.savedPanel}><Text style={styles.savedText}>{savedMessage}</Text><Pressable accessibilityRole="button" onPress={() => router.replace('/library')} style={styles.laterAction}><Text style={styles.welcomeActionTextDark}>내 서재에서 다시 보기 →</Text></Pressable></View> : null}
-            <ReadingProgress book={book} onSave={saveBook} />
+            <ReadingProgress book={book} onSave={saveBook} onGestureChange={setIsShuttleDragging} />
+            {book.status === 'reading' ? <Button title="이 책을 서재 맨 앞으로" variant="ghost" onPress={() => {
+              if (!session) return;
+              void setFeaturedReadingLifeBook(session.user.id, book.id).then(nextBook => { setBook(nextBook); setSavedMessage('서재에서 이 책을 먼저 보여드릴게요.'); }).catch(error => setErrorMessage(getErrorMessage(error, '책을 고정하지 못했어요.')));
+            }} /> : null}
+            <Pressable accessibilityLabel="이 책의 다른 독자 이야기 보기" onPress={() => router.push({ pathname: '/rooms', params: { query: book.title } })} style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 20, gap: 12, borderBottomWidth: 1, borderBottomColor: uiColors.line }}>
+              <View style={{ flex: 1 }}><Text style={{ color: uiColors.ink, fontWeight: '700', fontSize: 15 }}>다른 독자는 어떻게 읽었을까요?</Text><Text style={{ color: uiColors.muted, fontSize: 12, marginTop: 6 }}>이 책의 공개 이야기 보기</Text></View><Text style={{ color: uiColors.action, fontSize: 20 }}>→</Text>
+            </Pressable>
             {book.status === 'finished' ? <ReadingMemory book={book} notes={notes} onWrite={openTextComposer} /> : null}
 
             <View style={styles.memoPanel}>
@@ -1019,7 +1027,7 @@ export default function ReadingLifeBookScreen() {
                 <TextInput
                   onChangeText={setNoteSearchQuery}
                   placeholder="문장, 메모, 페이지 검색"
-                  placeholderTextColor="#9A927F"
+                  placeholderTextColor={uiColors.muted}
                   style={styles.searchInput}
                   value={noteSearchQuery}
                 />
@@ -1122,7 +1130,7 @@ export default function ReadingLifeBookScreen() {
                 onPress={confirmDeleteBook}
                 style={[styles.deleteButton, isDeletingBook ? styles.deleteButtonDisabled : null]}
               >
-                {isDeletingBook ? <ActivityIndicator color="#7D2F22" /> : <Text style={styles.deleteButtonText}>삭제</Text>}
+                {isDeletingBook ? <ActivityIndicator color={uiColors.danger} /> : <Text style={styles.deleteButtonText}>삭제</Text>}
               </Pressable>
             </View>
           </>
@@ -1149,10 +1157,10 @@ export default function ReadingLifeBookScreen() {
                 </Text>
                 <Text style={styles.composerModalTitle}>
                   {composer === 'highlight'
+                    ? '사진 + 글'
+                    : composer === 'photo'
                       ? '사진 + 글'
-                      : composer === 'photo'
-                        ? '사진 + 글'
-                        : '문장과 생각 남기기'}
+                      : '문장과 생각 남기기'}
                 </Text>
               </View>
               <Pressable onPress={closeComposerWithConfirm} style={styles.composerModalClose}>
@@ -1169,16 +1177,17 @@ export default function ReadingLifeBookScreen() {
               {errorMessage ? <Text accessibilityRole="alert" style={styles.errorText}>{errorMessage}</Text> : null}
               {composer === 'text' ? (
                 <View style={styles.composerBox}>
-                  {pageInputField}
                   <TextInput
                     multiline
+                    autoFocus
                     onChangeText={setNoteText}
                     accessibilityLabel="문장이나 생각"
                     placeholder="기억하고 싶은 문장, 지금 떠오른 생각…"
-                    placeholderTextColor="#9A927F"
+                    placeholderTextColor={uiColors.muted}
                     style={[styles.input, styles.bodyInput]}
                     value={noteText}
                   />
+                  {pageInputField}
                   <View style={styles.visibilityRow}>
                     <Pressable
                       onPress={() => setNoteVisibility('private')}
@@ -1244,7 +1253,7 @@ export default function ReadingLifeBookScreen() {
                     multiline
                     onChangeText={setPhotoBody}
                     placeholder="사진과 함께 남길 생각"
-                    placeholderTextColor="#9A927F"
+                    placeholderTextColor={uiColors.muted}
                     style={[styles.input, styles.bodyInput]}
                     value={photoBody}
                   />
@@ -1376,7 +1385,7 @@ export default function ReadingLifeBookScreen() {
                     multiline
                     onChangeText={setPhotoBody}
                     placeholder="사진과 함께 남길 글"
-                    placeholderTextColor="#9A927F"
+                    placeholderTextColor={uiColors.muted}
                     style={[styles.input, styles.bodyInput]}
                     value={photoBody}
                   />
@@ -1470,7 +1479,6 @@ export default function ReadingLifeBookScreen() {
         </SafeAreaView>
       </Modal>
       {dialog}
-      <BottomNavigation active="library" />
     </SafeAreaView>
   );
 }
@@ -1771,9 +1779,9 @@ const styles = StyleSheet.create({
     width: '100%',
     maxWidth: booksomeLayout.maxContentWidth,
     flexGrow: 1,
-    paddingHorizontal: 20,
+    paddingHorizontal: 24,
     paddingTop: 12,
-    paddingBottom: 190,
+    paddingBottom: 48,
   },
   loadingPanel: {
     alignItems: 'center',
@@ -1782,7 +1790,7 @@ const styles = StyleSheet.create({
     marginTop: 24,
   },
   loadingText: {
-    color: '#435049',
+    color: uiColors.ink,
     fontSize: 14,
     fontWeight: '800',
   },
@@ -1796,9 +1804,9 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   memoTitle: {
-    color: '#14251B',
+    color: uiColors.ink,
     fontSize: 22,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 27,
   },
   memoSubtitle: {
@@ -1814,8 +1822,8 @@ const styles = StyleSheet.create({
   },
   memoToolButton: {
     alignItems: 'center',
-    backgroundColor: 'rgba(247,241,229,0.72)',
-    borderColor: 'rgba(16,61,43,0.08)',
+    backgroundColor: 'rgba(250,249,247,0.72)',
+    borderColor: 'rgba(38,37,38,0.08)',
     borderRadius: 999,
     borderWidth: 1,
     height: 38,
@@ -1823,15 +1831,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
   },
   memoToolButtonActive: {
-    backgroundColor: '#D8BE88',
+    backgroundColor: uiColors.action,
   },
   memoToolText: {
     color: '#4E5B53',
     fontSize: 12,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   memoToolTextActive: {
-    color: '#103D2B',
+    color: uiColors.white,
   },
   captureDock: {
     flexDirection: 'row',
@@ -1840,7 +1848,7 @@ const styles = StyleSheet.create({
   },
   captureAction: {
     alignItems: 'center',
-    borderRadius: 10,
+    borderRadius: 20,
     borderWidth: 1,
     flex: 1,
     justifyContent: 'center',
@@ -1862,14 +1870,6 @@ const styles = StyleSheet.create({
     opacity: 0.9,
     transform: [{ scale: 0.98 }],
   },
-  captureActionGloss: {
-    backgroundColor: 'rgba(255,255,255,0.28)',
-    height: 4,
-    left: 16,
-    position: 'absolute',
-    right: 16,
-    top: 0,
-  },
   captureActionDisabled: {
     opacity: 0.52,
   },
@@ -1882,16 +1882,16 @@ const styles = StyleSheet.create({
     width: 42,
   },
   captureActionIconPhoto: {
-    backgroundColor: '#103D2B',
-    borderColor: 'rgba(16,61,43,0.28)',
+    backgroundColor: uiColors.action,
+    borderColor: 'rgba(38,37,38,0.28)',
   },
   captureActionIconWriting: {
-    backgroundColor: '#103D2B',
-    borderColor: 'rgba(16,61,43,0.28)',
+    backgroundColor: uiColors.action,
+    borderColor: 'rgba(38,37,38,0.28)',
   },
   captureActionMark: {
     fontSize: 22,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 25,
   },
   captureActionMarkPhoto: {
@@ -1902,24 +1902,24 @@ const styles = StyleSheet.create({
   },
   captureActionTitle: {
     fontSize: 16,
-    fontWeight: '900',
+    fontWeight: '700',
     letterSpacing: 0,
     lineHeight: 20,
     marginTop: 10,
     textAlign: 'center',
   },
   captureActionTitlePhoto: {
-    color: '#103D2B',
+    color: uiColors.ink,
   },
   captureActionTitleWriting: {
-    color: '#103D2B',
+    color: uiColors.ink,
   },
   searchInput: {
-    backgroundColor: 'rgba(247,241,229,0.78)',
-    borderColor: 'rgba(16,61,43,0.08)',
-    borderRadius: 19,
+    backgroundColor: 'rgba(250,249,247,0.78)',
+    borderColor: 'rgba(38,37,38,0.08)',
+    borderRadius: 16,
     borderWidth: 1,
-    color: '#14251B',
+    color: uiColors.ink,
     fontSize: 14,
     fontWeight: '800',
     height: 48,
@@ -1938,7 +1938,7 @@ const styles = StyleSheet.create({
   },
   composerModalTop: {
     alignItems: 'center',
-    borderBottomColor: 'rgba(16,61,43,0.08)',
+    borderBottomColor: 'rgba(38,37,38,0.08)',
     borderBottomWidth: 1,
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -1947,22 +1947,22 @@ const styles = StyleSheet.create({
     paddingTop: 12,
   },
   composerModalEyebrow: {
-    color: '#8B7653',
+    color: uiColors.muted,
     fontSize: 10,
-    fontWeight: '900',
+    fontWeight: '700',
     letterSpacing: 0,
   },
   composerModalTitle: {
-    color: '#14251B',
+    color: uiColors.ink,
     fontSize: 24,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 29,
     marginTop: 2,
   },
   composerModalClose: {
     alignItems: 'center',
-    backgroundColor: '#F7F1E5',
-    borderColor: 'rgba(16,61,43,0.08)',
+    backgroundColor: uiColors.background,
+    borderColor: 'rgba(38,37,38,0.08)',
     borderRadius: 999,
     borderWidth: 1,
     height: 40,
@@ -1970,9 +1970,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 15,
   },
   composerModalCloseText: {
-    color: '#103D2B',
+    color: uiColors.action,
     fontSize: 13,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   composerModalContent: {
     flexGrow: 1,
@@ -1987,34 +1987,29 @@ const styles = StyleSheet.create({
   },
   visibilityChoice: {
     alignItems: 'center',
-    backgroundColor: '#ECE4D4',
-    borderRadius: 16,
+    backgroundColor: uiColors.line,
+    borderRadius: 24,
     flex: 1,
     height: 38,
     justifyContent: 'center',
   },
   visibilityChoiceActive: {
-    backgroundColor: '#D8BE88',
+    backgroundColor: uiColors.action,
   },
   visibilityChoiceText: {
     color: '#6E786F',
     fontSize: 12,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   visibilityChoiceTextActive: {
-    color: '#103D2B',
+    color: uiColors.white,
   },
   composerBox: {
     gap: 10,
     marginTop: 14,
   },
   notePageField: {
-    backgroundColor: 'rgba(16,61,43,0.06)',
-    borderColor: 'rgba(16,61,43,0.1)',
-    borderRadius: 18,
-    borderWidth: 1,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
+    paddingVertical: 8,
   },
   notePageHeader: {
     alignItems: 'center',
@@ -2023,42 +2018,42 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   notePageFieldLabel: {
-    color: '#6D766F',
+    color: uiColors.muted,
     fontSize: 11,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   notePageUseCurrentButton: {
-    backgroundColor: 'rgba(16,61,43,0.1)',
+    backgroundColor: 'rgba(38,37,38,0.1)',
     borderRadius: 999,
     paddingHorizontal: 10,
     paddingVertical: 6,
   },
   notePageUseCurrentText: {
-    color: '#103D2B',
+    color: uiColors.action,
     fontSize: 11,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   notePageInputRow: {
     alignItems: 'flex-end',
     flexDirection: 'row',
   },
   notePageInput: {
-    color: '#103D2B',
+    color: uiColors.action,
     flex: 1,
     fontSize: 26,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 32,
     padding: 0,
   },
   notePageUnit: {
-    color: '#6D766F',
+    color: uiColors.muted,
     fontSize: 14,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 23,
     paddingBottom: 3,
   },
   notePageHint: {
-    color: '#6D766F',
+    color: uiColors.muted,
     fontSize: 11,
     fontWeight: '700',
     lineHeight: 16,
@@ -2066,9 +2061,9 @@ const styles = StyleSheet.create({
   },
   input: {
     backgroundColor: 'transparent',
-    borderBottomColor: 'rgba(16,61,43,0.16)',
+    borderBottomColor: 'rgba(38,37,38,0.16)',
     borderBottomWidth: 1,
-    color: '#14251B',
+    color: uiColors.ink,
     fontSize: 15,
     fontWeight: '700',
     lineHeight: 21,
@@ -2082,7 +2077,7 @@ const styles = StyleSheet.create({
     backgroundColor: booksomeColors.paperStrong,
     borderColor: booksomeColors.line,
     borderWidth: 1,
-    borderRadius: 10,
+    borderRadius: 16,
     fontSize: 16,
     fontWeight: '400',
     lineHeight: 26,
@@ -2091,32 +2086,32 @@ const styles = StyleSheet.create({
   primaryAction: {
     alignItems: 'center',
     backgroundColor: booksomeColors.forest,
-    borderRadius: 10,
-    height: 50,
+    borderRadius: 28,
+    height: 52,
     justifyContent: 'center',
   },
   primaryActionText: {
     color: '#FFFFFF',
     fontSize: 15,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   photoPicker: {
     alignItems: 'center',
-    backgroundColor: '#E8DEC9',
+    backgroundColor: uiColors.line,
     borderRadius: 22,
     height: 174,
     justifyContent: 'center',
     overflow: 'hidden',
   },
   photoPickerIcon: {
-    color: '#103D2B',
+    color: uiColors.action,
     fontSize: 34,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   photoPickerText: {
-    color: '#5B675F',
+    color: uiColors.muted,
     fontSize: 14,
-    fontWeight: '900',
+    fontWeight: '700',
     marginTop: 2,
   },
   photoPreview: {
@@ -2130,8 +2125,8 @@ const styles = StyleSheet.create({
   },
   imageToolButton: {
     alignItems: 'center',
-    backgroundColor: 'rgba(16,61,43,0.08)',
-    borderColor: 'rgba(16,61,43,0.08)',
+    backgroundColor: 'rgba(38,37,38,0.08)',
+    borderColor: 'rgba(38,37,38,0.08)',
     borderRadius: 999,
     borderWidth: 1,
     height: 36,
@@ -2139,12 +2134,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 13,
   },
   imageToolText: {
-    color: '#103D2B',
+    color: uiColors.action,
     fontSize: 12,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   highlightEditor: {
-    backgroundColor: '#E8DEC9',
+    backgroundColor: uiColors.line,
     borderRadius: 20,
     minHeight: 220,
     overflow: 'hidden',
@@ -2156,7 +2151,7 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   highlightGuideText: {
-    color: '#6D766F',
+    color: uiColors.muted,
     fontSize: 12,
     fontWeight: '800',
     lineHeight: 18,
@@ -2170,9 +2165,9 @@ const styles = StyleSheet.create({
     marginTop: -4,
   },
   highlightColorLabel: {
-    color: '#6D766F',
+    color: uiColors.muted,
     fontSize: 12,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   highlightColorChoices: {
     flexDirection: 'row',
@@ -2180,7 +2175,7 @@ const styles = StyleSheet.create({
   },
   highlightColorChoice: {
     alignItems: 'center',
-    backgroundColor: 'rgba(16,61,43,0.07)',
+    backgroundColor: 'rgba(38,37,38,0.07)',
     borderColor: 'transparent',
     borderRadius: 999,
     borderWidth: 2,
@@ -2189,8 +2184,8 @@ const styles = StyleSheet.create({
     width: 36,
   },
   highlightColorChoiceActive: {
-    borderColor: '#103D2B',
-    backgroundColor: 'rgba(247,241,229,0.72)',
+    borderColor: uiColors.action,
+    backgroundColor: 'rgba(250,249,247,0.72)',
   },
   highlightColorSwatch: {
     borderRadius: 999,
@@ -2225,19 +2220,19 @@ const styles = StyleSheet.create({
   },
   highlightTool: {
     alignItems: 'center',
-    backgroundColor: 'rgba(16,61,43,0.08)',
+    backgroundColor: 'rgba(38,37,38,0.08)',
     borderRadius: 999,
     flex: 1,
     height: 38,
     justifyContent: 'center',
   },
   highlightToolText: {
-    color: '#103D2B',
+    color: uiColors.action,
     fontSize: 12,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   errorText: {
-    color: '#A43D20',
+    color: uiColors.danger,
     fontSize: 13,
     fontWeight: '800',
     lineHeight: 19,
@@ -2253,8 +2248,8 @@ const styles = StyleSheet.create({
     lineHeight: 21,
   },
   emptyNotesBubble: {
-    backgroundColor: 'rgba(247,241,229,0.68)',
-    borderColor: 'rgba(16,61,43,0.08)',
+    backgroundColor: 'rgba(250,249,247,0.68)',
+    borderColor: 'rgba(38,37,38,0.08)',
     borderRadius: 20,
     borderWidth: 1,
     paddingHorizontal: 16,
@@ -2269,8 +2264,8 @@ const styles = StyleSheet.create({
     width: 18,
   },
   noteTimelineDot: {
-    backgroundColor: '#D8BE88',
-    borderColor: '#103D2B',
+    backgroundColor: uiColors.action,
+    borderColor: uiColors.action,
     borderRadius: 999,
     borderWidth: 2,
     height: 13,
@@ -2278,15 +2273,15 @@ const styles = StyleSheet.create({
     width: 13,
   },
   noteTimelineLine: {
-    backgroundColor: 'rgba(16,61,43,0.16)',
+    backgroundColor: 'rgba(38,37,38,0.16)',
     flex: 1,
     marginTop: 4,
     minHeight: 34,
     width: 2,
   },
   noteItem: {
-    backgroundColor: 'rgba(247,241,229,0.92)',
-    borderColor: 'rgba(16,61,43,0.08)',
+    backgroundColor: 'rgba(250,249,247,0.92)',
+    borderColor: 'rgba(38,37,38,0.08)',
     borderRadius: 22,
     borderWidth: 1,
     flex: 1,
@@ -2300,7 +2295,7 @@ const styles = StyleSheet.create({
   },
   noteItemPhoto: {
     backgroundColor: 'rgba(248,244,235,0.96)',
-    borderColor: 'rgba(143,106,66,0.12)',
+    borderColor: 'rgba(38,37,38,0.12)',
   },
   noteHead: {
     alignItems: 'flex-start',
@@ -2314,9 +2309,9 @@ const styles = StyleSheet.create({
     gap: 7,
   },
   noteVisibility: {
-    color: '#9A8D78',
+    color: uiColors.muted,
     fontSize: 11,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   noteActionRow: {
     flexDirection: 'row',
@@ -2324,7 +2319,7 @@ const styles = StyleSheet.create({
   },
   noteActionButton: {
     alignItems: 'center',
-    backgroundColor: 'rgba(16,61,43,0.08)',
+    backgroundColor: 'rgba(38,37,38,0.08)',
     borderRadius: 999,
     height: 28,
     justifyContent: 'center',
@@ -2334,12 +2329,12 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(125,47,34,0.08)',
   },
   noteActionText: {
-    color: '#103D2B',
+    color: uiColors.action,
     fontSize: 11,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   noteActionDeleteText: {
-    color: '#7D2F22',
+    color: uiColors.danger,
   },
   noteImageFrame: {
     borderRadius: 20,
@@ -2355,8 +2350,8 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   noteQuoteHighlight: {
-    backgroundColor: 'rgba(247,208,82,0.34)',
-    borderLeftColor: '#D8BE88',
+    backgroundColor: uiColors.surface,
+    borderLeftColor: uiColors.action,
     borderLeftWidth: 4,
     borderRadius: 14,
     marginTop: 14,
@@ -2364,25 +2359,25 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
   noteQuote: {
-    color: '#26372B',
+    color: uiColors.ink,
     fontSize: 17,
-    fontWeight: '800',
+    fontWeight: '500',
     lineHeight: 27,
   },
   notePageBadge: {
     alignSelf: 'flex-start',
-    backgroundColor: 'rgba(216,190,136,0.32)',
+    backgroundColor: uiColors.accentSoft,
     borderRadius: 999,
     paddingHorizontal: 10,
     paddingVertical: 5,
   },
   notePageBadgeText: {
-    color: '#6F5530',
+    color: uiColors.action,
     fontSize: 11,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   noteBody: {
-    color: '#5B675F',
+    color: uiColors.muted,
     fontSize: 14,
     fontWeight: '800',
     lineHeight: 21,
@@ -2401,7 +2396,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   deleteTitle: {
-    color: '#7D2F22',
+    color: uiColors.danger,
     fontSize: 16,
     fontWeight: '800',
   },
@@ -2415,7 +2410,7 @@ const styles = StyleSheet.create({
   deleteButton: {
     alignItems: 'center',
     borderColor: 'rgba(125,47,34,0.3)',
-    borderRadius: 16,
+    borderRadius: 24,
     borderWidth: 1,
     height: 42,
     justifyContent: 'center',
@@ -2426,9 +2421,9 @@ const styles = StyleSheet.create({
     opacity: 0.56,
   },
   deleteButtonText: {
-    color: '#7D2F22',
+    color: uiColors.danger,
     fontSize: 13,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   imageViewer: {
     backgroundColor: 'rgba(10,16,12,0.96)',
@@ -2443,14 +2438,14 @@ const styles = StyleSheet.create({
     paddingBottom: 10,
   },
   imageViewerTitle: {
-    color: '#F7F1E5',
+    color: uiColors.background,
     fontSize: 15,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   imageViewerClose: {
     alignItems: 'center',
-    backgroundColor: 'rgba(247,241,229,0.12)',
-    borderColor: 'rgba(247,241,229,0.18)',
+    backgroundColor: 'rgba(250,249,247,0.12)',
+    borderColor: 'rgba(250,249,247,0.18)',
     borderRadius: 999,
     borderWidth: 1,
     height: 40,
@@ -2458,9 +2453,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
   },
   imageViewerCloseText: {
-    color: '#F7F1E5',
+    color: uiColors.background,
     fontSize: 13,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   imageViewerContent: {
     alignItems: 'center',

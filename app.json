@@ -5,13 +5,13 @@
     "version": "1.0.0",
     "scheme": "booksome",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
+    "icon": "./assets/booksome-app-icon-v2.png",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "splash": {
-      "image": "./assets/splash-icon.png",
+      "image": "./assets/booksome-adaptive-icon-v2.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#F4A274"
     },
     "ios": {
       "supportsTablet": true,
@@ -33,14 +33,14 @@
         "ACCESS_FINE_LOCATION"
       ],
       "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#116653"
+        "foregroundImage": "./assets/booksome-adaptive-icon-v2.png",
+        "backgroundColor": "#F4A274"
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false
     },
     "web": {
-      "favicon": "./assets/favicon.png"
+      "favicon": "./assets/booksome-favicon-v2.png"
     },
     "plugins": [
       "expo-router",

@@ -6,17 +6,16 @@ import {
   Image,
   KeyboardAvoidingView,
   Platform,
-  Pressable,
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Touch as Pressable, Input as TextInput } from '../../src/components/app-ui';
+import { booksomeColors as uiColors } from '../../src/theme/booksome';
 
 import { AuthRequired } from '../../src/components/auth-required';
-import { BottomNavigation } from '../../src/components/bottom-navigation';
 import { ScreenHeader } from '../../src/components/screen-header';
 import { koreaRegions } from '../../src/data/korea-regions';
 import { useAuth } from '../../src/providers/auth-provider';
@@ -175,7 +174,7 @@ export default function NewMeetupScreen() {
       });
       router.replace('/meetups');
     } catch (error) {
-      setErrorMessage(getErrorMessage(error, '북모임을 만들지 못했습니다.'));
+      setErrorMessage(getErrorMessage(error, '독서 모임을 만들지 못했습니다.'));
     } finally {
       setIsSubmitting(false);
     }
@@ -204,7 +203,7 @@ export default function NewMeetupScreen() {
                   <TextInput
                     onChangeText={setTitle}
                     placeholder="모임 이름을 적어 주세요."
-                    placeholderTextColor="#8A918C"
+                    placeholderTextColor={uiColors.muted}
                     style={styles.input}
                     value={title}
                   />
@@ -262,14 +261,14 @@ export default function NewMeetupScreen() {
                       }}
                       onSubmitEditing={searchBooks}
                       placeholder="책 이름 검색"
-                      placeholderTextColor="#8A918C"
+                      placeholderTextColor={uiColors.muted}
                       returnKeyType="search"
                       style={[styles.input, styles.searchInput]}
                       value={bookSearchQuery}
                     />
                     <Pressable disabled={isSearchingBooks} onPress={searchBooks} style={styles.searchButton}>
                       {isSearchingBooks ? (
-                        <ActivityIndicator color="#142326" />
+                        <ActivityIndicator color={uiColors.ink} />
                       ) : (
                         <Text style={styles.searchButtonText}>검색</Text>
                       )}
@@ -309,7 +308,7 @@ export default function NewMeetupScreen() {
                   <View style={styles.regionRailWrap}>
                     {showRegionScrollLeft ? (
                       <LinearGradient
-                        colors={['#F9F6F0', 'rgba(249,246,240,0)']}
+                        colors={[uiColors.background, 'rgba(249,246,240,0)']}
                         pointerEvents="none"
                         start={{ x: 0, y: 0 }}
                         end={{ x: 1, y: 0 }}
@@ -352,7 +351,7 @@ export default function NewMeetupScreen() {
                     </ScrollView>
                     {showRegionScrollRight ? (
                       <LinearGradient
-                        colors={['rgba(249,246,240,0)', '#F9F6F0']}
+                        colors={['rgba(249,246,240,0)', uiColors.background]}
                         pointerEvents="none"
                         start={{ x: 0, y: 0 }}
                         end={{ x: 1, y: 0 }}
@@ -392,7 +391,7 @@ export default function NewMeetupScreen() {
                     multiline
                     onChangeText={setDescription}
                     placeholder="이 모임에 대한 소개를 알려주세요."
-                    placeholderTextColor="#8A918C"
+                    placeholderTextColor={uiColors.muted}
                     style={[styles.input, styles.textArea]}
                     textAlignVertical="top"
                     value={description}
@@ -417,7 +416,6 @@ export default function NewMeetupScreen() {
           )}
         </ScrollView>
       </KeyboardAvoidingView>
-      <BottomNavigation active="rooms" />
     </SafeAreaView>
   );
 }
@@ -449,7 +447,7 @@ function getBookMetaText(book: BookSearchItem) {
 
 const styles = StyleSheet.create({
   safeArea: {
-    backgroundColor: '#F7F2EA',
+    backgroundColor: uiColors.background,
     flex: 1,
   },
   keyboardView: {
@@ -460,7 +458,7 @@ const styles = StyleSheet.create({
     paddingBottom: 112,
   },
   form: {
-    gap: 16,
+    gap: 24,
   },
   field: {
     gap: 7,
@@ -471,13 +469,13 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   label: {
-    color: '#7B837E',
-    fontSize: 11,
+    color: uiColors.ink,
+    fontSize: 13,
     fontWeight: '600',
     letterSpacing: 0,
   },
   subLabel: {
-    color: '#8A918C',
+    color: uiColors.muted,
     fontSize: 10,
     fontWeight: '500',
     marginBottom: 6,
@@ -486,12 +484,7 @@ const styles = StyleSheet.create({
     marginTop: 12,
   },
   fieldBody: {
-    backgroundColor: 'rgba(255,255,255,0.46)',
-    borderColor: 'rgba(20,35,38,0.1)',
-    borderRadius: 6,
-    borderWidth: 1,
-    paddingHorizontal: 11,
-    paddingVertical: 9,
+    gap: 8,
   },
   iconAction: {
     alignItems: 'center',
@@ -500,13 +493,13 @@ const styles = StyleSheet.create({
     width: 30,
   },
   iconActionText: {
-    color: '#142326',
+    color: uiColors.ink,
     fontSize: 18,
     fontWeight: '500',
     lineHeight: 21,
   },
   input: {
-    color: '#142326',
+    color: uiColors.ink,
     fontSize: 15,
     fontWeight: '400',
     minHeight: 34,
@@ -532,20 +525,20 @@ const styles = StyleSheet.create({
     minWidth: 0,
   },
   selectedBookTitle: {
-    color: '#142326',
+    color: uiColors.ink,
     fontSize: 14,
     fontWeight: '500',
     lineHeight: 19,
   },
   selectedBookMeta: {
-    color: '#697370',
+    color: uiColors.muted,
     fontSize: 12,
     fontWeight: '400',
     lineHeight: 17,
     marginTop: 2,
   },
   clearBookText: {
-    color: '#8C3E38',
+    color: uiColors.danger,
     fontSize: 18,
     fontWeight: '400',
     lineHeight: 20,
@@ -565,12 +558,12 @@ const styles = StyleSheet.create({
     minWidth: 46,
   },
   searchButtonText: {
-    color: '#142326',
+    color: uiColors.ink,
     fontSize: 13,
     fontWeight: '500',
   },
   inlineErrorText: {
-    color: '#8C3E38',
+    color: uiColors.danger,
     fontSize: 12,
     fontWeight: '400',
     lineHeight: 17,
@@ -599,13 +592,13 @@ const styles = StyleSheet.create({
     minWidth: 0,
   },
   bookResultTitle: {
-    color: '#142326',
+    color: uiColors.ink,
     fontSize: 13,
     fontWeight: '500',
     lineHeight: 18,
   },
   bookResultMeta: {
-    color: '#697370',
+    color: uiColors.muted,
     fontSize: 12,
     fontWeight: '400',
     lineHeight: 17,
@@ -643,15 +636,15 @@ const styles = StyleSheet.create({
     paddingTop: 4,
   },
   regionChipActive: {
-    borderBottomColor: '#142326',
+    borderBottomColor: uiColors.ink,
   },
   regionChipText: {
-    color: '#6A7473',
+    color: uiColors.muted,
     fontSize: 13,
     fontWeight: '400',
   },
   regionChipTextActive: {
-    color: '#142326',
+    color: uiColors.ink,
     fontWeight: '600',
   },
   districtGrid: {
@@ -662,14 +655,14 @@ const styles = StyleSheet.create({
   },
   districtChip: {
     borderColor: 'rgba(20,35,38,0.12)',
-    borderRadius: 5,
+    borderRadius: 24,
     borderWidth: 1,
     paddingHorizontal: 9,
     paddingVertical: 6,
   },
   districtChipActive: {
-    backgroundColor: '#142326',
-    borderColor: '#142326',
+    backgroundColor: uiColors.action,
+    borderColor: uiColors.action,
   },
   districtChipText: {
     color: '#53615E',
@@ -685,21 +678,21 @@ const styles = StyleSheet.create({
     minHeight: 96,
   },
   errorText: {
-    color: '#8C3E38',
+    color: uiColors.danger,
     fontSize: 13,
     fontWeight: '500',
     lineHeight: 19,
   },
   submitButton: {
     alignItems: 'center',
-    backgroundColor: '#142326',
-    borderRadius: 6,
-    height: 42,
+    backgroundColor: uiColors.action,
+    borderRadius: 24,
+    height: 52,
     justifyContent: 'center',
     marginTop: 4,
   },
   submitButtonDisabled: {
-    backgroundColor: '#AEB5AF',
+    backgroundColor: uiColors.muted,
   },
   submitButtonText: {
     color: '#FFFFFF',

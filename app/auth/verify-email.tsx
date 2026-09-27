@@ -4,17 +4,17 @@ import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
-  Pressable,
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Touch as Pressable, Input as TextInput } from '../../src/components/app-ui';
+import { BrandLogo } from '../../src/components/brand-logo';
+import { booksomeColors as uiColors } from '../../src/theme/booksome';
 
 import { BackButton } from '../../src/components/back-button';
-import { BottomNavigation } from '../../src/components/bottom-navigation';
 import { useAuth } from '../../src/providers/auth-provider';
 import { confirmEmailVerification, requestEmailVerification } from '../../src/services/auth';
 
@@ -69,11 +69,11 @@ export default function VerifyEmailScreen() {
         <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
           <View style={styles.topBar}>
             <BackButton />
-            <Text style={styles.brand}>BookSome</Text>
+            <BrandLogo width={142} />
           </View>
 
           <View style={styles.hero}>
-            <Text style={styles.eyebrow}>EMAIL VERIFICATION</Text>
+
             <Text style={styles.title}>이메일을 확인해주세요</Text>
             <Text style={styles.copy}>
               {session?.user.email ?? '가입한 이메일'}로 보낸 8자리 인증 코드를 입력해주세요.
@@ -84,7 +84,7 @@ export default function VerifyEmailScreen() {
             <View style={styles.form}>
               <Text style={styles.successText}>이미 인증된 이메일입니다.</Text>
               <Pressable onPress={() => router.replace('/')} style={styles.submitButton}>
-                <Text style={styles.submitText}>홈으로 돌아가기</Text>
+                <Text style={styles.submitText}>내 서재로</Text>
               </Pressable>
             </View>
           ) : (
@@ -95,7 +95,7 @@ export default function VerifyEmailScreen() {
                 maxLength={8}
                 onChangeText={(value) => setCode(value.replace(/[^0-9]/g, ''))}
                 placeholder="8자리 인증 코드"
-                placeholderTextColor="#8D8A83"
+                placeholderTextColor={uiColors.muted}
                 style={styles.input}
                 value={code}
               />
@@ -108,7 +108,7 @@ export default function VerifyEmailScreen() {
               </Pressable>
               <Pressable disabled={isResending} onPress={resend} style={styles.secondaryButton}>
                 {isResending ? (
-                  <ActivityIndicator color="#103D2B" />
+                  <ActivityIndicator color={uiColors.action} />
                 ) : (
                   <Text style={styles.secondaryText}>인증 코드 다시 받기</Text>
                 )}
@@ -119,17 +119,16 @@ export default function VerifyEmailScreen() {
           )}
         </ScrollView>
       </KeyboardAvoidingView>
-      <BottomNavigation active="profile" />
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  safeArea: { backgroundColor: '#0D2F22', flex: 1 },
+  safeArea: { backgroundColor: uiColors.background, flex: 1 },
   keyboard: { flex: 1 },
   content: {
     alignSelf: 'center',
-    backgroundColor: '#F7F1E5',
+    backgroundColor: uiColors.background,
     flexGrow: 1,
     maxWidth: 430,
     padding: 20,
@@ -137,18 +136,16 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   topBar: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between' },
-  brand: { color: '#103D2B', fontSize: 17, fontWeight: '900' },
-  hero: { paddingBottom: 28, paddingTop: 64 },
-  eyebrow: { color: '#8F6A42', fontSize: 11, fontWeight: '900' },
-  title: { color: '#14251B', fontSize: 34, fontWeight: '900', lineHeight: 39, marginTop: 10 },
-  copy: { color: '#5F574D', fontSize: 15, fontWeight: '700', lineHeight: 22, marginTop: 12 },
+  hero: { paddingBottom: 28, paddingTop: 36 },
+  title: { color: uiColors.ink, fontSize: 28, fontWeight: '700', lineHeight: 39, marginTop: 10 },
+  copy: { color: uiColors.muted, fontSize: 15, fontWeight: '400', lineHeight: 22, marginTop: 12 },
   form: { gap: 12 },
   input: {
-    backgroundColor: '#FFF9EF',
-    borderRadius: 22,
-    color: '#14251B',
+    backgroundColor: uiColors.background,
+    borderRadius: 16,
+    color: uiColors.ink,
     fontSize: 20,
-    fontWeight: '900',
+    fontWeight: '700',
     letterSpacing: 4,
     minHeight: 58,
     paddingHorizontal: 18,
@@ -156,15 +153,15 @@ const styles = StyleSheet.create({
   },
   submitButton: {
     alignItems: 'center',
-    backgroundColor: '#103D2B',
-    borderRadius: 23,
+    backgroundColor: uiColors.action,
+    borderRadius: 24,
     justifyContent: 'center',
     minHeight: 58,
   },
   disabled: { opacity: 0.42 },
-  submitText: { color: '#FFFFFF', fontSize: 16, fontWeight: '900' },
+  submitText: { color: '#FFFFFF', fontSize: 16, fontWeight: '700' },
   secondaryButton: { alignItems: 'center', justifyContent: 'center', minHeight: 44 },
-  secondaryText: { color: '#103D2B', fontSize: 14, fontWeight: '900' },
-  feedback: { color: '#5F574D', fontSize: 14, fontWeight: '700', lineHeight: 21, textAlign: 'center' },
-  successText: { color: '#1C6A4B', fontSize: 16, fontWeight: '900', textAlign: 'center' },
+  secondaryText: { color: uiColors.action, fontSize: 14, fontWeight: '700' },
+  feedback: { color: uiColors.muted, fontSize: 14, fontWeight: '700', lineHeight: 21, textAlign: 'center' },
+  successText: { color: uiColors.action, fontSize: 16, fontWeight: '700', textAlign: 'center' },
 });

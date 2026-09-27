@@ -8,6 +8,7 @@ import {
   View,
 } from 'react-native';
 import { WebView } from 'react-native-webview';
+import { booksomeColors as uiColors } from '../theme/booksome';
 
 type NaverMapPreviewProps = {
   areaLabel: string;
@@ -50,7 +51,7 @@ export function NaverMapPreview({ areaLabel }: NaverMapPreviewProps) {
         originWhitelist={['*']}
         renderLoading={() => (
           <View style={styles.loading}>
-            <ActivityIndicator color="#103D2B" />
+            <ActivityIndicator color={uiColors.action} />
           </View>
         )}
         scrollEnabled={false}
@@ -94,19 +95,19 @@ function getExpoHostUri() {
 
 const styles = StyleSheet.create({
   wrap: {
-    backgroundColor: '#E8DFCF',
+    backgroundColor: uiColors.line,
     borderRadius: 26,
     height: 190,
     marginTop: 14,
     overflow: 'hidden',
   },
   webView: {
-    backgroundColor: '#E8DFCF',
+    backgroundColor: uiColors.line,
     flex: 1,
   },
   loading: {
     alignItems: 'center',
-    backgroundColor: '#E8DFCF',
+    backgroundColor: uiColors.line,
     bottom: 0,
     justifyContent: 'center',
     left: 0,
@@ -116,7 +117,7 @@ const styles = StyleSheet.create({
   },
   errorOverlay: {
     alignItems: 'center',
-    backgroundColor: 'rgba(246,238,225,0.94)',
+    backgroundColor: 'rgba(250,249,247,0.94)',
     bottom: 0,
     justifyContent: 'center',
     left: 0,
@@ -126,27 +127,27 @@ const styles = StyleSheet.create({
     top: 0,
   },
   errorText: {
-    color: '#A43D20',
+    color: uiColors.danger,
     fontSize: 13,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 18,
     textAlign: 'center',
   },
   fallback: {
-    backgroundColor: 'rgba(16,61,43,0.08)',
+    backgroundColor: 'rgba(38,37,38,0.08)',
     borderRadius: 22,
     marginTop: 14,
     padding: 16,
   },
   fallbackTitle: {
-    color: '#8F6A42',
+    color: uiColors.action,
     fontSize: 11,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   fallbackCopy: {
-    color: '#103D2B',
+    color: uiColors.action,
     fontSize: 15,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 21,
     marginTop: 6,
   },

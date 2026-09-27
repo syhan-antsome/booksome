@@ -1,421 +1,60 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { useMemo, useState } from 'react';
-import {
-  ActivityIndicator,
-  Image,
-  type ImageSourcePropType,
-  KeyboardAvoidingView,
-  Platform,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  useWindowDimensions,
-  View,
-} from 'react-native';
+import { useState } from 'react';
+import { Image, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-
-import authHeroImage from '../assets/home-hero-writer-desk.jpg';
-import sseomdiReadingImage from '../assets/sseomdi-reading.png';
+import { Button, Feedback, Field, Input, PasswordInput } from '../src/components/app-ui';
 import { BackButton } from '../src/components/back-button';
-import { BottomNavigation } from '../src/components/bottom-navigation';
-import { useAuth } from '../src/providers/auth-provider';
-import {
-  requestEmailVerification,
-  signInWithEmail,
-  signUpWithEmail,
-} from '../src/services/auth';
-
-function toImageSource(image: string | number): ImageSourcePropType {
-  return typeof image === 'string' ? { uri: image } : image;
-}
-
-const authHeroSource = toImageSource(authHeroImage);
-const sseomdiReadingSource = toImageSource(sseomdiReadingImage);
+import { BrandLogo } from '../src/components/brand-logo';
+import { requestEmailVerification, signInWithEmail, signUpWithEmail } from '../src/services/auth';
+import { booksomeLayout, booksomeColors as c } from '../src/theme/booksome';
 
 export default function AuthScreen() {
   const params = useLocalSearchParams<{ email?: string; reset?: string; next?: string; mode?: string }>();
-  const { session } = useAuth();
-  const { height } = useWindowDimensions();
   const [mode, setMode] = useState<'sign-in' | 'sign-up'>(params.mode === 'sign-up' ? 'sign-up' : 'sign-in');
-  const nextPath = typeof params.next === 'string' && /^\/(books\/add(?:\?|$)|library$|record$)/.test(params.next) ? params.next : '/';
-  const [displayName, setDisplayName] = useState('');
   const [email, setEmail] = useState(typeof params.email === 'string' ? params.email : '');
   const [password, setPassword] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [feedback, setFeedback] = useState<string | null>(
-    params.reset === 'success' ? '비밀번호를 변경했습니다. 새 비밀번호로 로그인해주세요.' : null,
-  );
-
-  const title = useMemo(
-    () =>
-      mode === 'sign-in'
-        ? '읽던 곳으로 돌아가기'
-        : '나의 첫 책장을 열기',
-    [mode],
-  );
-  const copy = useMemo(
-    () =>
-      mode === 'sign-in'
-        ? '내 서재와 읽던 페이지, 남겨둔 기록을 계속 이어가세요.'
-        : '필명으로 책에 머물고, 질문과 문장을 안전하게 남겨보세요.',
-    [mode],
-  );
-  const heroHeight = Math.max(220, Math.min(280, height * 0.3));
-
-  const submit = async () => {
-    setFeedback(null);
-    const penName = displayName.trim();
-
-    if (mode === 'sign-up' && !penName) {
-      setFeedback('필명 또는 닉네임을 입력해주세요.');
-      return;
-    }
-
-    if (mode === 'sign-up' && password.length < 10) {
-      setFeedback('비밀번호는 10자 이상으로 입력해주세요.');
-      return;
-    }
-
-    setIsSubmitting(true);
+  const [name, setName] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [feedback, setFeedback] = useState(params.reset === 'success' ? '비밀번호를 바꿨어요. 새 비밀번호로 로그인해주세요.' : '');
+  const [failed, setFailed] = useState(false);
+  const nextPath = typeof params.next === 'string' && /^\/(books\/add(?:\?|$)|library$|record$|rooms$|room\/[^?#]+$)/.test(params.next) ? params.next : '/';
+  async function submit() {
+    if (busy) return;
+    setFeedback(''); setFailed(false);
+    if (!email.trim() || !password) { setFailed(true); setFeedback('이메일과 비밀번호를 입력해주세요.'); return; }
+    if (mode === 'sign-up' && (!name.trim() || password.length < 10)) { setFailed(true); setFeedback('닉네임과 10자 이상의 비밀번호를 입력해주세요.'); return; }
+    setBusy(true);
     try {
-      if (mode === 'sign-in') {
-        await signInWithEmail(email.trim(), password);
-        router.replace(nextPath as '/');
-      } else {
-        const result = await signUpWithEmail({
-          email: email.trim(),
-          password,
-          displayName: penName,
-        });
-
-        if (result.session) {
-          // Account creation already establishes a session. Email delivery must
-          // not strand a new reader before their first book when SMTP is off.
-          void requestEmailVerification().catch(() => undefined);
-          router.replace((nextPath === '/' ? '/books/add' : nextPath) as '/');
-          return;
-        }
-
-        setFeedback('가입 요청이 접수되었습니다. 이메일 인증 설정이 켜져 있다면 메일함을 확인해주세요.');
+      if (mode === 'sign-in') { await signInWithEmail(email.trim(), password); router.replace(nextPath as '/'); }
+      else {
+        await signUpWithEmail({ email: email.trim(), password, displayName: name.trim() });
+        void requestEmailVerification().catch(() => undefined);
+        router.replace((nextPath === '/' ? '/books/add' : nextPath) as '/');
       }
-    } catch (error) {
-      const message = error instanceof Error ? error.message : '인증 중 오류가 발생했습니다.';
-      setFeedback(message);
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  const openPasswordReset = () => {
-    const cleanEmail = email.trim();
-    router.push({ pathname: '/auth/update-password', params: cleanEmail ? { email: cleanEmail } : {} });
-  };
-
-  return (
-    <SafeAreaView style={styles.safeArea}>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 18}
-        style={styles.keyboard}
-      >
-        <ScrollView
-          contentContainerStyle={styles.content}
-          keyboardShouldPersistTaps="handled"
-          keyboardDismissMode="on-drag"
-          showsVerticalScrollIndicator={false}
-        >
-          <View style={[styles.hero, { height: heroHeight }]}>
-            <Image resizeMode="cover" source={authHeroSource} style={styles.heroImage} />
-            <View style={styles.heroShade} />
-
-            <View style={styles.topBar}>
-              <BackButton />
-              <Text style={styles.brand}>BookSome</Text>
-            </View>
-
-            <View style={styles.heroCopy}>
-              <Text style={styles.title}>{title}</Text>
-              <Text style={styles.copy}>{copy}</Text>
-            </View>
-          </View>
-
-          <View style={styles.sheet}>
-            <View style={styles.mascotBadge}>
-              <Image resizeMode="contain" source={sseomdiReadingSource} style={styles.mascotImage} />
-            </View>
-
-            <View style={styles.switchRow}>
-              <Pressable
-                onPress={() => setMode('sign-in')}
-                style={[styles.switchChip, mode === 'sign-in' && styles.switchChipActive]}
-              >
-                <Text style={[styles.switchText, mode === 'sign-in' && styles.switchTextActive]}>
-                  로그인
-                </Text>
-              </Pressable>
-              <Pressable
-                onPress={() => setMode('sign-up')}
-                style={[styles.switchChip, mode === 'sign-up' && styles.switchChipActive]}
-              >
-                <Text style={[styles.switchText, mode === 'sign-up' && styles.switchTextActive]}>
-                  회원가입
-                </Text>
-              </Pressable>
-            </View>
-
-            <View style={styles.form}>
-              {mode === 'sign-up' ? (
-                <TextInput
-                  autoCapitalize="words"
-                  onChangeText={setDisplayName}
-                  placeholder="필명 또는 닉네임"
-                  placeholderTextColor="#8D8A83"
-                  style={styles.input}
-                  value={displayName}
-                />
-              ) : null}
-
-              <TextInput
-                autoCapitalize="none"
-                keyboardType="email-address"
-                onChangeText={setEmail}
-                placeholder="이메일"
-                placeholderTextColor="#8D8A83"
-                style={styles.input}
-                value={email}
-              />
-
-              <TextInput
-                onChangeText={setPassword}
-                placeholder="비밀번호"
-                placeholderTextColor="#8D8A83"
-                secureTextEntry
-                style={styles.input}
-                value={password}
-              />
-
-              {feedback ? (
-                <View accessibilityRole="alert" style={styles.feedbackPanel}>
-                  <Text style={styles.feedback}>{feedback}</Text>
-                </View>
-              ) : null}
-
-              <Pressable accessibilityRole="button" onPress={submit} style={styles.submitButton} disabled={isSubmitting}>
-                {isSubmitting ? (
-                  <ActivityIndicator color="#FFFFFF" />
-                ) : (
-                  <Text style={styles.submitText}>
-                    {mode === 'sign-in' ? '로그인하고 이어가기' : '가입하고 내 책 담기'}
-                  </Text>
-                )}
-              </Pressable>
-
-              {mode === 'sign-in' ? (
-                <Pressable onPress={openPasswordReset} style={styles.resetButton}>
-                  <Text style={styles.resetText}>비밀번호를 잊으셨나요?</Text>
-                </Pressable>
-              ) : null}
-              {session ? (
-                <Text style={styles.feedback}>이미 로그인되어 있습니다. 뒤로 가면 홈으로 돌아갑니다.</Text>
-              ) : null}
-
-              <Text style={styles.note}>북썸 활동은 필명 또는 닉네임으로 표시됩니다. 본명보다 편한 이름을 권장합니다.</Text>
-            </View>
-          </View>
-        </ScrollView>
-      </KeyboardAvoidingView>
-      <BottomNavigation active="profile" />
-    </SafeAreaView>
-  );
+    } catch (cause) { setFailed(true); setFeedback(cause instanceof Error ? cause.message : '로그인하지 못했어요. 다시 시도해주세요.'); }
+    finally { setBusy(false); }
+  }
+  return <SafeAreaView style={styles.safe}><KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.safe}>
+    <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+      <View style={styles.top}><BackButton /><BrandLogo width={140} /></View>
+      <View style={styles.intro}><Image source={require('../assets/booksome-adaptive-icon-v2.png')} style={styles.mascot} resizeMode="contain" /><Text style={styles.title}>{mode === 'sign-in' ? '읽던 이야기,\n이어서 만나요' : '나만의 서재를\n시작해볼까요?'}</Text><Text style={styles.copy}>책과 문장, 나의 생각이 쌓이는 곳</Text></View>
+      <View accessibilityRole="tablist" style={styles.switch}>{(['sign-in', 'sign-up'] as const).map(value => <Pressable key={value} accessibilityRole="tab" accessibilityState={{ selected: mode === value }} onPress={() => { setMode(value); setFeedback(''); }} style={[styles.tab, mode === value && styles.tabActive]}><Text style={[styles.tabText, mode === value && styles.tabSelected]}>{value === 'sign-in' ? '로그인' : '회원가입'}</Text></Pressable>)}</View>
+      <View style={styles.form}>
+        {mode === 'sign-up' ? <Field label="닉네임"><Input accessibilityLabel="닉네임" value={name} onChangeText={setName} placeholder="책 이야기에서 불릴 이름" autoCapitalize="none" /></Field> : null}
+        <Field label="이메일"><Input accessibilityLabel="이메일" value={email} onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none" autoCorrect={false} autoComplete="email" placeholder="hello@example.com" /></Field>
+        <Field label="비밀번호" hint={mode === 'sign-up' ? '10자 이상으로 만들어주세요.' : undefined}><PasswordInput accessibilityLabel="비밀번호" value={password} onChangeText={setPassword} autoComplete={mode === 'sign-up' ? 'new-password' : 'current-password'} placeholder="비밀번호를 입력하세요" returnKeyType="go" onSubmitEditing={() => void submit()} /></Field>
+        <Feedback error={failed}>{feedback}</Feedback>
+        <Button title={mode === 'sign-in' ? '로그인하고 이어 읽기' : '내 서재 만들기'} loading={busy} onPress={() => void submit()} />
+        {mode === 'sign-in' ? <Button title="비밀번호를 잊으셨나요?" variant="ghost" onPress={() => router.push({ pathname: '/auth/update-password', params: { email: email.trim() } })} /> : <Text style={styles.note}>독서 기록은 기본적으로 나에게만 보여요.</Text>}
+      </View>
+    </ScrollView>
+  </KeyboardAvoidingView></SafeAreaView>;
 }
-
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: '#0D2F22',
-  },
-  keyboard: {
-    flex: 1,
-  },
-  content: {
-    alignSelf: 'center',
-    backgroundColor: '#F7F1E5',
-    flexGrow: 1,
-    maxWidth: 430,
-    paddingBottom: 188,
-    width: '100%',
-  },
-  hero: {
-    backgroundColor: '#0D2F22',
-    overflow: 'hidden',
-    position: 'relative',
-  },
-  heroImage: {
-    bottom: 0,
-    left: 0,
-    opacity: 0.92,
-    position: 'absolute',
-    right: 0,
-    top: 0,
-  },
-  heroShade: {
-    backgroundColor: 'rgba(5, 10, 7, 0.46)',
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
-    right: 0,
-    top: 0,
-  },
-  topBar: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingTop: 8,
-    position: 'relative',
-    zIndex: 2,
-  },
-  brand: {
-    color: '#FFFFFF',
-    fontSize: 17,
-    fontWeight: '900',
-  },
-  title: {
-    color: '#FFFFFF',
-    fontSize: 36,
-    fontWeight: '900',
-    letterSpacing: 0,
-    lineHeight: 39,
-  },
-  copy: {
-    color: 'rgba(255,255,255,0.88)',
-    fontSize: 15,
-    fontWeight: '800',
-    lineHeight: 22,
-    marginTop: 10,
-    maxWidth: 280,
-  },
-  heroCopy: {
-    bottom: 42,
-    left: 22,
-    position: 'absolute',
-    right: 22,
-    zIndex: 2,
-  },
-  heroEyebrow: {
-    color: '#F6D39C',
-    fontSize: 11,
-    fontWeight: '900',
-    letterSpacing: 0,
-    marginBottom: 10,
-  },
-  sheet: {
-    backgroundColor: '#F7F1E5',
-    borderTopLeftRadius: 34,
-    borderTopRightRadius: 34,
-    marginTop: -30,
-    paddingBottom: 28,
-    paddingHorizontal: 20,
-    paddingTop: 46,
-    position: 'relative',
-  },
-  switchRow: {
-    backgroundColor: '#E7DDCA',
-    borderRadius: 22,
-    flexDirection: 'row',
-    padding: 5,
-  },
-  switchChip: {
-    borderRadius: 18,
-    flex: 1,
-    paddingVertical: 12,
-  },
-  switchChipActive: {
-    backgroundColor: '#103D2B',
-  },
-  switchText: {
-    color: '#6A665E',
-    fontSize: 15,
-    fontWeight: '900',
-    textAlign: 'center',
-  },
-  switchTextActive: {
-    color: '#FFFFFF',
-  },
-  form: {
-    gap: 12,
-    marginTop: 20,
-  },
-  input: {
-    backgroundColor: '#FFF9EF',
-    borderRadius: 22,
-    color: '#14251B',
-    fontSize: 16,
-    fontWeight: '700',
-    minHeight: 58,
-    paddingHorizontal: 18,
-  },
-  submitButton: {
-    alignItems: 'center',
-    backgroundColor: '#103D2B',
-    borderRadius: 23,
-    justifyContent: 'center',
-    marginTop: 8,
-    minHeight: 58,
-  },
-  submitText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '900',
-  },
-  resetButton: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    minHeight: 42,
-  },
-  resetText: {
-    color: '#103D2B',
-    fontSize: 14,
-    fontWeight: '900',
-  },
-  feedback: {
-    color: '#103D2B',
-    fontSize: 14,
-    fontWeight: '700',
-    lineHeight: 21,
-  },
-  feedbackPanel: {
-    backgroundColor: '#E3EDE5',
-    borderColor: 'rgba(16,61,43,0.18)',
-    borderRadius: 16,
-    borderWidth: 1,
-    paddingHorizontal: 16,
-    paddingVertical: 13,
-  },
-  note: {
-    color: '#81786B',
-    fontSize: 12,
-    fontWeight: '800',
-    lineHeight: 18,
-    marginTop: 4,
-    textAlign: 'center',
-  },
-  mascotBadge: {
-    alignItems: 'center',
-    backgroundColor: '#FFF9EF',
-    borderRadius: 26,
-    height: 76,
-    justifyContent: 'center',
-    overflow: 'hidden',
-    position: 'absolute',
-    right: 22,
-    top: -38,
-    width: 98,
-  },
-  mascotImage: {
-    height: 72,
-    width: 96,
-  },
+  safe: { flex: 1, backgroundColor: c.background }, content: { width: '100%', alignSelf: 'center', maxWidth: booksomeLayout.maxContentWidth, padding: 24, paddingBottom: 48 },
+  top: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }, intro: { paddingTop: 32, paddingBottom: 24, position: 'relative' },
+  mascot: { position: 'absolute', right: -20, top: 6, width: 150, height: 150, opacity: 0.95 },
+  title: { color: c.ink, fontSize: 28, lineHeight: 39, fontWeight: '800', letterSpacing: -1 }, copy: { color: c.muted, fontSize: 14, marginTop: 22 },
+  switch: { flexDirection: 'row', backgroundColor: c.subtle, padding: 4, borderRadius: 28, marginBottom: 26 }, tab: { flex: 1, minHeight: 44, alignItems: 'center', justifyContent: 'center', borderRadius: 24 }, tabActive: { backgroundColor: c.surface }, tabText: { color: c.muted, fontSize: 14, fontWeight: '600' }, tabSelected: { color: c.action, fontWeight: '700' },
+  form: { gap: 18 }, note: { textAlign: 'center', color: c.muted, fontSize: 12, lineHeight: 20 },
 });

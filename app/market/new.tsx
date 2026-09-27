@@ -7,17 +7,16 @@ import {
   Image,
   KeyboardAvoidingView,
   Platform,
-  Pressable,
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Touch as Pressable, Input as TextInput } from '../../src/components/app-ui';
+import { booksomeColors as uiColors } from '../../src/theme/booksome';
 
 import { AuthRequired } from '../../src/components/auth-required';
-import { BottomNavigation } from '../../src/components/bottom-navigation';
 import { NaverMapPicker } from '../../src/components/naver-map-picker';
 import { ScreenHeader } from '../../src/components/screen-header';
 import { useAuth } from '../../src/providers/auth-provider';
@@ -150,7 +149,7 @@ export default function NewMarketItemScreen() {
           if (isMounted) setReadingBooks(books);
         })
         .catch((error) => {
-          if (isMounted) setErrorMessage(getErrorMessage(error, '내 책장을 불러오지 못했습니다.'));
+          if (isMounted) setErrorMessage(getErrorMessage(error, '내 서재을 불러오지 못했습니다.'));
         })
         .finally(() => {
           if (isMounted) setIsLoadingReadingBooks(false);
@@ -251,51 +250,51 @@ export default function NewMarketItemScreen() {
     try {
       const uploaded = photoAsset
         ? await uploadImageAsset({
-            kind: 'post-media',
-            entityId: `market-${session.user.id}`,
-            uri: photoAsset.uri,
-            ownerId: session.user.id,
-            mimeType: photoAsset.mimeType,
-            width: photoAsset.width,
-            height: photoAsset.height,
-            fileName: photoAsset.fileName,
-          })
+          kind: 'post-media',
+          entityId: `market-${session.user.id}`,
+          uri: photoAsset.uri,
+          ownerId: session.user.id,
+          mimeType: photoAsset.mimeType,
+          width: photoAsset.width,
+          height: photoAsset.height,
+          fileName: photoAsset.fileName,
+        })
         : null;
 
       const imageUrl = uploaded?.mediaUrl ?? sourceCoverUrl ?? null;
       const nextMediaAssetId = uploaded?.id ?? mediaAssetId ?? null;
       const listing = editId
         ? await updateMarketListing({
-            sellerId: session.user.id,
-            listingId: editId,
-            type,
-            title,
-            author,
-            isbn13: sourceIsbn,
-            conditionLabel,
-            description,
-            price: priceValue,
-            areaLabel: cleanAreaLabel,
-            imageUrl,
-            mediaAssetId: nextMediaAssetId,
-          })
+          sellerId: session.user.id,
+          listingId: editId,
+          type,
+          title,
+          author,
+          isbn13: sourceIsbn,
+          conditionLabel,
+          description,
+          price: priceValue,
+          areaLabel: cleanAreaLabel,
+          imageUrl,
+          mediaAssetId: nextMediaAssetId,
+        })
         : await createMarketListing({
-            sellerId: session.user.id,
-            type,
-            title,
-            author,
-            isbn13: sourceIsbn,
-            conditionLabel,
-            description,
-            price: priceValue,
-            areaLabel: cleanAreaLabel,
-            imageUrl,
-            mediaAssetId: nextMediaAssetId,
-          });
+          sellerId: session.user.id,
+          type,
+          title,
+          author,
+          isbn13: sourceIsbn,
+          conditionLabel,
+          description,
+          price: priceValue,
+          areaLabel: cleanAreaLabel,
+          imageUrl,
+          mediaAssetId: nextMediaAssetId,
+        });
 
       router.replace(`/market/${listing.id}`);
     } catch (error) {
-      setErrorMessage(getErrorMessage(error, isEditMode ? '판매글을 수정하지 못했습니다.' : '책가게에 등록하지 못했습니다.'));
+      setErrorMessage(getErrorMessage(error, isEditMode ? '판매글을 수정하지 못했습니다.' : '북마켓에 등록하지 못했습니다.'));
     } finally {
       setIsSubmitting(false);
     }
@@ -316,13 +315,13 @@ export default function NewMarketItemScreen() {
           <ScreenHeader
             eyebrow="BookSome Bookstore"
             subtitle={isEditMode ? '책 정보와 거래 지역을 다시 정리합니다.' : '가까운 독자에게 책을 건넵니다.'}
-            title={isEditMode ? '책가게 수정' : '책가게 등록'}
+            title={isEditMode ? '판매글 수정' : '책 내놓기'}
             tone="clay"
           />
 
           {!session ? (
             <AuthRequired
-              title="책가게 등록은 로그인 후 가능합니다."
+              title="책 내놓기은 로그인 후 가능합니다."
               copy="내 동네, 책 사진, 문의 채팅이 계정에 연결됩니다."
             />
           ) : null}
@@ -331,7 +330,7 @@ export default function NewMarketItemScreen() {
             <>
               {isLoadingEditListing ? (
                 <View style={styles.editLoading}>
-                  <ActivityIndicator color="#103D2B" />
+                  <ActivityIndicator color={uiColors.action} />
                   <Text style={styles.editLoadingText}>판매글을 불러오는 중입니다</Text>
                 </View>
               ) : null}
@@ -355,7 +354,7 @@ export default function NewMarketItemScreen() {
                 <View style={styles.sourceHeader}>
                   <View>
                     <Text style={styles.sourceKicker}>책 정보</Text>
-                    <Text style={styles.sourceTitle}>내 책장에서 고르거나 ISBN을 스캔하세요</Text>
+                    <Text style={styles.sourceTitle}>내 서재에서 고르거나 ISBN을 스캔하세요</Text>
                   </View>
                   <Pressable onPress={scanMarketBook} style={styles.scanButton}>
                     <Text style={styles.scanButtonText}>스캔</Text>
@@ -364,8 +363,8 @@ export default function NewMarketItemScreen() {
 
                 {isLoadingReadingBooks ? (
                   <View style={styles.sourceLoading}>
-                    <ActivityIndicator color="#103D2B" />
-                    <Text style={styles.sourceLoadingText}>내 책장을 불러오는 중입니다</Text>
+                    <ActivityIndicator color={uiColors.action} />
+                    <Text style={styles.sourceLoadingText}>내 서재을 불러오는 중입니다</Text>
                   </View>
                 ) : null}
 
@@ -400,7 +399,7 @@ export default function NewMarketItemScreen() {
                     ))}
                   </ScrollView>
                 ) : !isLoadingReadingBooks ? (
-                  <Text style={styles.sourceEmpty}>내 책장에 책이 없으면 ISBN 스캔으로 시작할 수 있습니다.</Text>
+                  <Text style={styles.sourceEmpty}>내 서재에 책이 없으면 ISBN 스캔으로 시작할 수 있습니다.</Text>
                 ) : null}
               </View>
 
@@ -423,14 +422,14 @@ export default function NewMarketItemScreen() {
                 <TextInput
                   onChangeText={setTitle}
                   placeholder={type === 'wanted' ? '찾고 싶은 책 제목' : '내놓을 책 제목'}
-                  placeholderTextColor="#9B917E"
+                  placeholderTextColor={uiColors.muted}
                   style={styles.input}
                   value={title}
                 />
                 <TextInput
                   onChangeText={setAuthor}
                   placeholder="작가"
-                  placeholderTextColor="#9B917E"
+                  placeholderTextColor={uiColors.muted}
                   style={styles.input}
                   value={author}
                 />
@@ -440,14 +439,14 @@ export default function NewMarketItemScreen() {
                       keyboardType="number-pad"
                       onChangeText={(value) => setPriceInput(value.replace(/[^0-9]/g, ''))}
                       placeholder="가격, 나눔은 0"
-                      placeholderTextColor="#9B917E"
+                      placeholderTextColor={uiColors.muted}
                       style={styles.input}
                       value={priceInput}
                     />
                     <TextInput
                       onChangeText={setConditionLabel}
                       placeholder="상태 예: 밑줄 조금, 깨끗함"
-                      placeholderTextColor="#9B917E"
+                      placeholderTextColor={uiColors.muted}
                       style={styles.input}
                       value={conditionLabel}
                     />
@@ -457,7 +456,7 @@ export default function NewMarketItemScreen() {
                   multiline
                   onChangeText={setDescription}
                   placeholder={type === 'wanted' ? '왜 찾는지, 원하는 판본이 있는지 적어주세요.' : '책에 대한 짧은 소개나 거래 메모'}
-                  placeholderTextColor="#9B917E"
+                  placeholderTextColor={uiColors.muted}
                   style={[styles.input, styles.textArea]}
                   value={description}
                 />
@@ -469,7 +468,7 @@ export default function NewMarketItemScreen() {
                   <TextInput
                     onChangeText={setAreaLabel}
                     placeholder="예: 연남동, 마포구청역, 판교역 근처"
-                    placeholderTextColor="#8D8A78"
+                    placeholderTextColor={uiColors.muted}
                     returnKeyType="done"
                     style={styles.locationInput}
                     value={areaLabel}
@@ -487,7 +486,7 @@ export default function NewMarketItemScreen() {
               </View>
 
               {type === 'offer' && priceValue === 0 ? (
-                <Text style={styles.freeHint}>0원으로 등록하면 책가게에서 나눔으로 표시됩니다.</Text>
+                <Text style={styles.freeHint}>0원으로 등록하면 북마켓에서 나눔으로 표시됩니다.</Text>
               ) : null}
 
               {errorMessage ? <Text style={styles.errorText}>{errorMessage}</Text> : null}
@@ -514,7 +513,6 @@ export default function NewMarketItemScreen() {
         }}
         visible={isMapPickerVisible}
       />
-      <BottomNavigation active="rooms" />
     </SafeAreaView>
   );
 }
@@ -556,7 +554,7 @@ function getErrorMessage(error: unknown, fallback: string) {
 
 const styles = StyleSheet.create({
   safeArea: {
-    backgroundColor: '#F6EEE1',
+    backgroundColor: uiColors.background,
     flex: 1,
   },
   keyboard: {
@@ -568,7 +566,7 @@ const styles = StyleSheet.create({
     paddingBottom: 124,
   },
   modeSwitch: {
-    borderBottomColor: 'rgba(143,106,66,0.16)',
+    borderBottomColor: 'rgba(38,37,38,0.16)',
     borderBottomWidth: 1,
     flexDirection: 'row',
     gap: 8,
@@ -581,7 +579,7 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
   },
   editLoadingText: {
-    color: '#526154',
+    color: uiColors.muted,
     fontSize: 13,
     fontWeight: '800',
   },
@@ -592,18 +590,18 @@ const styles = StyleSheet.create({
     paddingVertical: 13,
   },
   modeButtonActive: {
-    borderBottomColor: '#103D2B',
+    borderBottomColor: uiColors.action,
   },
   modeText: {
-    color: '#7D6B55',
+    color: uiColors.muted,
     fontSize: 14,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   modeTextActive: {
-    color: '#103D2B',
+    color: uiColors.action,
   },
   sourceSection: {
-    borderBottomColor: 'rgba(143,106,66,0.16)',
+    borderBottomColor: 'rgba(38,37,38,0.16)',
     borderBottomWidth: 1,
     paddingBottom: 18,
     paddingTop: 22,
@@ -615,22 +613,22 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   sourceKicker: {
-    color: '#8F6A42',
+    color: uiColors.action,
     fontSize: 11,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   sourceTitle: {
-    color: '#14251B',
+    color: uiColors.ink,
     fontSize: 16,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 22,
     marginTop: 4,
     maxWidth: 230,
   },
   scanButton: {
     alignItems: 'center',
-    backgroundColor: '#103D2B',
-    borderRadius: 18,
+    backgroundColor: uiColors.action,
+    borderRadius: 24,
     justifyContent: 'center',
     minHeight: 42,
     paddingHorizontal: 16,
@@ -638,7 +636,7 @@ const styles = StyleSheet.create({
   scanButtonText: {
     color: '#FFFFFF',
     fontSize: 13,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   sourceLoading: {
     alignItems: 'center',
@@ -647,7 +645,7 @@ const styles = StyleSheet.create({
     marginTop: 16,
   },
   sourceLoadingText: {
-    color: '#526154',
+    color: uiColors.muted,
     fontSize: 13,
     fontWeight: '800',
   },
@@ -661,7 +659,7 @@ const styles = StyleSheet.create({
   },
   shelfPickCover: {
     alignItems: 'center',
-    backgroundColor: '#D8BE88',
+    backgroundColor: uiColors.subtle,
     borderColor: 'transparent',
     borderRadius: 16,
     borderWidth: 3,
@@ -671,16 +669,16 @@ const styles = StyleSheet.create({
     width: 72,
   },
   shelfPickCoverActive: {
-    borderColor: '#103D2B',
+    borderColor: uiColors.action,
   },
   shelfPickImage: {
     height: '100%',
     width: '100%',
   },
   shelfPickFallback: {
-    color: '#103D2B',
+    color: uiColors.action,
     fontSize: 10,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   shelfPickTitle: {
     color: '#4E5A50',
@@ -690,16 +688,16 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   sourceEmpty: {
-    color: '#667167',
+    color: uiColors.muted,
     fontSize: 13,
     fontWeight: '700',
     lineHeight: 19,
     marginTop: 16,
   },
   photoBlock: {
-    backgroundColor: '#D8BE88',
-    borderRadius: 30,
-    height: 220,
+    backgroundColor: uiColors.accentSoft,
+    borderRadius: 24,
+    height: 168,
     marginTop: 24,
     overflow: 'hidden',
   },
@@ -713,29 +711,28 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   photoMark: {
-    color: '#103D2B',
+    color: uiColors.action,
     fontSize: 34,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   photoText: {
-    color: '#103D2B',
+    color: uiColors.action,
     fontSize: 14,
-    fontWeight: '900',
+    fontWeight: '700',
     marginTop: 4,
   },
   sourceIsbn: {
-    color: '#8F6A42',
+    color: uiColors.action,
     fontSize: 11,
-    fontWeight: '900',
+    fontWeight: '700',
     marginTop: 10,
   },
   form: {
     marginTop: 18,
+    gap: 14,
   },
   input: {
-    borderBottomColor: 'rgba(143,106,66,0.22)',
-    borderBottomWidth: 1,
-    color: '#14251B',
+    color: uiColors.ink,
     fontSize: 17,
     fontWeight: '800',
     minHeight: 54,
@@ -748,7 +745,7 @@ const styles = StyleSheet.create({
   },
   locationPanel: {
     alignItems: 'center',
-    backgroundColor: 'rgba(16,61,43,0.08)',
+    backgroundColor: 'rgba(38,37,38,0.08)',
     borderRadius: 24,
     flexDirection: 'row',
     gap: 14,
@@ -759,42 +756,36 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   locationLabel: {
-    color: '#8F6A42',
+    color: uiColors.action,
     fontSize: 11,
-    fontWeight: '900',
-  },
-  locationTitle: {
-    color: '#103D2B',
-    fontSize: 18,
-    fontWeight: '900',
-    marginTop: 5,
+    fontWeight: '700',
   },
   locationInput: {
-    color: '#103D2B',
+    color: uiColors.action,
     fontSize: 17,
-    fontWeight: '900',
+    fontWeight: '700',
     marginTop: 3,
     minHeight: 38,
     paddingVertical: 0,
   },
   locationHint: {
-    color: '#667167',
+    color: uiColors.muted,
     fontSize: 12,
     fontWeight: '700',
     lineHeight: 18,
     marginTop: 4,
   },
   locationPreview: {
-    color: '#103D2B',
+    color: uiColors.action,
     fontSize: 13,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 18,
     marginTop: 9,
   },
   locationButton: {
     alignItems: 'center',
-    backgroundColor: '#103D2B',
-    borderRadius: 21,
+    backgroundColor: uiColors.action,
+    borderRadius: 24,
     height: 42,
     justifyContent: 'center',
     width: 58,
@@ -802,17 +793,17 @@ const styles = StyleSheet.create({
   locationButtonText: {
     color: '#FFFFFF',
     fontSize: 13,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   freeHint: {
-    color: '#8F6A42',
+    color: uiColors.action,
     fontSize: 13,
     fontWeight: '800',
     lineHeight: 19,
     marginTop: 12,
   },
   errorText: {
-    color: '#A43D20',
+    color: uiColors.danger,
     fontSize: 13,
     fontWeight: '800',
     lineHeight: 19,
@@ -820,8 +811,8 @@ const styles = StyleSheet.create({
   },
   submitButton: {
     alignItems: 'center',
-    backgroundColor: '#103D2B',
-    borderRadius: 22,
+    backgroundColor: uiColors.action,
+    borderRadius: 24,
     justifyContent: 'center',
     marginTop: 24,
     minHeight: 56,
@@ -832,6 +823,6 @@ const styles = StyleSheet.create({
   submitText: {
     color: '#FFFFFF',
     fontSize: 16,
-    fontWeight: '900',
+    fontWeight: '700',
   },
 });

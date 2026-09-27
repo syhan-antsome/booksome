@@ -1,24 +1,20 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { LinearGradient } from 'expo-linear-gradient';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Image,
-  Pressable,
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   View,
-  useWindowDimensions,
-  type ImageSourcePropType,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Button, Touch as Pressable, Input as TextInput } from '../../src/components/app-ui';
+import { ScreenHeader } from '../../src/components/screen-header';
+import { booksomeColors as uiColors } from '../../src/theme/booksome';
 
-import bookstoreSignboardImage from '../../assets/bookstore-signboard.jpg';
 import { AuthRequired } from '../../src/components/auth-required';
-import { BottomNavigation } from '../../src/components/bottom-navigation';
 import { useAuth } from '../../src/providers/auth-provider';
 import {
   listMarketListings,
@@ -34,20 +30,15 @@ const marketFilters: Array<{ label: string; value: MarketListingFilter }> = [
 ];
 
 const activityAreaStorageKey = 'booksome.market.activityArea';
-const bookstoreSignboardSource: ImageSourcePropType =
-  typeof bookstoreSignboardImage === 'string' ? { uri: bookstoreSignboardImage } : bookstoreSignboardImage;
-const bookstoreSignboardRatio = 803 / 1400;
 
 export default function MarketScreen() {
   const { session } = useAuth();
-  const { width } = useWindowDimensions();
   const [filter, setFilter] = useState<MarketListingFilter>('all');
   const [activityArea, setActivityArea] = useState('');
   const [activityAreaInput, setActivityAreaInput] = useState('');
   const [listings, setListings] = useState<MarketListing[]>([]);
   const [isLoadingListings, setIsLoadingListings] = useState(false);
   const [listingError, setListingError] = useState<string | null>(null);
-  const bookstoreHeroHeight = Math.round(width * bookstoreSignboardRatio);
 
   useEffect(() => {
     let isMounted = true;
@@ -82,7 +73,7 @@ export default function MarketScreen() {
           if (isMounted) setListings(nextListings);
         })
         .catch((error) => {
-          if (isMounted) setListingError(getErrorMessage(error, '책가게 목록을 불러오지 못했습니다.'));
+          if (isMounted) setListingError(getErrorMessage(error, '북마켓 목록을 불러오지 못했습니다.'));
         })
         .finally(() => {
           if (isMounted) setIsLoadingListings(false);
@@ -147,35 +138,12 @@ export default function MarketScreen() {
   return (
     <SafeAreaView style={styles.safeArea}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <View style={[styles.bookstoreHero, { height: bookstoreHeroHeight }]}>
-          <Image resizeMode="contain" source={bookstoreSignboardSource} style={styles.bookstoreHeroImage} />
-          <LinearGradient
-            colors={['rgba(246, 238, 225, 0)', 'rgba(246, 238, 225, 0.38)', '#F6EEE1']}
-            locations={[0, 0.48, 1]}
-            pointerEvents="none"
-            style={styles.bookstoreHeroGradient}
-          />
-
-          <View style={styles.bookstoreHeroTop}>
-            <Pressable accessibilityLabel="내 책가게" onPress={openMyBookstore} style={styles.bookstoreHeroLink}>
-              <Text style={styles.bookstoreHeroLinkText}>내책</Text>
-            </Pressable>
-            <Pressable accessibilityLabel="책가게 등록" onPress={openNewListing} style={styles.bookstoreHeroAction}>
-              <Text style={styles.bookstoreHeroActionText}>＋</Text>
-            </Pressable>
-          </View>
-        </View>
-
-        <View style={styles.bookstoreIntro}>
-          <Text style={styles.bookstoreEyebrow}>BOOKSOME BOOKSTORE</Text>
-          <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.86} style={styles.bookstoreIntroText}>
-            읽은 책이 다음 독자를 만나는 곳
-          </Text>
-        </View>
+        <ScreenHeader title="북마켓" subtitle="읽은 책이 다음 독자를 만나는 곳" />
+        <View style={{ flexDirection: 'row', gap: 10 }}><Button title="내 거래" variant="secondary" onPress={openMyBookstore} style={{ flex: 1 }} /><Button title="책 내놓기" icon="add-outline" onPress={openNewListing} style={{ flex: 1 }} /></View>
 
         {!session ? (
           <AuthRequired
-            title="책가게는 로그인 후 이용합니다."
+            title="북마켓는 로그인 후 이용합니다."
             copy="동네 기반으로 책을 올리고 문의하기 위해 계정이 필요합니다."
           />
         ) : null}
@@ -189,13 +157,13 @@ export default function MarketScreen() {
                   onChangeText={setActivityAreaInput}
                   onSubmitEditing={applyActivityArea}
                   placeholder="예: 서울 마포구, 연남동, 판교역"
-                  placeholderTextColor="#8D8A78"
+                  placeholderTextColor={uiColors.muted}
                   returnKeyType="done"
                   style={styles.locationInput}
                   value={activityAreaInput}
                 />
                 <Text style={styles.locationHint}>
-                  GPS 없이 직접 정한 지역명으로 책을 살펴봅니다.
+                  동네 이름을 입력하면 가까운 책을 찾아요.
                 </Text>
               </View>
               <View style={styles.locationActions}>
@@ -229,14 +197,14 @@ export default function MarketScreen() {
             </ScrollView>
 
             <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>{activityArea ? `${activityArea} 책가게` : '책가게'}</Text>
+              <Text style={styles.sectionTitle}>{activityArea ? `${activityArea} 북마켓` : '북마켓'}</Text>
               <Text style={styles.sectionMeta}>{visibleListings.length}권</Text>
             </View>
 
             {isLoadingListings ? (
               <View style={styles.loadingPanel}>
-                <ActivityIndicator color="#103D2B" />
-                <Text style={styles.loadingText}>책가게 책을 살펴보는 중입니다</Text>
+                <ActivityIndicator color={uiColors.action} />
+                <Text style={styles.loadingText}>북마켓 책을 살펴보는 중입니다</Text>
               </View>
             ) : null}
 
@@ -245,7 +213,7 @@ export default function MarketScreen() {
             {!isLoadingListings && visibleListings.length === 0 ? (
               <View style={styles.emptyPanel}>
                 <Text style={styles.emptyTitle}>{activityArea ? '이 지역에는 아직 책이 없습니다' : '아직 올라온 책이 없습니다'}</Text>
-                <Text style={styles.emptyCopy}>첫 책을 올리면 북썸 책가게가 조용히 문을 엽니다.</Text>
+                <Text style={styles.emptyCopy}>첫 책을 올리면 북썸 북마켓가 조용히 문을 엽니다.</Text>
               </View>
             ) : null}
 
@@ -285,7 +253,6 @@ export default function MarketScreen() {
           </>
         ) : null}
       </ScrollView>
-      <BottomNavigation active="rooms" />
     </SafeAreaView>
   );
 }
@@ -313,93 +280,17 @@ function getErrorMessage(error: unknown, fallback: string) {
 
 const styles = StyleSheet.create({
   safeArea: {
-    backgroundColor: '#F6EEE1',
+    backgroundColor: uiColors.background,
     flex: 1,
   },
   content: {
     padding: 20,
     paddingBottom: 124,
   },
-  bookstoreHero: {
-    marginHorizontal: -20,
-    marginTop: -20,
-    overflow: 'hidden',
-    position: 'relative',
-  },
-  bookstoreHeroImage: {
-    height: '100%',
-    width: '100%',
-  },
-  bookstoreHeroGradient: {
-    bottom: -1,
-    height: 118,
-    left: 0,
-    position: 'absolute',
-    right: 0,
-  },
-  bookstoreHeroTop: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    gap: 10,
-    justifyContent: 'flex-end',
-    left: 0,
-    paddingHorizontal: 20,
-    paddingTop: 12,
-    position: 'absolute',
-    right: 0,
-    top: 0,
-    zIndex: 3,
-  },
-  bookstoreHeroLink: {
-    alignItems: 'center',
-    backgroundColor: 'rgba(247, 241, 229, 0.92)',
-    borderRadius: 18,
-    height: 38,
-    justifyContent: 'center',
-    paddingHorizontal: 14,
-  },
-  bookstoreHeroLinkText: {
-    color: '#103D2B',
-    fontSize: 13,
-    fontWeight: '900',
-  },
-  bookstoreHeroAction: {
-    alignItems: 'center',
-    backgroundColor: 'rgba(247, 241, 229, 0.92)',
-    borderRadius: 22,
-    height: 44,
-    justifyContent: 'center',
-    width: 44,
-  },
-  bookstoreHeroActionText: {
-    color: '#103D2B',
-    fontSize: 25,
-    fontWeight: '900',
-    lineHeight: 28,
-  },
-  bookstoreIntro: {
-    marginTop: 8,
-    paddingBottom: 8,
-  },
-  bookstoreEyebrow: {
-    color: '#8F6A42',
-    fontSize: 11,
-    fontWeight: '900',
-    letterSpacing: 0,
-  },
-  bookstoreIntroText: {
-    color: '#14251B',
-    fontSize: 18,
-    fontWeight: '900',
-    lineHeight: 24,
-    marginTop: 6,
-  },
   locationPanel: {
     alignItems: 'center',
-    backgroundColor: 'rgba(16,61,43,0.08)',
-    borderColor: 'rgba(16,61,43,0.08)',
-    borderRadius: 28,
-    borderWidth: 1,
+    backgroundColor: uiColors.accentSoft,
+    borderRadius: 20,
     flexDirection: 'row',
     gap: 16,
     marginTop: 18,
@@ -409,26 +300,20 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   locationLabel: {
-    color: '#8F6A42',
+    color: uiColors.action,
     fontSize: 11,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   locationInput: {
-    color: '#103D2B',
-    fontSize: 18,
-    fontWeight: '900',
+    color: uiColors.action,
+    fontSize: 15,
+    fontWeight: '700',
     marginTop: 2,
     minHeight: 34,
     paddingVertical: 0,
   },
-  locationTitle: {
-    color: '#103D2B',
-    fontSize: 19,
-    fontWeight: '900',
-    marginTop: 4,
-  },
   locationHint: {
-    color: '#667167',
+    color: uiColors.muted,
     fontSize: 12,
     fontWeight: '700',
     lineHeight: 18,
@@ -436,8 +321,8 @@ const styles = StyleSheet.create({
   },
   locationButton: {
     alignItems: 'center',
-    backgroundColor: '#103D2B',
-    borderRadius: 21,
+    backgroundColor: uiColors.action,
+    borderRadius: 24,
     height: 42,
     justifyContent: 'center',
     width: 58,
@@ -449,21 +334,21 @@ const styles = StyleSheet.create({
   locationButtonText: {
     color: '#FFFFFF',
     fontSize: 13,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   locationGhostButton: {
     alignItems: 'center',
-    borderColor: 'rgba(16,61,43,0.16)',
-    borderRadius: 15,
+    borderColor: 'rgba(38,37,38,0.16)',
+    borderRadius: 24,
     borderWidth: 1,
     minHeight: 30,
     justifyContent: 'center',
     paddingHorizontal: 11,
   },
   locationGhostText: {
-    color: '#103D2B',
+    color: uiColors.action,
     fontSize: 12,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   filterRow: {
     gap: 8,
@@ -471,21 +356,21 @@ const styles = StyleSheet.create({
     paddingRight: 20,
   },
   filterChip: {
-    borderBottomColor: 'rgba(143,106,66,0.14)',
+    borderBottomColor: 'rgba(38,37,38,0.14)',
     borderBottomWidth: 2,
     paddingHorizontal: 13,
     paddingVertical: 12,
   },
   filterChipActive: {
-    borderBottomColor: '#103D2B',
+    borderBottomColor: uiColors.action,
   },
   filterText: {
-    color: '#7D6B55',
+    color: uiColors.muted,
     fontSize: 13,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   filterTextActive: {
-    color: '#103D2B',
+    color: uiColors.action,
   },
   sectionHeader: {
     alignItems: 'flex-end',
@@ -495,14 +380,14 @@ const styles = StyleSheet.create({
     marginTop: 28,
   },
   sectionTitle: {
-    color: '#14251B',
+    color: uiColors.ink,
     fontSize: 22,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   sectionMeta: {
-    color: '#8F6A42',
+    color: uiColors.action,
     fontSize: 12,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   loadingPanel: {
     alignItems: 'center',
@@ -511,29 +396,29 @@ const styles = StyleSheet.create({
     paddingVertical: 18,
   },
   loadingText: {
-    color: '#526154',
+    color: uiColors.muted,
     fontSize: 13,
     fontWeight: '800',
   },
   emptyPanel: {
-    borderTopColor: 'rgba(143,106,66,0.14)',
+    borderTopColor: 'rgba(38,37,38,0.14)',
     borderTopWidth: 1,
     paddingVertical: 24,
   },
   emptyTitle: {
-    color: '#103D2B',
+    color: uiColors.ink,
     fontSize: 18,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   emptyCopy: {
-    color: '#667167',
+    color: uiColors.muted,
     fontSize: 13,
     fontWeight: '700',
     lineHeight: 20,
     marginTop: 8,
   },
   errorText: {
-    color: '#A43D20',
+    color: uiColors.danger,
     fontSize: 13,
     fontWeight: '800',
     lineHeight: 19,
@@ -544,7 +429,7 @@ const styles = StyleSheet.create({
   },
   marketItem: {
     alignItems: 'center',
-    borderBottomColor: 'rgba(143,106,66,0.14)',
+    borderBottomColor: 'rgba(38,37,38,0.14)',
     borderBottomWidth: 1,
     flexDirection: 'row',
     gap: 15,
@@ -552,7 +437,7 @@ const styles = StyleSheet.create({
   },
   bookThumb: {
     alignItems: 'center',
-    backgroundColor: '#D8BE88',
+    backgroundColor: uiColors.accentSoft,
     borderRadius: 17,
     height: 82,
     justifyContent: 'center',
@@ -565,7 +450,7 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   bookSpine: {
-    backgroundColor: '#103D2B',
+    backgroundColor: uiColors.action,
     bottom: 0,
     left: 0,
     position: 'absolute',
@@ -573,9 +458,9 @@ const styles = StyleSheet.create({
     width: 8,
   },
   bookThumbText: {
-    color: '#103D2B',
+    color: uiColors.action,
     fontSize: 11,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   itemCopy: {
     flex: 1,
@@ -587,31 +472,31 @@ const styles = StyleSheet.create({
     marginTop: 7,
   },
   itemLocationLabel: {
-    color: '#8F6A42',
+    color: uiColors.action,
     fontSize: 11,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   itemArea: {
-    color: '#103D2B',
+    color: uiColors.action,
     flex: 1,
     fontSize: 13,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   itemTitle: {
-    color: '#14251B',
+    color: uiColors.ink,
     fontSize: 17,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   itemPrice: {
-    color: '#103D2B',
+    color: uiColors.action,
     fontSize: 15,
-    fontWeight: '900',
+    fontWeight: '700',
     marginTop: 8,
   },
   itemArrow: {
-    color: '#103D2B',
+    color: uiColors.action,
     fontSize: 30,
-    fontWeight: '900',
+    fontWeight: '700',
     paddingRight: 4,
   },
 });

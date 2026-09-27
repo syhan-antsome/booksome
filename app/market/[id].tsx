@@ -3,16 +3,16 @@ import { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
   Image,
-  Pressable,
   ScrollView,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Touch as Pressable } from '../../src/components/app-ui';
+import { booksomeColors as uiColors } from '../../src/theme/booksome';
 
 import { AuthRequired } from '../../src/components/auth-required';
-import { BottomNavigation } from '../../src/components/bottom-navigation';
 import { NaverMapPreview } from '../../src/components/naver-map-preview';
 import { ScreenHeader } from '../../src/components/screen-header';
 import { useAuth } from '../../src/providers/auth-provider';
@@ -85,20 +85,20 @@ export default function MarketDetailScreen() {
         <ScreenHeader
           eyebrow="BookSome Bookstore"
           subtitle="가까운 독자와 직접 이야기합니다."
-          title="책가게"
+          title="북마켓"
           tone="clay"
         />
 
         {!session ? (
           <AuthRequired
-            title="책가게 문의는 로그인 후 가능합니다."
+            title="북마켓 문의는 로그인 후 가능합니다."
             copy="안전한 대화와 거래 상태 관리를 위해 계정이 필요합니다."
           />
         ) : null}
 
         {isLoading ? (
           <View style={styles.loadingPanel}>
-            <ActivityIndicator color="#103D2B" />
+            <ActivityIndicator color={uiColors.action} />
             <Text style={styles.loadingText}>책 정보를 펼치는 중입니다</Text>
           </View>
         ) : null}
@@ -176,7 +176,6 @@ export default function MarketDetailScreen() {
           </>
         ) : null}
       </ScrollView>
-      <BottomNavigation active="rooms" />
     </SafeAreaView>
   );
 }
@@ -211,7 +210,7 @@ function getErrorMessage(error: unknown, fallback: string) {
 
 const styles = StyleSheet.create({
   safeArea: {
-    backgroundColor: '#F6EEE1',
+    backgroundColor: uiColors.background,
     flex: 1,
   },
   content: {
@@ -225,19 +224,19 @@ const styles = StyleSheet.create({
     paddingVertical: 20,
   },
   loadingText: {
-    color: '#526154',
+    color: uiColors.muted,
     fontSize: 13,
     fontWeight: '800',
   },
   errorText: {
-    color: '#A43D20',
+    color: uiColors.danger,
     fontSize: 13,
     fontWeight: '800',
     lineHeight: 19,
     marginTop: 12,
   },
   photoStage: {
-    backgroundColor: '#D8BE88',
+    backgroundColor: uiColors.accentSoft,
     borderRadius: 30,
     minHeight: 318,
     overflow: 'hidden',
@@ -252,62 +251,62 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   photoFallbackText: {
-    color: '#103D2B',
+    color: uiColors.action,
     fontSize: 18,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   titleBlock: {
-    borderBottomColor: 'rgba(143,106,66,0.18)',
+    borderBottomColor: 'rgba(38,37,38,0.18)',
     borderBottomWidth: 1,
     paddingBottom: 20,
     paddingTop: 22,
   },
   title: {
-    color: '#14251B',
+    color: uiColors.ink,
     fontSize: 28,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 34,
     marginTop: 8,
   },
   author: {
-    color: '#667167',
+    color: uiColors.muted,
     fontSize: 14,
     fontWeight: '800',
     marginTop: 8,
   },
   price: {
-    color: '#103D2B',
+    color: uiColors.action,
     fontSize: 24,
-    fontWeight: '900',
+    fontWeight: '700',
     marginTop: 14,
   },
   locationSummary: {
     marginTop: 18,
   },
   locationLabel: {
-    color: '#8F6A42',
+    color: uiColors.action,
     fontSize: 11,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   locationValue: {
-    color: '#103D2B',
+    color: uiColors.action,
     fontSize: 20,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 27,
     marginTop: 4,
   },
   locationMapBlock: {
-    borderTopColor: 'rgba(143,106,66,0.16)',
+    borderTopColor: 'rgba(38,37,38,0.16)',
     borderTopWidth: 1,
     paddingTop: 18,
   },
   locationMapTitle: {
-    color: '#14251B',
+    color: uiColors.ink,
     fontSize: 17,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   locationHint: {
-    color: '#667167',
+    color: uiColors.muted,
     fontSize: 12,
     fontWeight: '700',
     lineHeight: 18,
@@ -320,9 +319,9 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
   },
   metaText: {
-    color: '#7D6B55',
+    color: uiColors.muted,
     fontSize: 13,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   descriptionBlock: {
     paddingVertical: 12,
@@ -335,8 +334,8 @@ const styles = StyleSheet.create({
   },
   inquiryButton: {
     alignItems: 'center',
-    backgroundColor: '#103D2B',
-    borderRadius: 22,
+    backgroundColor: uiColors.action,
+    borderRadius: 24,
     justifyContent: 'center',
     marginTop: 24,
     minHeight: 56,
@@ -344,25 +343,25 @@ const styles = StyleSheet.create({
   inquiryText: {
     color: '#FFFFFF',
     fontSize: 16,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   ownerActions: {
     marginTop: 24,
   },
   editButton: {
     alignItems: 'center',
-    backgroundColor: '#103D2B',
-    borderRadius: 22,
+    backgroundColor: uiColors.action,
+    borderRadius: 24,
     justifyContent: 'center',
     minHeight: 56,
   },
   editButtonText: {
     color: '#FFFFFF',
     fontSize: 16,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   ownerHint: {
-    color: '#667167',
+    color: uiColors.muted,
     fontSize: 13,
     fontWeight: '700',
     lineHeight: 19,

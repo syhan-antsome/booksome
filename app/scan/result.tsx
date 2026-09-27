@@ -7,14 +7,14 @@ import {
   Image,
   KeyboardAvoidingView,
   Platform,
-  Pressable,
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Touch as Pressable, Input as TextInput } from '../../src/components/app-ui';
+import { booksomeColors as uiColors } from '../../src/theme/booksome';
 
 import { AuthRequired } from '../../src/components/auth-required';
 import { ScreenHeader } from '../../src/components/screen-header';
@@ -142,13 +142,13 @@ export default function ScanResultScreen() {
         ...(isMarketContext ? { context: 'market-listing' } : {}),
         ...(isMeetupContext
           ? {
-              context: 'meetup-book',
-              meetupCity: getStringParam(params.meetupCity),
-              meetupDescription: getStringParam(params.meetupDescription),
-              meetupDistrict: getStringParam(params.meetupDistrict),
-              meetupProvince: getStringParam(params.meetupProvince),
-              meetupTitle: getStringParam(params.meetupTitle),
-            }
+            context: 'meetup-book',
+            meetupCity: getStringParam(params.meetupCity),
+            meetupDescription: getStringParam(params.meetupDescription),
+            meetupDistrict: getStringParam(params.meetupDistrict),
+            meetupProvince: getStringParam(params.meetupProvince),
+            meetupTitle: getStringParam(params.meetupTitle),
+          }
           : {}),
       },
     });
@@ -162,10 +162,10 @@ export default function ScanResultScreen() {
           ? '/market/new'
           : isMeetupContext
             ? {
-                pathname: '/meetups/new',
-                params: getMeetupReturnParams(params),
-              }
-          : '/library',
+              pathname: '/meetups/new',
+              params: getMeetupReturnParams(params),
+            }
+            : '/library',
     );
   };
 
@@ -229,7 +229,7 @@ export default function ScanResultScreen() {
       });
       router.replace({ pathname: '/reading-life/[id]', params: { id: savedBook.id, welcome: '1' } });
     } catch (error) {
-      setRegistrationError(getErrorMessage(error, '내 책장에 등록하지 못했습니다.'));
+      setRegistrationError(getErrorMessage(error, '내 서재에 등록하지 못했습니다.'));
     } finally {
       setIsAddingToReadingLife(false);
     }
@@ -338,7 +338,7 @@ export default function ScanResultScreen() {
           {!session ? (
             <AuthRequired
               title="스캔 결과는 로그인 후 사용할 수 있습니다."
-              copy="독서생활과 북룸에 책 정보를 연결하기 위해 계정이 필요합니다."
+              copy="독서생활과 책 이야기에 책 정보를 연결하기 위해 계정이 필요합니다."
             />
           ) : null}
 
@@ -351,7 +351,7 @@ export default function ScanResultScreen() {
 
               {isLookingUpBook ? (
                 <View style={styles.loadingPanel}>
-                  <ActivityIndicator color="#116653" />
+                  <ActivityIndicator color={uiColors.action} />
                   <Text style={styles.loadingText}>도서 정보를 찾고 있습니다</Text>
                 </View>
               ) : null}
@@ -394,14 +394,14 @@ export default function ScanResultScreen() {
 
               {selectedBook && !isRoomContext && !isMarketContext && isCheckingDuplicate ? (
                 <View style={styles.duplicatePanel}>
-                  <ActivityIndicator color="#116653" />
-                  <Text style={styles.duplicateText}>내 책장에 이미 있는 책인지 확인하고 있습니다.</Text>
+                  <ActivityIndicator color={uiColors.action} />
+                  <Text style={styles.duplicateText}>내 서재에 이미 있는 책인지 확인하고 있습니다.</Text>
                 </View>
               ) : null}
 
               {selectedBook && !isRoomContext && !isMarketContext && duplicateBook ? (
                 <View style={styles.duplicatePanel}>
-                  <Text style={styles.duplicateTitle}>이미 내 책장에 있는 책입니다</Text>
+                  <Text style={styles.duplicateTitle}>이미 내 서재에 있는 책입니다</Text>
                   <Text numberOfLines={2} style={styles.duplicateText}>
                     {duplicateBook.title}
                   </Text>
@@ -422,7 +422,7 @@ export default function ScanResultScreen() {
                     onChangeText={(value) => setTotalPagesInput(value.replace(/[^0-9]/g, ''))}
                     onFocus={scrollToPageInput}
                     placeholder="예: 312"
-                    placeholderTextColor="#9B917E"
+                    placeholderTextColor={uiColors.muted}
                     returnKeyType="done"
                     style={styles.pageInput}
                     value={totalPagesInput}
@@ -451,12 +451,12 @@ export default function ScanResultScreen() {
                   ) : (
                     <Text style={styles.primaryButtonText}>
                       {isRoomContext
-                        ? '북룸 책으로 사용'
+                        ? '책 이야기 책으로 사용'
                         : isMarketContext
-                          ? '책가게에 사용'
+                          ? '북마켓에 사용'
                           : isMeetupContext
                             ? '시작 책으로 사용'
-                            : '내 책장에 등록'}
+                            : '내 서재에 등록'}
                     </Text>
                   )}
                 </Pressable>
@@ -465,9 +465,9 @@ export default function ScanResultScreen() {
               <Pressable onPress={cancelRegistration} style={styles.cancelButton}>
                 <Text style={styles.cancelButtonText}>
                   {isRoomContext
-                    ? '북룸 책 설정 취소'
+                    ? '책 이야기 책 설정 취소'
                     : isMarketContext
-                      ? '책가게 등록 취소'
+                      ? '책 내놓기 취소'
                       : isMeetupContext
                         ? '시작 책 설정 취소'
                         : '등록 취소'}
@@ -494,8 +494,8 @@ function parsePositiveInteger(value: string) {
 }
 
 function getResultSubtitle(isRoomContext: boolean, isMarketContext: boolean, isMeetupContext = false) {
-  if (isRoomContext) return '도서 정보를 확인하고 북룸으로 가져갑니다.';
-  if (isMarketContext) return '도서 정보를 확인하고 책가게 등록에 사용합니다.';
+  if (isRoomContext) return '도서 정보를 확인하고 책 이야기로 가져갑니다.';
+  if (isMarketContext) return '도서 정보를 확인하고 책 내놓기에 사용합니다.';
   if (isMeetupContext) return '도서 정보를 확인하고 시작 책으로 사용합니다.';
   return '도서 정보를 확인하고 마지막 페이지를 입력합니다.';
 }
@@ -547,7 +547,7 @@ function getErrorMessage(error: unknown, fallback: string) {
 
 const styles = StyleSheet.create({
   safeArea: {
-    backgroundColor: '#F7F2EA',
+    backgroundColor: uiColors.background,
     flex: 1,
   },
   keyboardView: {
@@ -560,8 +560,8 @@ const styles = StyleSheet.create({
   },
   rescanHeaderButton: {
     alignItems: 'center',
-    backgroundColor: '#103D2B',
-    borderRadius: 22,
+    backgroundColor: uiColors.action,
+    borderRadius: 24,
     height: 44,
     justifyContent: 'center',
     width: 44,
@@ -569,10 +569,10 @@ const styles = StyleSheet.create({
   rescanHeaderButtonText: {
     color: '#FFFFFF',
     fontSize: 18,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   isbnLine: {
-    borderBottomColor: 'rgba(16,61,43,0.12)',
+    borderBottomColor: 'rgba(38,37,38,0.12)',
     borderBottomWidth: 1,
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -580,12 +580,12 @@ const styles = StyleSheet.create({
     paddingBottom: 14,
   },
   isbnLabel: {
-    color: '#8F6A42',
+    color: uiColors.action,
     fontSize: 12,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   isbnValue: {
-    color: '#103D2B',
+    color: uiColors.action,
     fontSize: 13,
     fontWeight: '800',
   },
@@ -596,12 +596,12 @@ const styles = StyleSheet.create({
     marginTop: 24,
   },
   loadingText: {
-    color: '#435049',
+    color: uiColors.ink,
     fontSize: 14,
     fontWeight: '800',
   },
   bookPanel: {
-    borderBottomColor: 'rgba(16,61,43,0.12)',
+    borderBottomColor: 'rgba(38,37,38,0.12)',
     borderBottomWidth: 1,
     flexDirection: 'row',
     gap: 18,
@@ -610,7 +610,7 @@ const styles = StyleSheet.create({
   },
   coverWrap: {
     alignItems: 'center',
-    backgroundColor: '#E4D5B7',
+    backgroundColor: uiColors.line,
     borderRadius: 20,
     height: 178,
     justifyContent: 'center',
@@ -619,7 +619,7 @@ const styles = StyleSheet.create({
     width: 118,
   },
   coverWrapEditable: {
-    borderColor: 'rgba(16, 61, 43, 0.18)',
+    borderColor: 'rgba(38,37,38,0.18)',
     borderWidth: 1,
   },
   coverWrapPressed: {
@@ -631,12 +631,12 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   coverFallback: {
-    color: '#103D2B',
+    color: uiColors.action,
     fontSize: 14,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   coverEditBadge: {
-    backgroundColor: 'rgba(16, 61, 43, 0.9)',
+    backgroundColor: 'rgba(38,37,38,0.9)',
     borderRadius: 999,
     bottom: 8,
     left: 8,
@@ -648,7 +648,7 @@ const styles = StyleSheet.create({
   coverEditBadgeText: {
     color: '#FFFFFF',
     fontSize: 11,
-    fontWeight: '900',
+    fontWeight: '700',
     textAlign: 'center',
   },
   bookCopy: {
@@ -656,19 +656,19 @@ const styles = StyleSheet.create({
     minWidth: 0,
   },
   bookKicker: {
-    color: '#8F6A42',
+    color: uiColors.action,
     fontSize: 12,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   bookTitle: {
-    color: '#26372B',
+    color: uiColors.ink,
     fontSize: 22,
     fontWeight: '800',
     lineHeight: 28,
     marginTop: 7,
   },
   bookMeta: {
-    color: '#6C776F',
+    color: uiColors.muted,
     fontSize: 13,
     fontWeight: '700',
     lineHeight: 19,
@@ -685,14 +685,14 @@ const styles = StyleSheet.create({
     marginTop: 24,
   },
   pageLabel: {
-    color: '#8F6A42',
+    color: uiColors.action,
     fontSize: 12,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   pageInput: {
-    borderBottomColor: '#103D2B',
+    borderBottomColor: uiColors.action,
     borderBottomWidth: 2,
-    color: '#142326',
+    color: uiColors.ink,
     fontSize: 34,
     fontWeight: '800',
     lineHeight: 42,
@@ -701,7 +701,7 @@ const styles = StyleSheet.create({
     paddingTop: 6,
   },
   pageHint: {
-    color: '#6C776F',
+    color: uiColors.muted,
     fontSize: 13,
     fontWeight: '700',
     lineHeight: 20,
@@ -718,9 +718,9 @@ const styles = StyleSheet.create({
     padding: 16,
   },
   duplicateTitle: {
-    color: '#A43D20',
+    color: uiColors.danger,
     fontSize: 16,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   duplicateText: {
     color: '#5D4B3F',
@@ -729,8 +729,8 @@ const styles = StyleSheet.create({
     lineHeight: 19,
   },
   duplicateButton: {
-    backgroundColor: '#A43D20',
-    borderRadius: 15,
+    backgroundColor: uiColors.danger,
+    borderRadius: 24,
     marginTop: 4,
     paddingHorizontal: 14,
     paddingVertical: 10,
@@ -738,10 +738,10 @@ const styles = StyleSheet.create({
   duplicateButtonText: {
     color: '#FFFFFF',
     fontSize: 13,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   errorText: {
-    color: '#A43D20',
+    color: uiColors.danger,
     fontSize: 13,
     fontWeight: '800',
     lineHeight: 19,
@@ -754,8 +754,8 @@ const styles = StyleSheet.create({
   },
   primaryButton: {
     alignItems: 'center',
-    backgroundColor: '#116653',
-    borderRadius: 18,
+    backgroundColor: uiColors.action,
+    borderRadius: 24,
     flex: 1,
     justifyContent: 'center',
     minHeight: 52,
@@ -764,21 +764,21 @@ const styles = StyleSheet.create({
   primaryButtonText: {
     color: '#FFFFFF',
     fontSize: 15,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   secondaryButton: {
     alignItems: 'center',
-    backgroundColor: '#E2D8C9',
-    borderRadius: 18,
+    backgroundColor: uiColors.line,
+    borderRadius: 24,
     flex: 1,
     justifyContent: 'center',
     minHeight: 52,
     paddingHorizontal: 14,
   },
   secondaryButtonText: {
-    color: '#142326',
+    color: uiColors.ink,
     fontSize: 15,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   disabledButton: {
     opacity: 0.48,
@@ -787,7 +787,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: 'rgba(125,75,53,0.07)',
     borderColor: 'rgba(125,75,53,0.22)',
-    borderRadius: 18,
+    borderRadius: 24,
     borderWidth: 1,
     justifyContent: 'center',
     marginTop: 14,

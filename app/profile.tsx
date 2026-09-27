@@ -1,6 +1,6 @@
 import * as ImagePicker from 'expo-image-picker';
-import { Link } from 'expo-router';
-import { useEffect, useMemo, useState } from 'react';
+import { Link, useFocusEffect } from 'expo-router';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Alert,
   Image,
@@ -8,26 +8,27 @@ import {
   Linking,
   Modal,
   Platform,
-  Pressable,
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Button, Touch as Pressable, Sheet, Input as TextInput } from '../src/components/app-ui';
+import { BrandLogo } from '../src/components/brand-logo';
+import { listReadingLifeBooks, listReadingLifeNoteCounts } from '../src/services/reading-life';
+import { booksomeColors as uiColors } from '../src/theme/booksome';
 
 import { AuthRequired } from '../src/components/auth-required';
-import { booksomeColors, booksomeType, booksomeLayout } from '../src/theme/booksome';
 import { TabPage } from '../src/components/tab-page';
-import { PaperGrain } from '../src/components/collector-surfaces';
 import { useAuth } from '../src/providers/auth-provider';
 import { updateProfile } from '../src/services/auth';
 import { getMediaUrl, uploadImageAsset } from '../src/services/media';
+import { booksomeColors, booksomeLayout } from '../src/theme/booksome';
 
 const profileLinks = [
-  { href: '/library', label: '내 서재', meta: '읽는 책과 완독 기록' },
-  { href: '/rooms', label: '북룸', meta: '책마다 모인 책톡' },
+  { href: '/reading-life', label: '독서 달력', meta: '책과 문장을 만난 날 돌아보기' },
+  { href: '/meetups', label: '독서 모임', meta: '함께 읽을 사람들과 만나기' },
   { href: '/market', label: '북마켓', meta: '책을 나누고 거래하기' },
 ] as const;
 
@@ -40,6 +41,16 @@ export default function ProfileScreen() {
   const [isSavingName, setIsSavingName] = useState(false);
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
   const [isWebSignOutConfirmVisible, setIsWebSignOutConfirmVisible] = useState(false);
+  const [editingName, setEditingName] = useState(false);
+  const [summary, setSummary] = useState<{ books: number; finished: number; notes: number } | null>(null);
+  useFocusEffect(useCallback(() => {
+    let active = true;
+    if (!session) { setSummary(null); return; }
+    Promise.all([listReadingLifeBooks(session.user.id), listReadingLifeNoteCounts(session.user.id)])
+      .then(([books, counts]) => { if (active) setSummary({ books: books.length, finished: books.filter(book => book.status === 'finished').length, notes: Object.values(counts).reduce((sum, value) => sum + value, 0) }); })
+      .catch(() => { if (active) setSummary(null); });
+    return () => { active = false; };
+  }, [session?.user.id]));
 
   useEffect(() => {
     setDisplayName(profile?.display_name ?? '');
@@ -57,8 +68,9 @@ export default function ProfileScreen() {
 
   if (!isLoading && !session) {
     return (
-      <TabPage><SafeAreaView edges={['top', 'left', 'right']} style={styles.safeArea}><PaperGrain />
+      <TabPage><SafeAreaView edges={['top', 'left', 'right']} style={styles.safeArea}>
         <View style={styles.requiredWrap}>
+          <BrandLogo />
           <AuthRequired
             title="나의 책 생활"
             copy="닉네임, 프로필 사진, 독서 기록은 로그인 후 사용할 수 있습니다."
@@ -176,7 +188,7 @@ export default function ProfileScreen() {
   };
 
   return (
-    <TabPage><SafeAreaView edges={['top', 'left', 'right']} style={styles.safeArea}><PaperGrain />
+    <TabPage><SafeAreaView edges={['top', 'left', 'right']} style={styles.safeArea}>
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.keyboardWrap}>
         <ScrollView
           contentContainerStyle={[styles.content, { paddingBottom: Math.max(insets.bottom + 112, 132) }]}
@@ -184,8 +196,9 @@ export default function ProfileScreen() {
           showsVerticalScrollIndicator={false}
         >
           <View style={styles.header}>
-            <Text style={styles.title}>나의 책 생활</Text>
-            <Text style={styles.subtitle}>책톡에 보이는 내 이름과 사진</Text>
+            <BrandLogo />
+            <Text style={[styles.title, { marginTop: 28, fontFamily: undefined }]}>나의 독서 생활</Text>
+            <Text style={styles.subtitle}>차곡차곡 쌓인, 책과 보낸 시간</Text>
           </View>
 
           <View style={styles.profileSection}>
@@ -216,36 +229,42 @@ export default function ProfileScreen() {
             </View>
           </View>
 
-          <View style={styles.formSection}>
-            <Text style={styles.label}>닉네임</Text>
-            <View style={styles.inputRow}>
-              <TextInput
-                autoCapitalize="none"
-                maxLength={24}
-                onChangeText={(value) => {
-                  setDisplayName(value);
-                  setErrorText('');
-                  setStatusText('');
-                }}
-                placeholder="책톡에서 사용할 이름"
-                placeholderTextColor="#9A958E"
-                style={styles.input}
-                value={displayName}
-              />
-              <Pressable
-                disabled={!canSaveName}
-                onPress={saveDisplayName}
-                style={[styles.saveButton, canSaveName ? styles.saveButtonActive : null]}
-              >
-                <Text style={[styles.saveButtonText, canSaveName ? styles.saveButtonTextActive : null]}>
-                  {isSavingName ? '저장 중' : '저장'}
-                </Text>
-              </Pressable>
+          {summary ? <View style={{ flexDirection: 'row', borderTopWidth: 1, borderBottomWidth: 1, borderColor: uiColors.line, paddingVertical: 24, marginBottom: 24 }}>
+            {[['서재', summary.books, '권'], ['완독', summary.finished, '권'], ['남긴 기록', summary.notes, '개']].map(([label, count, unit]) => <View key={String(label)} style={{ flex: 1, alignItems: 'center', gap: 8 }}><Text style={{ fontSize: 26, color: uiColors.ink, fontWeight: '700' }}>{count}<Text style={{ fontSize: 12, color: uiColors.muted }}> {unit}</Text></Text><Text style={{ fontSize: 12, color: uiColors.muted }}>{label}</Text></View>)}
+          </View> : null}
+          <Button title="프로필 편집" variant="secondary" onPress={() => setEditingName(true)} />
+          <Sheet visible={editingName} title="내 이름 바꾸기" onClose={() => setEditingName(false)}>
+            <View style={styles.formSection}>
+              <Text style={styles.label}>닉네임</Text>
+              <View style={styles.inputRow}>
+                <TextInput
+                  autoCapitalize="none"
+                  maxLength={24}
+                  onChangeText={(value) => {
+                    setDisplayName(value);
+                    setErrorText('');
+                    setStatusText('');
+                  }}
+                  placeholder="이야기에서 사용할 이름"
+                  placeholderTextColor={uiColors.muted}
+                  style={styles.input}
+                  value={displayName}
+                />
+                <Pressable
+                  disabled={!canSaveName}
+                  onPress={saveDisplayName}
+                  style={[styles.saveButton, canSaveName ? styles.saveButtonActive : null]}
+                >
+                  <Text style={[styles.saveButtonText, canSaveName ? styles.saveButtonTextActive : null]}>
+                    {isSavingName ? '저장 중' : '저장'}
+                  </Text>
+                </Pressable>
+              </View>
+              <Text style={styles.helperText}>본명 대신 닉네임이나 필명으로 활동할 수 있습니다.</Text>
+              {statusText ? <Text style={styles.statusText}>{statusText}</Text> : null}
+              {errorText ? <Text style={styles.errorText}>{errorText}</Text> : null}
             </View>
-            <Text style={styles.helperText}>본명 대신 닉네임이나 필명으로 활동할 수 있습니다.</Text>
-            {statusText ? <Text style={styles.statusText}>{statusText}</Text> : null}
-            {errorText ? <Text style={styles.errorText}>{errorText}</Text> : null}
-          </View>
+          </Sheet>
 
           <View style={styles.linkSection}>
             {session && !session.user.email_verified ? (
@@ -342,18 +361,17 @@ const styles = StyleSheet.create({
   },
   content: {
     width: '100%', maxWidth: booksomeLayout.maxContentWidth, alignSelf: 'center',
-    paddingHorizontal: 18,
+    paddingHorizontal: 24,
     paddingTop: 18,
   },
   header: {
-    borderBottomColor: 'rgba(20,35,31,0.1)',
+    borderBottomColor: 'rgba(38,37,38,0.1)',
     borderBottomWidth: 1,
     paddingBottom: 14,
   },
   title: {
-    fontFamily: booksomeType.serif,
-    color: '#18231F',
-    fontSize: 22,
+    color: uiColors.ink,
+    fontSize: 30,
     fontWeight: '600',
   },
   subtitle: {
@@ -363,7 +381,7 @@ const styles = StyleSheet.create({
     marginTop: 5,
   },
   profileSection: {
-    backgroundColor: booksomeColors.forestSoft, borderRadius: 4, marginVertical: 20, paddingHorizontal: 18,
+    backgroundColor: booksomeColors.accentSoft, borderRadius: 24, marginVertical: 24, paddingHorizontal: 18,
     alignItems: 'center',
     flexDirection: 'row',
     paddingVertical: 18,
@@ -380,7 +398,7 @@ const styles = StyleSheet.create({
   },
   avatarFallback: {
     alignItems: 'center',
-    backgroundColor: '#D8D0C4',
+    backgroundColor: uiColors.line,
     height: '100%',
     justifyContent: 'center',
     width: '100%',
@@ -395,12 +413,12 @@ const styles = StyleSheet.create({
     marginLeft: 14,
   },
   profileName: {
-    color: '#18231F',
+    color: uiColors.ink,
     fontSize: 17,
     fontWeight: '600',
   },
   profileEmail: {
-    color: '#77736C',
+    color: uiColors.muted,
     fontSize: 12,
     fontWeight: '400',
     marginTop: 4,
@@ -410,19 +428,19 @@ const styles = StyleSheet.create({
     marginTop: 9,
   },
   textButtonLabel: {
-    color: '#8C3E38',
+    color: uiColors.danger,
     fontSize: 13,
     fontWeight: '500',
   },
   formSection: {
-    borderBottomColor: 'rgba(20,35,31,0.1)',
+    borderBottomColor: 'rgba(38,37,38,0.1)',
     borderBottomWidth: 1,
-    borderTopColor: 'rgba(20,35,31,0.1)',
+    borderTopColor: 'rgba(38,37,38,0.1)',
     borderTopWidth: 1,
     paddingVertical: 16,
   },
   label: {
-    color: '#5D625A',
+    color: uiColors.muted,
     fontSize: 12,
     fontWeight: '500',
     marginBottom: 8,
@@ -433,11 +451,11 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   input: {
-    backgroundColor: '#FFFDF8',
-    borderColor: 'rgba(20,35,31,0.12)',
-    borderRadius: 5,
+    backgroundColor: uiColors.background,
+    borderColor: 'rgba(38,37,38,0.12)',
+    borderRadius: 16,
     borderWidth: 1,
-    color: '#18231F',
+    color: uiColors.ink,
     flex: 1,
     fontSize: 15,
     fontWeight: '400',
@@ -446,24 +464,24 @@ const styles = StyleSheet.create({
   },
   saveButton: {
     alignItems: 'center',
-    borderColor: 'rgba(20,35,31,0.14)',
-    borderRadius: 5,
+    borderColor: 'rgba(38,37,38,0.14)',
+    borderRadius: 24,
     borderWidth: 1,
     height: 42,
     justifyContent: 'center',
     width: 60,
   },
   saveButtonActive: {
-    backgroundColor: '#18231F',
-    borderColor: '#18231F',
+    backgroundColor: uiColors.action,
+    borderColor: uiColors.action,
   },
   saveButtonText: {
-    color: '#8B8780',
+    color: uiColors.muted,
     fontSize: 13,
     fontWeight: '500',
   },
   saveButtonTextActive: {
-    color: '#FFFDF8',
+    color: uiColors.background,
   },
   helperText: {
     color: '#7A766E',
@@ -479,13 +497,13 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   errorText: {
-    color: '#9A3A33',
+    color: uiColors.danger,
     fontSize: 12,
     fontWeight: '500',
     marginTop: 8,
   },
   linkSection: {
-    borderBottomColor: 'rgba(20,35,31,0.1)',
+    borderBottomColor: 'rgba(38,37,38,0.1)',
     borderBottomWidth: 1,
     paddingVertical: 6,
   },
@@ -498,18 +516,18 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   linkLabel: {
-    color: '#18231F',
+    color: uiColors.ink,
     fontSize: 15,
     fontWeight: '500',
   },
   linkMeta: {
-    color: '#77736C',
+    color: uiColors.muted,
     fontSize: 12,
     fontWeight: '400',
     marginTop: 3,
   },
   linkArrow: {
-    color: '#9B958B',
+    color: uiColors.muted,
     fontSize: 22,
     fontWeight: '400',
   },
@@ -517,23 +535,23 @@ const styles = StyleSheet.create({
     paddingTop: 18,
   },
   sectionTitle: {
-    color: '#5D625A',
+    color: uiColors.muted,
     fontSize: 12,
     fontWeight: '500',
     marginBottom: 10,
   },
   accountRow: {
-    borderBottomColor: 'rgba(20,35,31,0.1)',
+    borderBottomColor: 'rgba(38,37,38,0.1)',
     borderBottomWidth: 1,
     paddingBottom: 14,
   },
   accountLabel: {
-    color: '#77736C',
+    color: uiColors.muted,
     fontSize: 12,
     fontWeight: '400',
   },
   accountValue: {
-    color: '#18231F',
+    color: uiColors.ink,
     fontSize: 14,
     fontWeight: '400',
     marginTop: 5,
@@ -543,7 +561,7 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
   },
   signOutText: {
-    color: '#8C3E38',
+    color: uiColors.danger,
     fontSize: 13,
     fontWeight: '500',
   },
@@ -555,14 +573,14 @@ const styles = StyleSheet.create({
     padding: 24,
   },
   modalPanel: {
-    backgroundColor: '#FFFDF8',
+    backgroundColor: uiColors.background,
     borderRadius: 16,
     maxWidth: 340,
     padding: 22,
     width: '100%',
   },
   modalTitle: {
-    color: '#18231F',
+    color: uiColors.ink,
     fontSize: 19,
     fontWeight: '700',
   },
@@ -579,20 +597,20 @@ const styles = StyleSheet.create({
     marginTop: 22,
   },
   modalCancelButton: {
-    borderColor: 'rgba(20,35,31,0.14)',
-    borderRadius: 8,
+    borderColor: 'rgba(38,37,38,0.14)',
+    borderRadius: 24,
     borderWidth: 1,
     paddingHorizontal: 16,
     paddingVertical: 10,
   },
   modalCancelText: {
-    color: '#5D625A',
+    color: uiColors.muted,
     fontSize: 14,
     fontWeight: '600',
   },
   modalSignOutButton: {
-    backgroundColor: '#8C3E38',
-    borderRadius: 8,
+    backgroundColor: uiColors.danger,
+    borderRadius: 24,
     paddingHorizontal: 16,
     paddingVertical: 10,
   },

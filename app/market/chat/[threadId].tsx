@@ -4,17 +4,16 @@ import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
-  Pressable,
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Touch as Pressable, Input as TextInput } from '../../../src/components/app-ui';
+import { booksomeColors as uiColors } from '../../../src/theme/booksome';
 
 import { AuthRequired } from '../../../src/components/auth-required';
-import { BottomNavigation } from '../../../src/components/bottom-navigation';
 import { ScreenHeader } from '../../../src/components/screen-header';
 import { useAuth } from '../../../src/providers/auth-provider';
 import {
@@ -122,7 +121,7 @@ export default function MarketChatScreen() {
           {!session ? (
             <AuthRequired
               title="문의는 로그인 후 사용할 수 있습니다."
-              copy="책가게 대화는 내 계정에 연결됩니다."
+              copy="북마켓 대화는 내 계정에 연결됩니다."
             />
           ) : null}
 
@@ -139,7 +138,7 @@ export default function MarketChatScreen() {
 
               {isLoading ? (
                 <View style={styles.loadingPanel}>
-                  <ActivityIndicator color="#103D2B" />
+                  <ActivityIndicator color={uiColors.action} />
                   <Text style={styles.loadingText}>대화를 불러오는 중입니다</Text>
                 </View>
               ) : null}
@@ -173,7 +172,7 @@ export default function MarketChatScreen() {
                   multiline
                   onChangeText={setDraftMessage}
                   placeholder="메시지"
-                  placeholderTextColor="#9B917E"
+                  placeholderTextColor={uiColors.muted}
                   style={styles.composerInput}
                   value={draftMessage}
                 />
@@ -185,7 +184,6 @@ export default function MarketChatScreen() {
           ) : null}
         </View>
       </KeyboardAvoidingView>
-      <BottomNavigation active="rooms" />
     </SafeAreaView>
   );
 }
@@ -220,7 +218,7 @@ function getErrorMessage(error: unknown, fallback: string) {
 
 const styles = StyleSheet.create({
   safeArea: {
-    backgroundColor: '#F6EEE1',
+    backgroundColor: uiColors.background,
     flex: 1,
   },
   keyboard: {
@@ -232,22 +230,22 @@ const styles = StyleSheet.create({
     paddingBottom: 112,
   },
   listingStrip: {
-    borderBottomColor: 'rgba(143,106,66,0.16)',
+    borderBottomColor: 'rgba(38,37,38,0.16)',
     borderBottomWidth: 1,
     flexDirection: 'row',
     gap: 10,
     paddingBottom: 14,
   },
   listingPrice: {
-    color: '#103D2B',
+    color: uiColors.action,
     fontSize: 13,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   listingTitle: {
-    color: '#14251B',
+    color: uiColors.ink,
     flex: 1,
     fontSize: 13,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   loadingPanel: {
     alignItems: 'center',
@@ -256,12 +254,12 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
   },
   loadingText: {
-    color: '#526154',
+    color: uiColors.muted,
     fontSize: 13,
     fontWeight: '800',
   },
   errorText: {
-    color: '#A43D20',
+    color: uiColors.danger,
     fontSize: 13,
     fontWeight: '800',
     lineHeight: 19,
@@ -273,17 +271,17 @@ const styles = StyleSheet.create({
     paddingVertical: 18,
   },
   emptyMessages: {
-    borderTopColor: 'rgba(143,106,66,0.14)',
+    borderTopColor: 'rgba(38,37,38,0.14)',
     borderTopWidth: 1,
     paddingVertical: 24,
   },
   emptyTitle: {
-    color: '#103D2B',
+    color: uiColors.ink,
     fontSize: 18,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   emptyCopy: {
-    color: '#667167',
+    color: uiColors.muted,
     fontSize: 13,
     fontWeight: '700',
     lineHeight: 20,
@@ -299,10 +297,10 @@ const styles = StyleSheet.create({
   },
   messageBubbleMine: {
     alignSelf: 'flex-end',
-    backgroundColor: '#103D2B',
+    backgroundColor: uiColors.action,
   },
   messageText: {
-    color: '#14251B',
+    color: uiColors.ink,
     fontSize: 15,
     fontWeight: '700',
     lineHeight: 22,
@@ -311,7 +309,7 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
   },
   messageTime: {
-    color: '#8F6A42',
+    color: uiColors.action,
     fontSize: 10,
     fontWeight: '800',
     marginTop: 5,
@@ -321,8 +319,8 @@ const styles = StyleSheet.create({
   },
   composer: {
     alignItems: 'flex-end',
-    backgroundColor: 'rgba(246,238,225,0.96)',
-    borderTopColor: 'rgba(143,106,66,0.16)',
+    backgroundColor: 'rgba(250,249,247,0.96)',
+    borderTopColor: 'rgba(38,37,38,0.16)',
     borderTopWidth: 1,
     flexDirection: 'row',
     gap: 10,
@@ -330,8 +328,8 @@ const styles = StyleSheet.create({
   },
   composerInput: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 18,
-    color: '#14251B',
+    borderRadius: 16,
+    color: uiColors.ink,
     flex: 1,
     fontSize: 15,
     fontWeight: '700',
@@ -342,8 +340,8 @@ const styles = StyleSheet.create({
   },
   sendButton: {
     alignItems: 'center',
-    backgroundColor: '#103D2B',
-    borderRadius: 18,
+    backgroundColor: uiColors.action,
+    borderRadius: 24,
     height: 46,
     justifyContent: 'center',
     minWidth: 68,
@@ -355,6 +353,6 @@ const styles = StyleSheet.create({
   sendText: {
     color: '#FFFFFF',
     fontSize: 13,
-    fontWeight: '900',
+    fontWeight: '700',
   },
 });

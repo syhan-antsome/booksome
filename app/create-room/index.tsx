@@ -3,14 +3,14 @@ import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Image,
-  Pressable,
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Touch as Pressable, Input as TextInput } from '../../src/components/app-ui';
+import { booksomeColors as uiColors } from '../../src/theme/booksome';
 
 import { AuthRequired } from '../../src/components/auth-required';
 import { ScreenHeader } from '../../src/components/screen-header';
@@ -141,16 +141,16 @@ export default function CreateRoomScreen() {
         publishedDate: selectedBook?.publishedDate ?? null,
         sourcePayload: selectedBook
           ? {
-              source: selectedBook.source,
-              title: selectedBook.title,
-              author: selectedBook.author,
-              publisher: selectedBook.publisher,
-              publishedDate: selectedBook.publishedDate,
-              isbn: selectedBook.isbn,
-              imageUrl: selectedBook.imageUrl,
-              link: selectedBook.link,
-              description: selectedBook.description,
-            }
+            source: selectedBook.source,
+            title: selectedBook.title,
+            author: selectedBook.author,
+            publisher: selectedBook.publisher,
+            publishedDate: selectedBook.publishedDate,
+            isbn: selectedBook.isbn,
+            imageUrl: selectedBook.imageUrl,
+            link: selectedBook.link,
+            description: selectedBook.description,
+          }
           : null,
         roomTitle: bookTitle,
         roomSubtitle: author,
@@ -160,7 +160,7 @@ export default function CreateRoomScreen() {
 
       router.replace(`/room/${room.slug}`);
     } catch (error) {
-      setEntryError(getErrorMessage(error, '책장에 들어가지 못했습니다.'));
+      setEntryError(getErrorMessage(error, '책 이야기를 열지 못했습니다.'));
     } finally {
       setIsEntering(false);
     }
@@ -171,15 +171,15 @@ export default function CreateRoomScreen() {
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <ScreenHeader
           eyebrow="Find Bookroom"
-          subtitle="책을 찾으면 이미 열린 책장으로 들어갑니다."
-          title="책장 찾기"
+          subtitle="책을 찾아 감상과 질문을 나눠보세요."
+          title="책 이야기 찾기"
           tone="forest"
         />
 
         {!session ? (
           <AuthRequired
-            title="로그인 후 책장에 머물 수 있습니다."
-            copy="내가 남긴 문장을 내 책자리로 이어갑니다."
+            title="다른 독자와 이야기해요"
+            copy="로그인하고 같은 책을 읽는 사람들과 생각을 나눠보세요."
           />
         ) : null}
 
@@ -191,7 +191,7 @@ export default function CreateRoomScreen() {
                 <View style={styles.scanChoiceCopy}>
                   <Text style={styles.scanChoiceTitle}>ISBN으로 책 찾기</Text>
                   <Text style={styles.scanChoiceText}>
-                    바코드를 스캔하면 이미 열린 책장을 먼저 찾습니다.
+                    책 뒷면을 스캔해서 이 책의 이야기를 찾아요.
                   </Text>
                 </View>
                 <Pressable
@@ -217,7 +217,7 @@ export default function CreateRoomScreen() {
               ) : null}
               {isLookingUpBook ? (
                 <View style={styles.lookupPanel}>
-                  <ActivityIndicator color="#116653" />
+                  <ActivityIndicator color={uiColors.action} />
                   <Text style={styles.lookupText}>도서 정보를 불러오는 중입니다</Text>
                 </View>
               ) : null}
@@ -227,7 +227,7 @@ export default function CreateRoomScreen() {
                   onChangeText={updateBookSearchQuery}
                   onSubmitEditing={searchBooks}
                   placeholder="책 제목으로 검색"
-                  placeholderTextColor="#A49B8D"
+                  placeholderTextColor={uiColors.muted}
                   returnKeyType="search"
                   style={[styles.input, styles.titleSearchInput]}
                   value={bookSearchQuery}
@@ -291,21 +291,21 @@ export default function CreateRoomScreen() {
                       {selectedBook.author}
                       {selectedBook.publisher ? ` · ${selectedBook.publisher}` : ''}
                     </Text>
-                    <Text style={styles.selectedBookNote}>이미 열린 책장이 있으면 바로 그곳으로 이동합니다.</Text>
+                    <Text style={styles.selectedBookNote}>이미 열린 이야기가 있으면 그곳으로 연결돼요.</Text>
                   </View>
                 </View>
               ) : null}
               <TextInput
                 onChangeText={updateBookTitle}
                 placeholder="책 제목"
-                placeholderTextColor="#A49B8D"
+                placeholderTextColor={uiColors.muted}
                 style={styles.input}
                 value={bookTitle}
               />
               <TextInput
                 onChangeText={updateAuthor}
                 placeholder="저자"
-                placeholderTextColor="#A49B8D"
+                placeholderTextColor={uiColors.muted}
                 style={styles.input}
                 value={author}
               />
@@ -317,7 +317,7 @@ export default function CreateRoomScreen() {
               style={[styles.createButton, isEntering ? styles.uploadButtonDisabled : null]}
             >
               {isEntering ? <ActivityIndicator color="#FFFFFF" /> : null}
-              <Text style={styles.createButtonText}>북룸으로 가기</Text>
+              <Text style={styles.createButtonText}>책 이야기 시작하기</Text>
             </Pressable>
 
             {entryError ? (
@@ -351,25 +351,20 @@ function getErrorMessage(error: unknown, fallback: string) {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#F7F2EA',
+    backgroundColor: uiColors.background,
   },
   content: {
     padding: 20,
     paddingBottom: 42,
   },
   formPanel: {
-    backgroundColor: '#FFFFFF',
-    borderColor: '#E5DED1',
-    borderRadius: 24,
-    borderWidth: 1,
-    gap: 12,
+    gap: 18,
     marginTop: 24,
-    padding: 18,
   },
   scanChoice: {
     alignItems: 'center',
-    backgroundColor: '#F2ECE1',
-    borderRadius: 22,
+    backgroundColor: uiColors.background,
+    borderRadius: 24,
     flexDirection: 'row',
     gap: 14,
     marginBottom: 4,
@@ -379,9 +374,9 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scanChoiceTitle: {
-    color: '#142326',
+    color: uiColors.ink,
     fontSize: 16,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   scanChoiceText: {
     color: '#66716E',
@@ -392,7 +387,7 @@ const styles = StyleSheet.create({
   },
   scanButton: {
     alignItems: 'center',
-    backgroundColor: '#116653',
+    backgroundColor: uiColors.action,
     borderRadius: 24,
     height: 48,
     justifyContent: 'center',
@@ -401,14 +396,14 @@ const styles = StyleSheet.create({
   scanButtonIcon: {
     color: '#FFFFFF',
     fontSize: 24,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 28,
   },
   isbnChip: {
     alignItems: 'center',
     alignSelf: 'flex-start',
-    backgroundColor: '#123D31',
-    borderRadius: 18,
+    backgroundColor: uiColors.ink,
+    borderRadius: 24,
     flexDirection: 'row',
     gap: 8,
     marginBottom: 2,
@@ -416,25 +411,25 @@ const styles = StyleSheet.create({
     paddingVertical: 9,
   },
   isbnLabel: {
-    color: '#F4D38A',
+    color: uiColors.action,
     fontSize: 11,
-    fontWeight: '900',
+    fontWeight: '700',
     letterSpacing: 0,
   },
   isbnValue: {
     color: '#FFFFFF',
     fontSize: 13,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   isbnRemove: {
     color: 'rgba(255,255,255,0.75)',
     fontSize: 18,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 20,
   },
   lookupPanel: {
     alignItems: 'center',
-    backgroundColor: '#F2ECE1',
+    backgroundColor: uiColors.background,
     borderRadius: 18,
     flexDirection: 'row',
     gap: 10,
@@ -447,7 +442,7 @@ const styles = StyleSheet.create({
   },
   selectedBookPanel: {
     alignItems: 'center',
-    backgroundColor: '#123D31',
+    backgroundColor: uiColors.accentSoft,
     borderRadius: 22,
     flexDirection: 'row',
     gap: 13,
@@ -460,40 +455,40 @@ const styles = StyleSheet.create({
   },
   selectedBookImageFallback: {
     alignItems: 'center',
-    backgroundColor: '#E7DED0',
+    backgroundColor: uiColors.line,
     borderRadius: 14,
     height: 108,
     justifyContent: 'center',
     width: 74,
   },
   selectedBookImageText: {
-    color: '#7A6E62',
+    color: uiColors.muted,
     fontSize: 12,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   selectedBookCopy: {
     flex: 1,
   },
   selectedBookTitle: {
-    color: '#FFFFFF',
+    color: uiColors.ink,
     fontSize: 16,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 22,
   },
   selectedBookMeta: {
-    color: 'rgba(255,255,255,0.72)',
+    color: uiColors.muted,
     fontSize: 13,
     fontWeight: '800',
     marginTop: 6,
   },
   selectedBookNote: {
-    color: '#F4D38A',
+    color: uiColors.action,
     fontSize: 12,
-    fontWeight: '900',
+    fontWeight: '700',
     marginTop: 10,
   },
   lookupError: {
-    color: '#A43D20',
+    color: uiColors.danger,
     fontSize: 13,
     fontWeight: '800',
     lineHeight: 19,
@@ -508,8 +503,8 @@ const styles = StyleSheet.create({
   },
   titleSearchButton: {
     alignItems: 'center',
-    backgroundColor: '#116653',
-    borderRadius: 16,
+    backgroundColor: uiColors.action,
+    borderRadius: 24,
     flexDirection: 'row',
     gap: 6,
     justifyContent: 'center',
@@ -520,17 +515,17 @@ const styles = StyleSheet.create({
   titleSearchButtonText: {
     color: '#FFFFFF',
     fontSize: 14,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   bookSearchResults: {
-    backgroundColor: '#F7F2EA',
-    borderColor: '#E6DDCF',
+    backgroundColor: uiColors.background,
+    borderColor: uiColors.line,
     borderRadius: 18,
     borderWidth: 1,
     overflow: 'hidden',
   },
   bookSearchResult: {
-    borderBottomColor: '#E6DDCF',
+    borderBottomColor: uiColors.line,
     borderBottomWidth: 1,
     flexDirection: 'row',
     gap: 12,
@@ -543,25 +538,25 @@ const styles = StyleSheet.create({
   },
   bookSearchResultImageFallback: {
     alignItems: 'center',
-    backgroundColor: '#E7DED0',
+    backgroundColor: uiColors.line,
     borderRadius: 10,
     height: 76,
     justifyContent: 'center',
     width: 52,
   },
   bookSearchResultImageText: {
-    color: '#7A6E62',
+    color: uiColors.muted,
     fontSize: 10,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   bookSearchResultCopy: {
     flex: 1,
     justifyContent: 'center',
   },
   bookSearchResultTitle: {
-    color: '#142326',
+    color: uiColors.ink,
     fontSize: 15,
-    fontWeight: '900',
+    fontWeight: '700',
     lineHeight: 21,
   },
   bookSearchResultMeta: {
@@ -571,20 +566,20 @@ const styles = StyleSheet.create({
     marginTop: 5,
   },
   bookSearchResultIsbn: {
-    color: '#116653',
+    color: uiColors.action,
     fontSize: 11,
-    fontWeight: '900',
+    fontWeight: '700',
     marginTop: 6,
   },
   spacedLabel: {
     marginTop: 10,
   },
   input: {
-    backgroundColor: '#F7F2EA',
-    borderColor: '#E6DDCF',
+    backgroundColor: uiColors.background,
+    borderColor: uiColors.line,
     borderRadius: 16,
     borderWidth: 1,
-    color: '#142326',
+    color: uiColors.ink,
     fontSize: 16,
     fontWeight: '700',
     minHeight: 50,
@@ -596,8 +591,8 @@ const styles = StyleSheet.create({
   },
   createButton: {
     alignItems: 'center',
-    backgroundColor: '#142326',
-    borderRadius: 18,
+    backgroundColor: uiColors.action,
+    borderRadius: 24,
     flexDirection: 'row',
     gap: 10,
     justifyContent: 'center',
@@ -608,24 +603,24 @@ const styles = StyleSheet.create({
   createButtonText: {
     color: '#FFFFFF',
     fontSize: 17,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   statusPanel: {
-    backgroundColor: '#E8F4EF',
-    borderColor: '#B8D8CC',
+    backgroundColor: uiColors.accentSoft,
+    borderColor: uiColors.accentSoft,
     borderRadius: 18,
     borderWidth: 1,
     marginTop: 14,
     padding: 16,
   },
   errorPanel: {
-    backgroundColor: '#FFF0EA',
-    borderColor: '#F3C2AE',
+    backgroundColor: uiColors.accentSoft,
+    borderColor: uiColors.accentSoft,
   },
   errorTitle: {
-    color: '#A43D20',
+    color: uiColors.danger,
     fontSize: 15,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   errorCopy: {
     color: '#7C3B29',
@@ -635,9 +630,9 @@ const styles = StyleSheet.create({
     marginTop: 6,
   },
   label: {
-    color: '#116653',
+    color: uiColors.ink,
     fontSize: 13,
-    fontWeight: '900',
+    fontWeight: '700',
     marginBottom: 4,
     textTransform: 'uppercase',
   },

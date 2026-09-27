@@ -8,11 +8,11 @@ const compiled = ts.transpileModule(source, { compilerOptions: { module: ts.Modu
 const { tabSlideDirection, tabSlideOffset, tabForPath } = await import('data:text/javascript;base64,' + Buffer.from(compiled).toString('base64'));
 
 test('menu order controls both adjacent and distant tab changes', () => {
-  assert.equal(tabSlideDirection('today', 'library'), 'right');
-  assert.equal(tabSlideDirection('today', 'profile'), 'right');
-  assert.equal(tabSlideDirection('profile', 'record'), 'left');
-  assert.equal(tabSlideDirection('library', 'today'), 'left');
-  assert.equal(tabSlideDirection('record', 'record'), 'none');
+  assert.equal(tabSlideDirection('library', 'rooms'), 'right');
+  assert.equal(tabSlideDirection('library', 'profile'), 'right');
+  assert.equal(tabSlideDirection('profile', 'rooms'), 'left');
+  assert.equal(tabSlideDirection('rooms', 'library'), 'left');
+  assert.equal(tabSlideDirection('library', 'library'), 'none');
 });
 test('entry position comes from the correct edge and respects reduced motion', () => {
   assert.equal(tabSlideOffset('right', 390, false), 390);
@@ -21,7 +21,9 @@ test('entry position comes from the correct edge and respects reduced motion', (
   assert.equal(tabSlideOffset(undefined, 390, false), 0);
 });
 test('only main menu routes show the shared navigation', () => {
-  assert.equal(tabForPath('/'), 'today');
+  assert.equal(tabForPath('/'), 'library');
+  assert.equal(tabForPath('/library'), 'library');
+  assert.equal(tabForPath('/record'), undefined);
   assert.equal(tabForPath('/rooms/'), 'rooms');
   assert.equal(tabForPath('/profile'), 'profile');
   assert.equal(tabForPath('/reading-life/book-1'), undefined);

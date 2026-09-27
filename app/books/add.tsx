@@ -1,8 +1,9 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Image, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Button, Feedback, Field, Touch as Pressable, Sheet, Input as TextInput } from '../../src/components/app-ui';
 import { ScreenHeader } from '../../src/components/screen-header';
 import { useAuth } from '../../src/providers/auth-provider';
 import { lookupBookByIsbn, searchBooksByTitle, type BookSearchItem } from '../../src/services/books';
@@ -19,6 +20,11 @@ export default function AddBookScreen() {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState<string | null>(null);
   const [error, setError] = useState('');
+  const [manual, setManual] = useState(false);
+  const [manualTitle, setManualTitle] = useState('');
+  const [manualAuthor, setManualAuthor] = useState('');
+  const [manualIsbn, setManualIsbn] = useState('');
+  const [manualError, setManualError] = useState('');
   const request = useRef(0);
   const savingRef = useRef(false);
 
@@ -56,14 +62,24 @@ export default function AddBookScreen() {
       router.replace({ pathname: '/reading-life/[id]', params: { id: saved.id, ...(existing ? {} : { welcome: '1' }) } });
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : '책을 등록하지 못했습니다. 다시 시도해주세요.');
+      setManualError(cause instanceof Error ? cause.message : '책을 등록하지 못했습니다. 다시 시도해주세요.');
     } finally { savingRef.current = false; setSaving(null); }
+  }
+
+  function addManual() {
+    const isbn = manualIsbn.replace(/[-\s]/g, '').toUpperCase();
+    if (!manualTitle.trim() || !manualAuthor.trim() || !/^(97[89]\d{10}|\d{9}[\dX])$/.test(isbn)) {
+      setManualError('제목·저자와 책 뒷면의 ISBN 10자리 또는 13자리를 확인해주세요.'); return;
+    }
+    setManualError('');
+    void add({ title: manualTitle.trim(), author: manualAuthor.trim(), isbn, publisher: '', publishedDate: '', imageUrl: null, link: null, description: '', source: 'manual', sourcePayload: { manual: true } });
   }
 
   return (
     <SafeAreaView style={styles.safe}>
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <ScreenHeader title="책 찾기" tone="paper" />
-        <Text style={styles.intro}>제목으로 찾아 내 서재에 담아보세요.{ '\n' }페이지 수는 나중에 입력해도 괜찮아요.</Text>
+        <Text style={styles.intro}>제목으로 찾아 내 서재에 담아보세요.{'\n'}페이지 수는 나중에 입력해도 괜찮아요.</Text>
         <View style={styles.search}>
           <TextInput accessibilityLabel="책 제목, 저자 또는 ISBN" autoCapitalize="none" placeholder="책 제목, 저자 또는 ISBN" placeholderTextColor={c.muted} value={query} onChangeText={setQuery} onSubmitEditing={() => void search()} returnKeyType="search" style={styles.input} />
           <Pressable accessibilityRole="button" accessibilityLabel="책 검색" disabled={loading} onPress={() => void search()} style={styles.searchButton}>
@@ -74,8 +90,9 @@ export default function AddBookScreen() {
           <Ionicons name="barcode-outline" color={c.forest} size={22} /><Text style={styles.scanText}>종이책이 옆에 있다면 바코드로 찾기</Text>
         </Pressable>
         {error ? <Text accessibilityRole="alert" style={styles.error}>{error}</Text> : null}
+        <Button title="책 정보를 직접 입력할게요" variant="ghost" icon="create-outline" onPress={() => session ? setManual(true) : router.push({ pathname: '/auth', params: { next: '/books/add' } })} />
         {loading ? <Text style={styles.hint}>책을 찾고 있어요…</Text> : null}
-        {!loading && searched && !books.length && !error ? <Text style={styles.hint}>‘{searched}’ 검색 결과가 없어요.{ '\n' }짧은 제목이나 저자 이름으로 다시 찾아보세요.</Text> : null}
+        {!loading && searched && !books.length && !error ? <Text style={styles.hint}>‘{searched}’ 검색 결과가 없어요.{'\n'}짧은 제목이나 저자 이름으로 다시 찾아보세요.</Text> : null}
         {!searched ? <View style={styles.invitation}>
           <Text style={styles.invitationTitle}>한 권, 한 문장부터.</Text>
           <Text style={styles.intro}>지금 읽는 책을 담고 마음에 남은 문장이나 생각을 적어보세요. 기본은 나만 보는 기록이에요.</Text>
@@ -90,6 +107,12 @@ export default function AddBookScreen() {
           </View>
         </View>)}
       </ScrollView>
+      <Sheet visible={manual} title="내 책 직접 등록" onClose={() => { if (!saving) setManual(false); }}>
+        <Field label="책 제목"><TextInput accessibilityLabel="직접 등록 책 제목" value={manualTitle} onChangeText={setManualTitle} placeholder="어떤 책을 읽고 있나요?" /></Field>
+        <Field label="저자"><TextInput accessibilityLabel="직접 등록 저자" value={manualAuthor} onChangeText={setManualAuthor} placeholder="저자 이름" /></Field>
+        <Field label="ISBN" hint="책 뒷면 바코드에 적힌 10자리 또는 13자리 번호예요."><TextInput accessibilityLabel="직접 등록 ISBN" value={manualIsbn} onChangeText={setManualIsbn} autoCapitalize="characters" placeholder="978…" maxLength={20} /></Field>
+        <Feedback error>{manualError}</Feedback><Button title="내 서재에 담기" loading={saving !== null} onPress={addManual} />
+      </Sheet>
     </SafeAreaView>
   );
 }
@@ -99,8 +122,8 @@ const styles = StyleSheet.create({
   content: { alignSelf: 'center', width: '100%', maxWidth: 560, padding: layout.pageGutter, paddingBottom: 50, gap: 18 },
   intro: { fontSize: 15, lineHeight: 24, color: c.muted },
   search: { flexDirection: 'row', gap: 10, alignItems: 'center' },
-  input: { flex: 1, minWidth: 0, backgroundColor: c.paperStrong, borderWidth: 1, borderColor: c.line, borderRadius: 10, padding: 15, fontSize: 16, color: c.ink },
-  searchButton: { backgroundColor: c.forest, borderRadius: 10, width: 52, height: 52, alignItems: 'center', justifyContent: 'center' },
+  input: { flex: 1, minWidth: 0, backgroundColor: c.paperStrong, borderWidth: 1, borderColor: c.line, borderRadius: 16, padding: 15, fontSize: 16, color: c.ink },
+  searchButton: { backgroundColor: c.forest, borderRadius: 24, width: 52, height: 52, alignItems: 'center', justifyContent: 'center' },
   scan: { flexDirection: 'row', alignItems: 'center', gap: 9, paddingVertical: 10, minHeight: 44 },
   scanText: { color: c.forest, fontSize: 13, flex: 1, lineHeight: 20 },
   hint: { color: c.muted, fontSize: 15, lineHeight: 25, paddingVertical: 20 },
