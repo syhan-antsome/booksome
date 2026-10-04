@@ -7,6 +7,8 @@ import type {
   RoomSummary
 } from '@/lib/types';
 
+export type PublicResult<T> = { data: T; error: null } | { data: null; error: 'unavailable' | 'not-found' | 'search-not-configured' };
+
 const FALLBACK_API_URL = 'https://api.booksome.top';
 
 export function getApiBaseUrl() {
@@ -38,24 +40,37 @@ export async function getHomeData() {
     publicJson<RoomSummary[]>('/api/rooms/featured'),
     publicJson<BookroomFeedItem[]>('/api/rooms/feed?limit=6')
   ]);
-  return { rooms: rooms ?? [], feed: feed ?? [] };
+  return { rooms, feed };
 }
 
-export function searchBooks(query: string) {
-  return publicJson<BookSearchResponse>(`/api/books/search?query=${encodeURIComponent(query)}&display=12`);
+export async function searchBooks(query: string): Promise<PublicResult<BookSearchResponse>> {
+  const normalized = query.replace(/\s+/g, ' ').trim();
+  const isbn = normalized.replace(/[-\s]/g, '').toUpperCase();
+  const path = /^(\d{13}|\d{9}[\dX])$/.test(isbn)
+    ? `/api/books/isbn/${isbn}`
+    : `/api/books/search?query=${encodeURIComponent(normalized)}&display=12`;
+  const result = await publicJson<Omit<BookSearchResponse, 'query'>>(path);
+  return result.error ? result : { data: { ...result.data, query: normalized }, error: null };
 }
 
 export async function getRooms() {
-  return (await publicJson<RoomSummary[]>('/api/rooms/featured')) ?? [];
+  return publicJson<RoomSummary[]>('/api/rooms/featured');
 }
 
-export async function getRoom(slug: string) {
+export async function getRoom(slug: string): Promise<PublicResult<RoomDetail>> {
   const envelope = await publicJson<{ room: RoomDetail | null }>(`/api/rooms/by-slug/${encodeURIComponent(slug)}`);
-  return envelope?.room ?? null;
+  if (envelope.error) return { data: null, error: envelope.error };
+  return envelope.data.room ? { data: envelope.data.room, error: null } : { data: null, error: 'not-found' };
 }
 
 export async function getRoomPosts(roomId: string) {
-  return (await publicJson<RoomPost[]>(`/api/rooms/${encodeURIComponent(roomId)}/posts`)) ?? [];
+  const result = await publicJson<RoomPost[]>(`/api/rooms/${encodeURIComponent(roomId)}/posts`);
+  if (result.error) return result;
+  return { data: result.data.filter(post => post.visibility === 'public' && post.moderationStatus === 'approved'), error: null } as const;
+}
+
+export function getPublicStories() {
+  return publicJson<BookroomFeedItem[]>('/api/rooms/feed?limit=3');
 }
 
 export function mediaUrl(path: string | null | undefined) {
@@ -72,12 +87,13 @@ export function roomCover(room: RoomSummary | RoomDetail | BookroomFeedItem) {
   return mediaUrl(room.roomCoverPath) ?? room.roomExternalCoverUrl;
 }
 
-export async function postAuth(path: string, body: unknown) {
+export async function postAuth(path: string, body: unknown, signal?: AbortSignal) {
   return apiFetch(path, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
-    cache: 'no-store'
+    cache: 'no-store',
+    signal
   });
 }
 
@@ -94,11 +110,16 @@ export async function responseMessage(response: Response) {
   }
 }
 
-async function publicJson<T>(path: string): Promise<T | null> {
+async function publicJson<T>(path: string): Promise<PublicResult<T>> {
   try {
-    return await apiJson<T>(path, { next: { revalidate: 60 } });
+    const response = await apiFetch(path, { cache: 'no-store', signal: AbortSignal.timeout(8000) });
+    if (!response.ok) {
+      const detail = await response.json().catch(() => ({})) as { error?: string };
+      return { data: null, error: detail.error === 'book_lookup_not_configured' ? 'search-not-configured' : response.status === 404 ? 'not-found' : 'unavailable' };
+    }
+    return { data: await response.json() as T, error: null };
   } catch {
-    return null;
+    return { data: null, error: 'unavailable' };
   }
 }
 

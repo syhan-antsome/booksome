@@ -1,4 +1,7 @@
+'use client';
+
 import Image from 'next/image';
+import { useState } from 'react';
 
 type BookCoverProps = {
   src?: string | null;
@@ -7,10 +10,11 @@ type BookCoverProps = {
 };
 
 export function BookCover({ src, title, className = '' }: BookCoverProps) {
-  if (src) {
+  const [failed, setFailed] = useState<string | null>(null);
+  if (src && src !== failed) {
     return (
       <span className={`book-cover book-cover--image ${className}`}>
-        <Image alt={`${title} 표지`} className="book-cover__image" fill sizes="(max-width: 640px) 32vw, 230px" src={src} unoptimized />
+        <Image alt={`${title} 표지`} className="book-cover__image" fill sizes="(max-width: 640px) 32vw, 230px" src={src} unoptimized onError={() => setFailed(src)} />
       </span>
     );
   }

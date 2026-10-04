@@ -3,13 +3,15 @@
 import Link from 'next/link';
 import { useState, type FormEvent } from 'react';
 import { ArrowIcon } from '@/components/arrow-icon';
+import { authHref, safeNextPath } from '@/lib/navigation';
 
-export function LoginForm({ nextPath = '/me' }: { nextPath?: string }) {
+export function LoginForm({ nextPath = '/' }: { nextPath?: string }) {
   const [error, setError] = useState('');
   const [pending, setPending] = useState(false);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (pending) return;
     setError('');
     setPending(true);
     const data = new FormData(event.currentTarget);
@@ -18,7 +20,7 @@ export function LoginForm({ nextPath = '/me' }: { nextPath?: string }) {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: data.get('email'), password: data.get('password') })
       });
-      const body = (await response.json()) as { message?: string };
+      const body = (await response.json().catch(() => ({}))) as { message?: string };
       if (!response.ok) throw new Error(body.message || '로그인하지 못했습니다.');
       window.location.assign(safeNextPath(nextPath));
     } catch (cause) {
@@ -27,19 +29,14 @@ export function LoginForm({ nextPath = '/me' }: { nextPath?: string }) {
   }
 
   return (
-    <form className="auth-form" onSubmit={submit}>
+    <form className="auth-form" onSubmit={submit} aria-busy={pending}>
       <label>이메일<input autoComplete="email" name="email" required type="email" /></label>
       <label>비밀번호<input autoComplete="current-password" name="password" required type="password" /></label>
       {error ? <p className="form-message form-message--error" role="alert">{error}</p> : null}
       <button className="button button--wide" disabled={pending} type="submit">
         {pending ? '로그인 중…' : <>로그인 <ArrowIcon /></>}
       </button>
-      <div className="auth-form__links"><Link href="/password-reset">비밀번호 찾기</Link><Link href="/signup">처음 오셨나요?</Link></div>
+      <div className="auth-form__links"><Link href="/password-reset">비밀번호 찾기</Link><Link href={authHref('signup', nextPath)}>처음 오셨나요?</Link></div>
     </form>
   );
-}
-
-function safeNextPath(value: string) {
-  if (value === '/me') return '/app/library';
-  return /^\/(app(?:\/|$)|rooms(?:\/|$)|books(?:\?|$))/.test(value) && !value.includes('\\') ? value : '/app/library';
 }

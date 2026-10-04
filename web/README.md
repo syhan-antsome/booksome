@@ -5,15 +5,17 @@ Next.js App Router portal for `https://booksome.top`.
 ## Purpose
 
 - Explain BookSome before sign-in and provide indexable public pages.
-- Search books and discover public Bookrooms through the Spring API.
-- Provide web sign-up, sign-in, password reset, and the full reading flow at `/app/` using the existing Expo application.
+- Search books and discover public book conversations (책 이야기) through the Spring API.
+- Provide web sign-up, sign-in, password reset, and responsive personal reading pages at `/library`.
 - Keep access and refresh tokens in secure HTTP-only cookies through same-origin route handlers.
 
 The portal never connects to MariaDB. Server-side data requests use `BOOKSOME_API_INTERNAL_URL`; browser-visible media URLs use `NEXT_PUBLIC_API_BASE_URL`.
 
 ## Shared reading experience
 
-`/app/` serves the Expo browser export. Search, registration, notes, reading progress, and the personal completion recap share the native application's code. `/me` now forwards to `/app/library`. Links between Next.js pages and the Expo document use full-page navigation.
+The portal's `/library`, `/library/add`, and `/library/[id]` provide personal shelves, book registration, progress, private text/photo notes and completion review using the existing Spring reading-life API. Login from the home header returns to `/`; login from a selected book keeps that book and continues to `/library/add`. `/me` and older `/app/*` authentication destinations normalize to the corresponding portal page. Primary portal actions stay within Next.js on desktop and mobile.
+
+`/app/` still serves the existing Expo browser export for direct reader access. Its native/shared source and routing remain intact.
 
 Both `npm run dev` and `npm run build` first run the repository root's `build:reader` script. Install dependencies in **both** the root and `web/` before running them. The generated `public/app/` directory is ignored by Git and must be included when copying `public/` into a production release. After editing Expo sources, run `npm --prefix .. run build:reader` to refresh this static browser bundle while Next.js is running.
 
@@ -53,4 +55,14 @@ On a new server, first run `./deploy.sh setup` from the repository root. The fir
 
 ## Design sources
 
-The accepted concept references are kept under `design/`. Production photography generated for the page lives under `public/images/`.
+The current portal design and its source concepts are documented in [design/portal-renovation/README.md](design/portal-renovation/README.md). It shares the mobile wordmark, neutral surfaces and coral actions while using a search-led public web layout. Production photography lives under `public/images/`; Pretendard is self-hosted under `src/fonts/` with its OFL license.
+
+Public /rooms URLs remain compatible and are labelled 책 이야기. Personal records live in 내 서재 and are not automatically posted to public discussions. Empty responses, failed requests and missing pages have separate states. ISBN searches use the Spring ISBN endpoint; title searches show up to 12 results. Spring currently passes target=title to the book providers, so the public search label does not promise author search. Author information can still be supplied during manual registration. The discussion finder filters the featured API’s recent public list (up to 12), not the entire database.
+
+Authentication keeps the chosen book through login/signup using a validated local next path. Personal library links use Next.js navigation. Book conversation participation stays at /rooms/[slug] after login/signup; posts, comments and reactions use the existing same-origin /api/reader/rooms/** cookie proxy. Legacy /app/room/* login destinations are forwarded to the corresponding portal conversation. Personal shelves and notes use /api/reader/reading-life/**; photo uploads use the existing media proxy with multipart encoding. New notes are private; editing an existing note preserves its visibility, snapshot and native annotation metadata. API/media origins and HTTP-only cookie routes retain the existing deployment boundary.
+
+Run `npm run test:portal` for redirect validation, API states, ISBN routing, private progress/annotation behavior, multipart uploads, public-post visibility and internal/public origin separation. Root checks remain `npm run typecheck` and `npm run test:reading`; `npm run build` here also runs the reader export.
+
+Before deploying, remember that `prebuild` exports the **current root working tree**, including uncommitted mobile edits. Separate or finish those edits deliberately; do not deploy this portal review with `--allow-dirty` merely to bypass the protection.
+
+Signed-in visitors can log out from the desktop header or mobile menu. The portal clears its HTTP-only session, reloads the current public page to discard authenticated state, and notifies other portal tabs without storing tokens in the browser.
