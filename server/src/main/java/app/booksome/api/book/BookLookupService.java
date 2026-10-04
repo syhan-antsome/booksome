@@ -69,11 +69,13 @@ public class BookLookupService {
         int display = Math.min(20, Math.max(1, requestedDisplay));
         List<BookSearchItem> cachedItems = findCachedByTitle(query, display);
 
+        ProviderResult emptyKakaoResult = null;
         boolean providerFailed = false;
         try {
             var kakao = kakaoBookClient.searchByTitle(query, display);
-            if (kakao.isPresent() && !kakao.get().items().isEmpty()) {
-                return titleResponse(query, cachedItems, kakao.get(), display);
+            if (kakao.isPresent()) {
+                if (!kakao.get().items().isEmpty()) return titleResponse(query, cachedItems, kakao.get(), display);
+                emptyKakaoResult = kakao.get();
             }
         } catch (KakaoProviderException error) {
             providerFailed = true;
@@ -89,6 +91,7 @@ public class BookLookupService {
         }
 
         if (!cachedItems.isEmpty()) return new TitleSearchResponse(query, cachedItems.size(), cachedItems);
+        if (emptyKakaoResult != null) return titleResponse(query, cachedItems, emptyKakaoResult, display);
         if (providerFailed) throw providerUnavailable();
         throw notConfigured();
     }

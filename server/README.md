@@ -39,6 +39,10 @@ The application requires database credentials at runtime. Copy `.env.example` in
 - Database schema changes: Flyway only
 - Hibernate schema mode: `validate`
 
+## Book lookup
+
+The public web portal and mobile app both request title and ISBN lookups from this Spring API. It checks cached editions and then calls Kakao Book Search with `BOOKSOME_KAKAO_REST_API_KEY`. If Kakao has no result, it can call the National Library with `BOOKSOME_NL_SEOJI_CERT_KEY`. Set the keys in the API service's environment file at `/etc/booksome/booksome.env`; the web environment file and mobile build do not hold provider credentials. Restart `booksome-api.service` after changing its environment file. The Kakao client adds the `KakaoAK` header prefix itself, so enter only the REST API key value.
+
 ## Operations console
 
 The React-admin console in `../admin` uses the same authentication endpoints and calls only `/api/admin/**` APIs. Administrator access is enforced by the `ADMIN` JWT role.
