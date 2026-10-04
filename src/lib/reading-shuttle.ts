@@ -3,7 +3,9 @@ export function clampReadingPage(page: number, total: number | null) {
   return Math.min(total ?? MAX_READING_PAGE, Math.max(0, Math.round(page)));
 }
 export function pageFromDrag(start: number, distance: number, total: number | null) {
-  return clampReadingPage(start + distance / 3, total);
+  // The ruler moves with the finger beneath a fixed marker:
+  // dragging left advances through the book; dragging right goes back.
+  return clampReadingPage(start - distance / 3, total);
 }
 export function parseReadingPosition(page: string, total: string): { error: string } | { currentPage: number; totalPages: number | null } {
   if (!/^\d{1,6}$/.test(page.trim()) || (total.trim() && !/^\d{1,6}$/.test(total.trim()))) {

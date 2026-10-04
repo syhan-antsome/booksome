@@ -5,11 +5,11 @@ import ts from 'typescript';
 const source = await readFile(new URL('../src/lib/reading-shuttle.ts', import.meta.url), 'utf8');
 const compiled = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 } }).outputText;
 const { pageFromDrag, parseReadingPosition, clampReadingPage } = await import('data:text/javascript;base64,' + Buffer.from(compiled).toString('base64'));
-test('dragging works in either direction and cannot leave the book bounds', () => {
-  assert.equal(pageFromDrag(128, 72, 216), 152);
-  assert.equal(pageFromDrag(128, -72, 216), 104);
-  assert.equal(pageFromDrag(10, -1000, 216), 0);
-  assert.equal(pageFromDrag(210, 1000, 216), 216);
+test('left advances and right goes back while staying inside the book', () => {
+  assert.equal(pageFromDrag(128, -72, 216), 152);
+  assert.equal(pageFromDrag(128, 72, 216), 104);
+  assert.equal(pageFromDrag(10, 1000, 216), 0);
+  assert.equal(pageFromDrag(210, -1000, 216), 216);
 });
 test('unknown total allows recording pages without inventing a book length', () => {
   assert.deepEqual(parseReadingPosition('152', ''), { currentPage: 152, totalPages: null });

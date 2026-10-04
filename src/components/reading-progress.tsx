@@ -60,15 +60,15 @@ export function ReadingProgress({ book, onSave, onGestureChange }: {
     <View style={styles.position}><Text testID="reading-page-value" style={styles.page}>{page}<Text style={styles.unit}> 쪽</Text></Text>
       <Text style={styles.delta}>{delta > 0 ? '이전보다 ' + delta + '쪽 더 읽었어요' : delta < 0 ? '읽은 위치를 수정하고 있어요' : total ? '전체 ' + total + '쪽 중, 나의 책갈피' : '전체 쪽수를 몰라도 기록할 수 있어요'}</Text>
     </View>
-    <View testID="reading-shuttle" accessibilityRole="adjustable" accessibilityLabel="읽은 페이지 조그셔틀"
+    <View testID="reading-shuttle" accessibilityRole="adjustable" accessibilityLabel="읽은 페이지 조그셔틀" accessibilityHint="왼쪽으로 밀면 다음 페이지, 오른쪽으로 밀면 이전 페이지"
       accessibilityValue={{ min: 0, ...(total ? { max: total } : {}), now: page, text: page + '쪽' }}
       accessibilityActions={[{ name: 'increment', label: '1쪽 늘리기' }, { name: 'decrement', label: '1쪽 줄이기' }]}
       onAccessibilityAction={event => adjust(event.nativeEvent.actionName === 'increment' ? 1 : -1)}
       {...responder.panHandlers} style={styles.shuttle}>
-      <View pointerEvents="none" style={[styles.grooves, { transform: [{ translateX: -(page % 5) * 3 }] }]}>{Array.from({ length: 51 }, (_, i) => <View key={i} style={[styles.groove, i % 5 === 0 && styles.majorGroove]} />)}</View>
+      <View pointerEvents="none" style={[styles.grooves, { transform: [{ translateX: -(page % 5) * 10.2 }] }]}>{Array.from({ length: 51 }, (_, i) => <View key={i} style={[styles.groove, i % 5 === 0 && styles.majorGroove]} />)}</View>
       <View pointerEvents="none" style={styles.indicator}><View style={styles.indicatorLine} /></View>
     </View>
-    <Text style={styles.hint}>좌우로 밀어서 페이지 조절</Text>
+    <Text style={styles.hint}>← 다음 페이지 · 이전 페이지 →</Text>
     <View style={styles.controls}>
       <Pressable accessibilityRole="button" accessibilityLabel="1쪽 줄이기" disabled={busy || page === 0} onPress={() => adjust(-1)} style={styles.step}><Ionicons name="remove" size={22} color={c.ink} /><Text style={styles.stepText}>1</Text></Pressable>
       <Pressable accessibilityRole="button" onPress={openDirect} disabled={busy} style={styles.direct}><Text style={styles.directText}>직접 입력</Text></Pressable>
