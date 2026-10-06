@@ -14,7 +14,7 @@ export function safeNextPath(value?: string, fallback = '/') {
     if (/^\/app\/books\/add\/?$/.test(destination.pathname)) return `/library/add${destination.search}`;
     const legacyBook = destination.pathname.match(/^\/app\/reading-life\/([^/]+)\/?$/);
     if (legacyBook) return `/library/${legacyBook[1]}${destination.search}`;
-    return /^\/(library(?:\/|$)|rooms(?:\/|$)|books$|about$|terms$|privacy$|$)/.test(destination.pathname) ? value : fallback;
+    return /^\/(library(?:\/|$)|rooms(?:\/|$)|study$|books$|about$|terms$|privacy$|$)/.test(destination.pathname) ? value : fallback;
   } catch { return fallback; }
 }
 

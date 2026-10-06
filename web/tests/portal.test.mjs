@@ -74,6 +74,12 @@ test('home login stays home and all older portal library destinations resolve to
   assert.equal(navigation.safeNextPath('/library/book-one'), '/library/book-one');
 });
 
+test('study login returns to the exact local study route without expanding the redirect boundary', () => {
+  assert.equal(navigation.safeNextPath('/study'), '/study');
+  for (const mode of ['login', 'signup']) assert.equal(new URL(navigation.authHref(mode, '/study'), 'https://booksome.top').searchParams.get('next'), '/study');
+  for (const path of ['/study-admin', '/study/admin', '/study/../../api/auth/session', '//evil.example/study']) assert.equal(navigation.safeNextPath(path), '/');
+});
+
 test('progress supports unknown length without inventing percentages and rejects invalid pages', () => {
   assert.deepEqual(reading.readingPosition('24',''), { currentPage:24, totalPages:null, progressPercent:0, updateTotalPages:true });
   assert.equal(reading.readingPosition('24','120').progressPercent, 20);

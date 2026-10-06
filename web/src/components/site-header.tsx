@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { BrandLogo } from '@/components/brand-logo';
-import { ReaderLink, SessionLink } from '@/components/portal-session';
+import { SessionLink } from '@/components/portal-session';
 
 export function SiteHeader({ active, sticky = false }: { active?: 'books' | 'rooms' | 'about'; sticky?: boolean }) {
   return (
@@ -15,7 +15,7 @@ export function SiteHeader({ active, sticky = false }: { active?: 'books' | 'roo
       </nav>
       <div className="header-actions">
         <SessionLink />
-        <ReaderLink className="button button--compact" href="/library">내 서재</ReaderLink>
+        <Link className="button button--compact" href="/study" prefetch={false}>내 서재</Link>
       </div>
       <details className="mobile-menu">
         <summary aria-label="메뉴 열기"><span /><span /></summary>
@@ -24,7 +24,7 @@ export function SiteHeader({ active, sticky = false }: { active?: 'books' | 'roo
           <Link href="/rooms">책 이야기</Link>
           <Link href="/about">북썸 소개</Link>
           <SessionLink />
-          <ReaderLink href="/library">내 서재</ReaderLink>
+          <Link href="/study" prefetch={false}>내 서재</Link>
         </nav>
       </details>
     </header>
