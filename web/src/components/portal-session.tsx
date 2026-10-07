@@ -6,14 +6,16 @@ import { createContext, useContext, useEffect, useRef, useState, type ReactNode 
 import { authHref, conversationPath, safeNextPath } from '@/lib/navigation';
 import { ArrowIcon } from '@/components/arrow-icon';
 import { signOutPortal } from '@/lib/portal-request';
+import type { CurrentSession } from '@/lib/types';
 
-type SessionState = { signedIn: boolean; checking: boolean; loggingOut: boolean; logoutError: string; logout: () => Promise<void> };
-const SessionContext = createContext<SessionState>({ signedIn: false, checking: true, loggingOut: false, logoutError: '', logout: async () => {} });
+type SessionState = { signedIn: boolean; profileId: string | null; checking: boolean; loggingOut: boolean; logoutError: string; logout: () => Promise<void> };
+const SessionContext = createContext<SessionState>({ signedIn: false, profileId: null, checking: true, loggingOut: false, logoutError: '', logout: async () => {} });
 
 export function usePortalSession() { return useContext(SessionContext); }
 
 export function PortalSession({ children }: { children: ReactNode }) {
   const [signedIn, setSignedIn] = useState(false);
+  const [profileId,setProfileId]=useState<string|null>(null);
   const [checking, setChecking] = useState(true);
   const [loggingOut, setLoggingOut] = useState(false);
   const [logoutError, setLogoutError] = useState('');
@@ -24,7 +26,10 @@ export function PortalSession({ children }: { children: ReactNode }) {
     messageSource.current = crypto.randomUUID();
     const controller = new AbortController();
     sessionCheck.current = fetch('/api/auth/session', { cache: 'no-store', signal: controller.signal })
-      .then(response => { if (!controller.signal.aborted) setSignedIn(response.ok); })
+      .then(async response => {
+        const session=response.ok?await response.json() as CurrentSession:null;
+        if (!controller.signal.aborted) {setSignedIn(Boolean(session?.profile.id));setProfileId(session?.profile.id??null);}
+      })
       .catch(() => { /* Public browsing remains available if session lookup fails. */ })
       .finally(() => { if (!controller.signal.aborted) setChecking(false); });
     const channel = typeof BroadcastChannel === 'undefined' ? null : new BroadcastChannel('booksome-portal-session');
@@ -56,7 +61,7 @@ export function PortalSession({ children }: { children: ReactNode }) {
     }
   }
 
-  return <SessionContext.Provider value={{ signedIn, checking, loggingOut, logoutError, logout }}>{children}</SessionContext.Provider>;
+  return <SessionContext.Provider value={{ signedIn, profileId, checking, loggingOut, logoutError, logout }}>{children}</SessionContext.Provider>;
 }
 
 export function SessionLink() {

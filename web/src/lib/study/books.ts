@@ -3,23 +3,39 @@ import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.j
 import { canvasMap } from './materials';
 import type { StudyBook } from './types';
 import type { ShelfSlot } from './furniture';
+import { StudyCoverPool } from './cover-textures';
 
 const palette = ['#c56e4e', '#d8c6a6', '#647d72', '#eee5d5', '#a98970', '#415955', '#d7aa74', '#7d858d'];
-export function makeStudyBook(book: StudyBook, index: number) {
-  const color = palette[index % palette.length];
-  const ink = [2, 5, 7].includes(index % palette.length) ? '#eee9df' : '#342f29';
-  const height = .735 + (index % 4) * .033;
-  const width = book.totalPages ? Math.min(.21, Math.max(.07, book.totalPages * .00036)) : .12 + (index % 4) * .026;
-  const spine = canvasMap(128, 1024, ctx => {
-    ctx.fillStyle = color; ctx.fillRect(0, 0, 128, 1024);
+export function makeStudyBook(book: StudyBook, covers:StudyCoverPool, invalidate:()=>void) {
+  const hash=[...book.id].reduce((value,char)=>(value*31+char.charCodeAt(0))>>>0,0);
+  const color = palette[hash % palette.length];
+  const ink = [2, 5, 7].includes(hash % palette.length) ? '#eee9df' : '#342f29';
+  const height = .735 + (hash % 4) * .033;
+  const depth=height*2/3;
+  const width = book.totalPages ? Math.min(.21, Math.max(.07, book.totalPages * .00036)) : .12 + (hash % 4) * .026;
+  function spineMap(background:string,textColor:string,artwork?:HTMLCanvasElement) {return canvasMap(128, 1024, ctx => {
+    ctx.fillStyle = background; ctx.fillRect(0, 0, 128, 1024);
+    if(artwork) {
+      // Borrow the cover's vertical palette and edge detail without squeezing its printed title.
+      const swatch=document.createElement('canvas');swatch.width=8;swatch.height=48;
+      const sample=swatch.getContext('2d')!;
+      sample.drawImage(artwork,0,0,swatch.width,swatch.height);
+      ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='high';
+      ctx.globalAlpha=.68;ctx.drawImage(swatch,0,0,128,1024);
+      sample.clearRect(0,0,swatch.width,swatch.height);
+      sample.drawImage(artwork,0,0,artwork.width*.15,artwork.height,0,0,swatch.width,swatch.height);
+      ctx.globalAlpha=.32;ctx.drawImage(swatch,0,0,128,1024);ctx.globalAlpha=1;
+    }
     const crease = ctx.createLinearGradient(0, 0, 128, 0); crease.addColorStop(0, 'rgba(0,0,0,.2)'); crease.addColorStop(.15, 'rgba(255,255,255,.15)'); crease.addColorStop(1, 'rgba(0,0,0,.08)'); ctx.fillStyle = crease; ctx.fillRect(0, 0, 128, 1024);
-    ctx.fillStyle = ink; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    const characters = [...book.title]; const spacing = Math.min(81, 690 / characters.length);
-    ctx.font = '500 64px "Pretendard", "Apple SD Gothic Neo", sans-serif';
-    characters.forEach((char, i) => ctx.fillText(char, 64, 140 + i * spacing, 93));
-    ctx.save(); ctx.translate(64, 890); ctx.rotate(Math.PI / 2); ctx.font = '400 24px sans-serif'; ctx.fillText(book.author, 0, 0, 180); ctx.restore();
+    ctx.fillStyle = textColor; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    const full=[...book.title],characters=full.length>16?[...full.slice(0,15),'…']:full; const spacing = Math.min(81, 690 / characters.length);
+    ctx.font = '500 46px "Pretendard", "Apple SD Gothic Neo", sans-serif';
+    ctx.strokeStyle=textColor==='#342f29'?'rgba(255,248,232,.75)':'rgba(30,27,23,.75)';ctx.lineWidth=5;ctx.lineJoin='round';
+    characters.forEach((char, i) => {ctx.strokeText(char,64,140+i*spacing,93);ctx.fillText(char, 64, 140 + i * spacing, 93);});
+    ctx.save(); ctx.translate(64, 890); ctx.rotate(Math.PI / 2); ctx.font = '400 24px sans-serif'; ctx.lineWidth=3;ctx.strokeText(book.author,0,0,180);ctx.fillText(book.author, 0, 0, 180); ctx.restore();
     ctx.globalAlpha = .45; ctx.fillRect(27, 70, 74, 2); ctx.fillRect(27, 961, 74, 2);
-  });
+  });}
+  const spine=spineMap(color,ink);
   const cover = canvasMap(256, 384, ctx => {
     ctx.scale(.5, .5);
     ctx.fillStyle = color; ctx.fillRect(0, 0, 512, 768); ctx.fillStyle = ink; ctx.textBaseline = 'top'; ctx.font = '500 48px "Pretendard", sans-serif';
@@ -31,46 +47,51 @@ export function makeStudyBook(book: StudyBook, index: number) {
   const front = new THREE.MeshStandardMaterial({ map: cover, roughness: .75 });
   const side = new THREE.MeshStandardMaterial({ map: spine, roughness: .74 });
   const back = new THREE.MeshStandardMaterial({ color, roughness: .78 });
-  const mesh = new THREE.Mesh(new RoundedBoxGeometry(width,height,.56,2,.007), [front, back, pageMaterial, pageMaterial, side, pageMaterial]);
-  mesh.castShadow = mesh.receiveShadow = true; mesh.userData.book = book; mesh.userData.height = height; mesh.userData.depth = .56;
-  // Covers remain a best-effort enhancement. The deterministic title spine is always present.
-  if (book.coverUrl && /^https?:\/\//.test(book.coverUrl)) new THREE.TextureLoader().load(book.coverUrl, map => {
-    if (mesh.userData.disposed) { map.dispose(); return; }
-    map.colorSpace = THREE.SRGBColorSpace; front.map?.dispose(); front.map = map; front.needsUpdate = true;
-    mesh.userData.invalidate?.();
-  }, undefined, () => { /* Keep the generated cover when the remote image does not allow WebGL CORS. */ });
-  return { mesh, width, height };
+  const mesh = new THREE.Mesh(new RoundedBoxGeometry(width,height,depth,2,.007), [front, back, pageMaterial, pageMaterial, side, pageMaterial]);
+  mesh.castShadow = mesh.receiveShadow = true; mesh.userData.book = book; mesh.userData.height = height; mesh.userData.depth = depth;
+  mesh.userData.coverStatus=book.coverUrl?'loading':'missing';
+  if(book.coverUrl)void covers.load(book).then(({texture,color:coverColor})=>{
+    if(mesh.userData.disposed||covers.disposed)return;
+    front.map?.dispose();front.map=texture;front.color.set('#ffffff');front.needsUpdate=true;
+    back.color.set(coverColor);
+    const rgb=new THREE.Color(coverColor);const light=rgb.r*.2126+rgb.g*.7152+rgb.b*.0722>.36;
+    side.map?.dispose();side.map=spineMap(coverColor,light?'#342f29':'#fff7e7',texture.image as HTMLCanvasElement);side.needsUpdate=true;
+    mesh.userData.coverStatus='loaded';invalidate();
+  }).catch(()=>{if(!mesh.userData.disposed&&!covers.disposed){mesh.userData.coverStatus='error';invalidate();}});
+  return { mesh, width, height,depth };
 }
 
 export function populateBooks(parent: THREE.Group, books: StudyBook[], slots: ShelfSlot[], invalidate: () => void) {
-  const group = new THREE.Group(); parent.add(group); const targets: THREE.Mesh[] = [];
-  const occupied = slots.map(() => 0);
-  const stackHeights = slots.map(()=>0);
-  const kinds:('standing'|'stack'|null)[]=slots.map(()=>null);
+  const group = new THREE.Group(); parent.add(group); const targets: THREE.Mesh[] = [],covers=new StudyCoverPool();
+  // Fill neighboring books together so exposed covers do not dominate an otherwise empty room.
+  const shelfSlots=[...slots].sort((a,b)=>Math.round(b.y*10)-Math.round(a.y*10)||a.x-b.x);
+  const occupied = shelfSlots.map(() => 0);
+  let nextSlot=0;
   let deskHeight=0,underDeskHeight=0;
   for (let i = 0; i < books.length; i++) {
-    if (i === 0) continue; // The current book is represented by the open volume on the desk.
-    const { mesh, width, height } = makeStudyBook(books[i], i);
-    if (i < 4) { mesh.rotation.z = Math.PI / 2; mesh.rotation.y = -.13; mesh.position.set(-4.18, 1.95+deskHeight+width/2, 1.16);deskHeight+=width+.008; mesh.userData.location='desk';mesh.userData.invalidate = invalidate; group.add(mesh); targets.push(mesh); continue; }
-    if(i<6){mesh.rotation.z=Math.PI/2;mesh.position.set(-1.72,.71+underDeskHeight+width/2,1.75);underDeskHeight+=width+.008;mesh.userData.location='desk';mesh.userData.invalidate=invalidate;group.add(mesh);targets.push(mesh);continue;}
-    let slotIndex = Math.floor((i-6)/4)%slots.length;
-    const horizontal = Math.floor((i-6)/4)%5===2;
-    const space = horizontal ? height : width;
-    const kind=horizontal?'stack':'standing';
-    const unavailable=(index:number)=>(kinds[index]!==null&&kinds[index]!==kind)||(horizontal?stackHeights[index]+width>slots[index].maxHeight:occupied[index]+space+.1>slots[index].width);
-    for (let attempt = 0; attempt < slots.length && unavailable(slotIndex); attempt++) slotIndex = (slotIndex + 1) % slots.length;
-    const slot = slots[slotIndex];
+    const { mesh, width, height,depth } = makeStudyBook(books[i],covers,invalidate);
+    let slotIndex=nextSlot;
+    const unavailable=(index:number)=>!shelfSlots[index]||occupied[index]+width*Math.min(1,shelfSlots[index].maxHeight/height)+.04>shelfSlots[index].width;
+    for(let attempt=0;attempt<shelfSlots.length&&unavailable(slotIndex);attempt++)slotIndex=(slotIndex+1)%shelfSlots.length;
+    const slot = shelfSlots[slotIndex];
     if (!slot || unavailable(slotIndex)) { disposeObject(mesh); continue; }
-    kinds[slotIndex]=kind;
-    const fittedHeight=horizontal?height:Math.min(height,slot.maxHeight);
-    mesh.scale.y=fittedHeight/height;
-    mesh.position.set(slot.x + (horizontal?height/2:occupied[slotIndex]+width/2), slot.y + (horizontal?stackHeights[slotIndex]+width/2:fittedHeight/2), slot.z);
-    mesh.rotation.z=horizontal?Math.PI/2:0;
-    mesh.userData.standing=!horizontal;mesh.userData.shelf=slot;mesh.userData.location='shelves';
-    if(horizontal) stackHeights[slotIndex]+=width+.009; else occupied[slotIndex] += space + .037;
+    const scale=Math.min(1,slot.maxHeight/height),space=width*scale;
+    const fittedHeight=height*scale;
+    mesh.scale.setScalar(scale);
+    mesh.position.set(slot.x+occupied[slotIndex]+space/2,slot.y+fittedHeight/2,slot.z+.28-depth*scale/2);
+    mesh.rotation.y=0;
+    mesh.userData.standing=true;mesh.userData.shelf=slot;mesh.userData.location='shelves';mesh.userData.pullDepth=depth*scale;mesh.userData.shelfPull=true;
+    occupied[slotIndex]+=space+.012;nextSlot=slotIndex;
     mesh.userData.invalidate = invalidate; group.add(mesh); targets.push(mesh);
   }
-  return { group, targets };
+  // Desk volumes are views of the same registered books, not additional records.
+  for(let i=1;i<Math.min(books.length,6);i++) {
+    const {mesh,width}=makeStudyBook(books[i],covers,invalidate);mesh.rotation.z=Math.PI/2;
+    if(i<4){mesh.rotation.y=-.13;mesh.position.set(-4.18,1.95+deskHeight+width/2,1.16);deskHeight+=width+.008;}
+    else {mesh.position.set(-1.72,.71+underDeskHeight+width/2,1.75);underDeskHeight+=width+.008;}
+    mesh.userData.location='desk';group.add(mesh);targets.push(mesh);
+  }
+  return { group, targets,covers };
 }
 
 export function disposeObject(object: THREE.Object3D) {
@@ -79,7 +100,7 @@ export function disposeObject(object: THREE.Object3D) {
     child.userData.disposed = true;
     if (!(child instanceof THREE.Mesh)) return;
     geometries.add(child.geometry);
-    for (const material of Array.isArray(child.material) ? child.material : [child.material]) { materials.add(material); for (const value of Object.values(material)) if (value instanceof THREE.Texture) textures.add(value); }
+    for (const material of Array.isArray(child.material) ? child.material : [child.material]) { materials.add(material); for (const value of Object.values(material)) if (value instanceof THREE.Texture&&!value.userData.studyCover) textures.add(value); }
   });
   textures.forEach(t => t.dispose()); materials.forEach(m => m.dispose()); geometries.forEach(g => g.dispose());
 }

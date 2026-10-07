@@ -80,7 +80,8 @@ export function createStudyScene(container: HTMLElement, initialBooks: StudyBook
     if (container.clientWidth >= 800) composer.render(); else renderer.render(scene, camera);
     viewAngles.setFromVector3(viewOffset.copy(camera.position).sub(controls.target));
     container.dataset.frames = String(++renderedFrames); container.dataset.targetY=controls.target.y.toFixed(3);container.dataset.zoom=camera.zoom.toFixed(3);container.dataset.polar=viewAngles.phi.toFixed(3);container.dataset.azimuth=viewAngles.theta.toFixed(3);container.dataset.upY=camera.up.y.toFixed(3);container.dataset.eyeY=viewOffset.y.toFixed(3);
-    container.dataset.selectedBook=bookMotion.selectedId??'';
+    container.dataset.selectedBook=bookMotion.selectedId?bookModels.get(bookMotion.selectedId)?.object.userData.book.id??'':'';
+    container.dataset.selectedInstance=bookMotion.selectedId??'';
     container.dataset.pullProgress=bookMotion.selectedId?bookMotion.amount(bookMotion.selectedId).toFixed(3):'0.000';
     container.dataset.pulledCount=String([...bookModels.keys()].filter(id=>bookMotion.amount(id)>.001).length);
     container.dataset.bookMoving=String(bookMotion.moving);
@@ -88,6 +89,12 @@ export function createStudyScene(container: HTMLElement, initialBooks: StudyBook
     container.dataset.deskFlashStrength=(deskFlash?.effect.strength??0).toFixed(3);
     container.dataset.notebookHovered=String(notebookCue?.hovered??false);
     container.dataset.notebookPulse=(notebookCue?.strength??0).toFixed(3);
+    const covered=new Set<string>(),missing=new Set<string>();
+    for(const model of bookModels.values()){
+      const status=model.object.userData.coverStatus,id=model.object.userData.book.id;
+      if(status==='loaded')covered.add(id);if(status==='error')missing.add(id);
+    }
+    container.dataset.coversLoaded=String(covered.size);container.dataset.coversFailed=String(missing.size);
     updateNotebookHint();
   }
   function tick(now: number) {
@@ -137,14 +144,28 @@ export function createStudyScene(container: HTMLElement, initialBooks: StudyBook
     books = next; if (!materials) return;
     for(const model of bookModels.values())model.object.position.copy(model.rest);
     bookModels.clear();bookMotion.reset();
-    if (bookLayer) { root.remove(bookLayer.group); disposeObject(bookLayer.group); }
-    bookLayer = populateBooks(root, books.slice(0, 96), slots, invalidate);
+    if(openBook){openBook.userData.coverBinding=null;const cover=openBook.userData.coverMaterial as THREE.MeshStandardMaterial;cover.map=null;cover.color.set('#d8c6a6');cover.needsUpdate=true;}
+    if (bookLayer) { root.remove(bookLayer.group); disposeObject(bookLayer.group);bookLayer.covers.dispose(); }
+    bookLayer = populateBooks(root, books, slots, invalidate);
     function register(object:THREE.Object3D,depth:number) {
-      const book=object.userData.book as StudyBook;
-      bookModels.set(book.id,{object,rest:object.position.clone(),pull:new THREE.Vector3(0,0,depth*BOOK_PULL_FRACTION).applyQuaternion(object.quaternion)});
+      const pull=new THREE.Vector3(0,0,(object.userData.pullDepth??depth)*BOOK_PULL_FRACTION);
+      if(!object.userData.shelfPull)pull.applyQuaternion(object.quaternion);
+      bookModels.set(object.uuid,{object,rest:object.position.clone(),pull});
     }
     bookLayer.targets.forEach(object=>register(object,object.userData.depth));
-    if (openBook) { openBook.visible = books.length > 0; openBook.userData.book = books[0];openBook.userData.location='desk';if(openBook.visible)register(openBook,0); }
+    if (openBook) {
+      const book=books[0],object=openBook;
+      object.visible=Boolean(book);object.userData.book=book;object.userData.location='desk';
+      object.userData.coverStatus=book?.coverUrl?'loading':'missing';
+      if(book){
+        register(object,0);const binding=Symbol();object.userData.coverBinding=binding;const pool=bookLayer.covers;
+        if(book.coverUrl)void pool.load(book).then(({texture})=>{
+          if(disposed||pool.disposed||object.userData.coverBinding!==binding)return;
+          const material=object.userData.coverMaterial as THREE.MeshStandardMaterial;
+          material.map=texture;material.color.set('#ffffff');material.needsUpdate=true;object.userData.coverStatus='loaded';invalidate();
+        }).catch(()=>{if(!disposed&&!pool.disposed&&object.userData.coverBinding===binding){object.userData.coverStatus='error';invalidate();}});
+      }
+    }
     root.updateMatrixWorld(true);
     resolveDeskProps();
     let overflow=0,tilted=0;
@@ -157,6 +178,7 @@ export function createStudyScene(container: HTMLElement, initialBooks: StudyBook
     }
     container.dataset.shelfOverflow=String(overflow);container.dataset.tiltedBooks=String(tilted);
     container.dataset.books = String(books.length); onSelect(null); invalidate();
+    container.dataset.shelfBooks=String(bookLayer.targets.filter(object=>object.userData.location==='shelves').length);
   }
   function groundFloorDecor() {
     if(!decor)return;
@@ -209,25 +231,25 @@ export function createStudyScene(container: HTMLElement, initialBooks: StudyBook
     container.dataset.deskPushes=String(Number(container.dataset.deskPushes??0)+moved);
     container.dataset.deskProps=JSON.stringify(placed.map(({id,x,z})=>({id,x:Number(x.toFixed(3)),z:Number(z.toFixed(3))})));
   }
-  function activateBook(book:StudyBook) {
+  function activateBook(book:StudyBook,object?:THREE.Object3D) {
     if(deskFlash)return;
-    const model=bookModels.get(book.id);
+    const model=object?bookModels.get(object.uuid):[...bookModels.values()].find(item=>item.object.userData.book.id===book.id&&item.object.userData.location==='shelves');
     if(model?.object.userData.openBook){
       bookMotion.clear(performance.now(),motion.matches);onSelect(null);
       if(motion.matches){onOpenBook(book);return;}
       deskFlash={book,effect:new DeskBookFlash(model.object,root,performance.now())};invalidate();return;
     }
-    if(bookMotion.pick(book.id,performance.now(),motion.matches)==='open')onOpenBook(book);
+    if(!model){onOpenBook(book);return;}
+    if(bookMotion.pick(model.object.uuid,performance.now(),motion.matches)==='open')onOpenBook(book);
     else {onSelect(book);invalidate();}
   }
   function clearSelection() {cancelDeskFlash();bookMotion.clear(performance.now(),motion.matches);onSelect(null);invalidate();}
   function selectBook(id: string):StudyView|null {
     const found=books.find(book=>book.id===id);if(!found)return null;
-    const model=bookModels.get(id);
+    const model=[...bookModels.values()].find(item=>item.object.userData.book.id===id&&item.object.userData.location==='shelves');
     if(!model){onOpenBook(found);return null;}
-    if(model.object.userData.openBook){activateBook(found);return null;}
-    if(bookMotion.selectedId===id){activateBook(found);return null;}
-    activateBook(found);
+    if(bookMotion.selectedId===model.object.uuid){activateBook(found,model.object);return null;}
+    activateBook(found,model.object);
     const view=model.object.userData.location==='desk'?'desk':'shelves';setView(view);return view;
   }
   const pointer = new THREE.Vector2(), raycaster = new THREE.Raycaster(); let start: { x: number; y: number; id: number; moved:boolean } | null = null;
@@ -278,7 +300,7 @@ export function createStudyScene(container: HTMLElement, initialBooks: StudyBook
     const rect = renderer.domElement.getBoundingClientRect();
     const object=interactiveObject((event.clientX-rect.left)/rect.width*2-1,-(event.clientY-rect.top)/rect.height*2+1);
     if(object?.userData.openNotebook)onOpenNotebook();
-    else if(object?.userData.book)activateBook(object.userData.book as StudyBook);
+    else if(object?.userData.book)activateBook(object.userData.book as StudyBook,object);
     else clearSelection();
   }
   function interactiveObject(x:number,y:number):THREE.Object3D|null {
@@ -373,6 +395,6 @@ export function createStudyScene(container: HTMLElement, initialBooks: StudyBook
   function dispose() { disposed = true; window.clearTimeout(cueTimer);notebookCue?.dispose();notebookCue=null;
     motion.removeEventListener('change',motionChange);renderer.domElement.removeEventListener('pointerleave',notebookLeave);
     notebookHint?.removeEventListener('pointerenter',notebookEnter);notebookHint?.removeEventListener('pointerleave',notebookLeave);notebookHint?.removeEventListener('focus',notebookEnter);notebookHint?.removeEventListener('blur',notebookLeave);if(notebookHint)notebookHint.hidden=true;
-    cancelDeskFlash();bookMotion.reset();bookModels.clear();cancelAnimationFrame(frame); observer.disconnect(); controls.removeEventListener('change', invalidate);controls.removeEventListener('start',invalidate);controls.removeEventListener('end',invalidate); controls.dispose(); renderer.domElement.removeEventListener('pointerdown', pointerDown); renderer.domElement.removeEventListener('pointermove', pointerMove, true); renderer.domElement.removeEventListener('pointerup', pointerUp); renderer.domElement.removeEventListener('pointercancel', pointerCancel);renderer.domElement.removeEventListener('keydown',keyDown);renderer.domElement.removeEventListener('wheel',wheelZoom,true); renderer.domElement.removeEventListener('webglcontextlost', contextLost); document.removeEventListener('visibilitychange', visibility); disposeObject(scene); sun.shadow.dispose(); daylight.shadow.dispose(); daylightMap.dispose(); ao.dispose(); composer.dispose(); environmentTarget.dispose(); renderer.dispose(); renderer.forceContextLoss(); renderer.domElement.remove(); }
+    cancelDeskFlash();bookMotion.reset();bookModels.clear();bookLayer?.covers.dispose();cancelAnimationFrame(frame); observer.disconnect(); controls.removeEventListener('change', invalidate);controls.removeEventListener('start',invalidate);controls.removeEventListener('end',invalidate); controls.dispose(); renderer.domElement.removeEventListener('pointerdown', pointerDown); renderer.domElement.removeEventListener('pointermove', pointerMove, true); renderer.domElement.removeEventListener('pointerup', pointerUp); renderer.domElement.removeEventListener('pointercancel', pointerCancel);renderer.domElement.removeEventListener('keydown',keyDown);renderer.domElement.removeEventListener('wheel',wheelZoom,true); renderer.domElement.removeEventListener('webglcontextlost', contextLost); document.removeEventListener('visibilitychange', visibility); disposeObject(scene); sun.shadow.dispose(); daylight.shadow.dispose(); daylightMap.dispose(); ao.dispose(); composer.dispose(); environmentTarget.dispose(); renderer.dispose(); renderer.forceContextLoss(); renderer.domElement.remove(); }
   return { ready, setView, setNavigation, setBooks, setSettings, selectBook, clearSelection, dispose };
 }

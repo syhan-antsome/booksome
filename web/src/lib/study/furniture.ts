@@ -133,12 +133,13 @@ export function makeDesk(root: THREE.Group, m: StudyMaterials) {
 export function makeOpenBook(root: THREE.Group, m: StudyMaterials) {
   const group = new THREE.Group(); group.position.set(-2.2, 1.95, 1.87); group.rotation.y = -.12; root.add(group);
   group.userData.openBook=true;
+  const coverMaterial=m.coral.clone();group.userData.coverMaterial=coverMaterial;
   const paper = canvasMap(768, 1024, ctx => {
     ctx.fillStyle = '#f0e6d1'; ctx.fillRect(0, 0, 768, 1024); ctx.fillStyle = '#655e51';
     for (let line = 0; line < 32; line++) for (let word = 0; word < 7; word++) { const width = 38 + ((line * 17 + word * 31) % 37); ctx.fillRect(82 + word * 85, 102 + line * 25, width, 4.0); }
   });
   for (const sign of [-1, 1]) {
-    const cover = box(group, [.86, .035, 1.13], [sign * .435, -.035, 0], m.coral, .015); cover.rotation.z = -sign * .035;
+    const cover = box(group, [.86, .035, 1.13], [sign * .435, -.035, 0], coverMaterial, .015); cover.rotation.z = -sign * .035;
     box(group, [.83, .055, 1.09], [sign * .43, .003, 0], new THREE.MeshStandardMaterial({color:'#ddd1b9',roughness:.97}), .012);
     const geometry = new THREE.PlaneGeometry(.84, 1.1, 16, 12);
     const positions = geometry.attributes.position;
@@ -185,7 +186,6 @@ export function makeDecor(root: THREE.Group, m: StudyMaterials) {
   const footstool=new THREE.Group();footstool.name='floor-stool';footstool.position.set(4.15,0,1.12);root.add(footstool);
   cylinder(footstool, .35, .4, .1, [0,.68,0], m.wood);
   for (let i = 0; i < 3; i++) { const angle = i * Math.PI * 2 / 3; const leg = cylinder(footstool, .045, .07, .61, [Math.cos(angle) * .24, .32, Math.sin(angle) * .24], m.wood); leg.rotation.z = Math.cos(angle) * .15; }
-  box(footstool, [.46, .045, .58], [0,.77,0], m.ceramic, .02);
   ottoman.name='floor-ottoman';
   const board = box(root, [.13, 1.75, 1.62], [-5.62, 2.92, 1.3], m.wood, .03);
   const pinSurface = new THREE.Mesh(new THREE.PlaneGeometry(1.46, 1.57), m.cork); pinSurface.rotation.y = Math.PI / 2; pinSurface.position.set(-5.54, 2.92, 1.3); root.add(pinSurface);

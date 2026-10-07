@@ -11,7 +11,7 @@ async function load(file) {
   return import('data:text/javascript;base64,'+Buffer.from(js).toString('base64'));
 }
 const {BookPullMotion}=await load('../src/lib/study/book-pull.ts');
-const {studyBookHref}=await load('../src/lib/study/types.ts');
+const {studyBookHref,studyCoverHref,studyBookPage,STUDY_PAGE_SIZE}=await load('../src/lib/study/types.ts');
 const {createStudyCamera,resizeStudyCamera,studyCameraPose,studyViewSize}=await load('../src/lib/study/camera.ts');
 const {deskBodiesOverlap,resolveDeskCollisions}=await load('../src/lib/study/desk-collision.ts');
 const {groundStudyObject}=await load('../src/lib/study/grounding.ts');
@@ -165,8 +165,18 @@ test('reduced motion keeps the same two-step interaction with immediate position
   assert.equal(motion.pick('b',2,true),'open');motion.clear(3,true);assert.equal(motion.amount('b'),0);
 });
 
-test('real books use the private portal detail and demo books use an explicit demo detail',()=>{
-  assert.equal(studyBookHref({id:'demo-6'}),'/study/books/demo-6');
-  assert.equal(studyBookHref({id:'other',libraryId:'book-one'}),'/library/book-one');
-  assert.equal(studyBookHref({id:'demo',libraryId:'../../api/auth/session'}),'/library/..%2F..%2Fapi%2Fauth%2Fsession');
+test('study books only use private records and cover requests contain a book ID instead of a source URL',()=>{
+  assert.equal(studyBookHref({id:'book-one'}),'/library/book-one');
+  assert.equal(studyBookHref({id:'../../api/auth/session'}),'/library/..%2F..%2Fapi%2Fauth%2Fsession');
+  assert.equal(studyCoverHref({id:'book-one',coverUrl:'https://api.booksome.top/api/media/post-media/user/photo.png'}),'/api/study/books/book-one/cover');
+  assert.equal(studyCoverHref({id:'book-one',coverUrl:null}),null);
+});
+
+test('every registered book remains reachable across bounded shelf pages',()=>{
+  const books=Array.from({length:61},(_,i)=>({id:`book-${i}`}));
+  assert.equal(STUDY_PAGE_SIZE,24);
+  assert.equal(studyBookPage(books,'book-23'),0);assert.equal(studyBookPage(books,'book-24'),1);assert.equal(studyBookPage(books,'book-60'),2);
+  assert.equal(studyBookPage(books,'missing'),null);
+  const pages=Array.from({length:Math.ceil(books.length/STUDY_PAGE_SIZE)},(_,page)=>books.slice(page*STUDY_PAGE_SIZE,(page+1)*STUDY_PAGE_SIZE));
+  assert.deepEqual(pages.flat(),books);assert.ok(pages.every(page=>page.length<=24));
 });

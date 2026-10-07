@@ -54,6 +54,23 @@ test('expired portal sessions retry only after cookie-session refresh succeeds',
   } finally { global.fetch = original; }
 });
 
+test('cover bytes use explicit cookie credentials and share the existing refresh before retry',async()=>{
+  const original=global.fetch;let refreshed=false,refreshCount=0;
+  const path='/api/study/books/33333333-3333-3333-3333-333333333333/cover';
+  try {
+    global.fetch=async(url,init)=>{
+      assert.equal(init.credentials,'same-origin');
+      if(url==='/api/auth/session'){refreshCount++;await Promise.resolve();refreshed=true;return Response.json({});}
+      assert.equal(url,path);assert.equal(new Headers(init.headers).has('Authorization'),false);
+      return refreshed?new Response(new Uint8Array([1,2,3]),{headers:{'Content-Type':'image/png'}}):Response.json({},{status:401});
+    };
+    const controller=new AbortController();
+    const images=await Promise.all([portal.portalCover(path,controller.signal),portal.portalCover(path,controller.signal)]);
+    assert.equal(refreshCount,1);assert.equal(images[0].type,'image/png');assert.equal(images[0].size,3);
+    await assert.rejects(portal.portalCover('https://evil.example/cover',controller.signal));
+  }finally{global.fetch=original;}
+});
+
 test('authentication preserves selected book through login and signup, and blocks external destinations', () => {
   const next = '/library/add?query=9788936434120';
   assert.equal(navigation.safeNextPath('/app/books/add?query=9788936434120'), next);

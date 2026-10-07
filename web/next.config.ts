@@ -13,6 +13,7 @@ const nextConfig: NextConfig = {
   async headers() {
     return [
       { source: '/library/:path*', headers: [{ key: 'X-Robots-Tag', value: 'noindex' }, { key: 'Cache-Control', value: 'private, no-store' }] },
+      { source: '/study', headers: [{ key: 'X-Robots-Tag', value: 'noindex' }, { key: 'Cache-Control', value: 'private, no-store' }] },
       { source: '/app/:path*', headers: [{ key: 'X-Robots-Tag', value: 'noindex' }, { key: 'Cache-Control', value: 'no-cache' }] },
       {
         source: '/:path*',
