@@ -12,15 +12,16 @@ export type StudyMaterials = {
   ceramic: THREE.MeshStandardMaterial;
   coral: THREE.MeshStandardMaterial;
   garden: THREE.Texture;
+  facade: THREE.MeshStandardMaterial;
 };
 
 export async function loadStudyMaterials(renderer: THREE.WebGLRenderer): Promise<StudyMaterials> {
   const loader = new THREE.TextureLoader();
-  const urls = ['/study/materials.jpg', '/study/textiles.jpg', '/study/garden.jpg', ...['oak', 'floor'].flatMap(name => ['color', 'normal', 'rough'].map(kind => `/study/pbr/${name}-${kind}.jpg`))];
+  const urls = ['/study/materials.jpg', '/study/textiles.jpg', '/study/garden.jpg', ...['oak', 'floor'].flatMap(name => ['color', 'normal', 'rough'].map(kind => `/study/pbr/${name}-${kind}.jpg`)), '/study/pbr/penthouse-stone-color.webp'];
   const loaded = await Promise.allSettled(urls.map(url => loader.loadAsync(url)));
   if (loaded.some(result => result.status === 'rejected')) { loaded.forEach(result => { if (result.status === 'fulfilled') result.value.dispose(); }); throw new Error('Study materials could not be loaded'); }
   const textures = loaded.map(result => (result as PromiseFulfilledResult<THREE.Texture>).value);
-  const [atlas, textiles, garden, oakColor, oakNormal, oakRough, floorColor, floorNormal, floorRough] = textures;
+  const [atlas, textiles, garden, oakColor, oakNormal, oakRough, floorColor, floorNormal, floorRough,stoneColor] = textures;
   const anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy());
   function repeat(map: THREE.Texture, x=1, y=1, color=false) { map.wrapS=map.wrapT=THREE.RepeatWrapping; map.repeat.set(x,y); map.anisotropy=anisotropy; map.colorSpace=color?THREE.SRGBColorSpace:THREE.NoColorSpace; return map; }
   function tile(source: THREE.Texture, x: number, y: number, repeatX: number, repeatY: number, pale = 0) {
@@ -52,8 +53,10 @@ export async function loadStudyMaterials(renderer: THREE.WebGLRenderer): Promise
   const cushion = fabric.clone(); cushion.color.set('#d89168');
   const cork = new THREE.MeshStandardMaterial({ ...tile(textiles,1,1,1,1),roughness:1,bumpScale:.028,color:'#dac6a9' });
   const plaster = new THREE.MeshStandardMaterial({ ...tile(atlas,1,1,4,2),color:'#fffaf2',roughness:.96,bumpScale:.009 });
+  const stone=repeat(stoneColor,1,1,true),stoneBump=stone.clone();stoneBump.colorSpace=THREE.NoColorSpace;
+  const facade=new THREE.MeshStandardMaterial({map:stone,bumpMap:stoneBump,bumpScale:.017,roughness:.92,color:'#b4aca2'});facade.userData.physicalStone=true;
   atlas.dispose(); textiles.dispose();
-  return { wood,floor,fabric,rug,blanket,cushion,cork,plaster,garden,ceramic:new THREE.MeshStandardMaterial({color:'#ece3d2',roughness:.62}),coral:new THREE.MeshStandardMaterial({color:'#d97750',roughness:.58}) };
+  return { wood,floor,fabric,rug,blanket,cushion,cork,plaster,garden,facade,ceramic:new THREE.MeshStandardMaterial({color:'#ece3d2',roughness:.62}),coral:new THREE.MeshStandardMaterial({color:'#d97750',roughness:.58}) };
 }
 
 export function disposeStudyMaterials(materials: StudyMaterials) {

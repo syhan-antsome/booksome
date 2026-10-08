@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import type {StudyBackdrop} from './types';
 
 // A restrained perspective keeps the miniature composition while showing real
 // near/far scale. Zoom changes the lens, not the eye's distance to the room.
@@ -12,6 +13,12 @@ export function studyCameraPose(direction: [number, number, number], focus: [num
   const target = new THREE.Vector3(...focus);
   const eye = new THREE.Vector3(...direction).normalize().multiplyScalar(STUDY_VIEW_DISTANCE).add(target);
   return { eye, target, zoom };
+}
+
+export function studyRoomPose(backdrop:StudyBackdrop) {
+  return backdrop==='new-york'
+    ?studyCameraPose([-16,3.0,22],[-1.3,1.6,.3],.79)
+    :studyCameraPose([14,8.8,15.9],[0,2,.1],.98);
 }
 
 export function resizeStudyCamera(camera: THREE.PerspectiveCamera, width: number, height: number) {

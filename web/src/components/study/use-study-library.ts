@@ -24,6 +24,7 @@ export function useStudyLibrary() {
   return {
     books:own?snapshot.books:noBooks,
     loading:checking||(canRead&&(!own||snapshot.status==='loading'||snapshot.status==='idle')),
+    refreshing:own&&snapshot.refreshing,
     error:own?snapshot.error:'',expired:own&&snapshot.expired,accountChanged:own&&snapshot.accountChanged,
     signedIn:canRead,checking,
     ownerId:canRead?profileId:null,

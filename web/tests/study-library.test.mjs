@@ -23,6 +23,39 @@ test('initial and successfully empty libraries contain no sample books',async()=
   const store=new StudyLibraryStore(async()=>[]);
   assert.equal(store.getSnapshot().status,'idle');assert.deepEqual(store.getSnapshot().books,[]);
   await store.load('a');assert.equal(store.getSnapshot().status,'ready');assert.deepEqual(store.getSnapshot().books,[]);
+  const empty=store.getSnapshot().books,refresh=store.load('a');
+  assert.equal(store.getSnapshot().status,'ready');assert.equal(store.getSnapshot().refreshing,true);
+  await refresh;assert.equal(store.getSnapshot().books,empty);assert.equal(store.getSnapshot().refreshing,false);
+});
+
+test('focus refresh keeps the same book array while pending and after an unchanged response, coalescing duplicate events',async()=>{
+  const next=deferred();let calls=0;
+  const store=new StudyLibraryStore(()=>++calls===1?Promise.resolve([book('one'),book('two')]):next.promise);
+  await store.load('a');const original=store.getSnapshot().books;
+  const refresh=store.load('a');await store.load('a');await store.load('a');
+  assert.equal(calls,2);assert.equal(store.getSnapshot().books,original);assert.equal(store.getSnapshot().status,'ready');assert.equal(store.getSnapshot().refreshing,true);
+  next.resolve([book('one'),book('two')]);await refresh;
+  assert.equal(store.getSnapshot().books,original);assert.equal(store.getSnapshot().refreshing,false);
+});
+
+test('changed book content and removal replace the snapshot only after the new response is validated',async()=>{
+  const next=deferred();let calls=0;
+  const store=new StudyLibraryStore(()=>++calls===1?Promise.resolve([book('one'),book('two')]):next.promise);
+  await store.load('a');const original=store.getSnapshot().books,refresh=store.load('a');
+  assert.equal(store.getSnapshot().books,original);
+  next.resolve([{...book('one'),title:'변경된 제목',externalCoverUrl:null,currentPage:30}]);await refresh;
+  assert.notEqual(store.getSnapshot().books,original);assert.equal(store.getSnapshot().books.length,1);
+  assert.equal(store.getSnapshot().books[0].title,'변경된 제목');assert.equal(store.getSnapshot().books[0].coverUrl,null);assert.equal(store.getSnapshot().books[0].currentPage,30);
+});
+
+test('temporary refresh failure preserves the visible books and retry without changes keeps their identity',async()=>{
+  let fail=false;
+  const store=new StudyLibraryStore(async()=>{if(fail)throw new Error('연결 실패');return [book('one')];});
+  await store.load('a');const original=store.getSnapshot().books;
+  fail=true;await store.load('a');
+  assert.equal(store.getSnapshot().status,'error');assert.equal(store.getSnapshot().books,original);assert.equal(store.getSnapshot().error,'연결 실패');assert.equal(store.getSnapshot().expired,false);
+  fail=false;const retry=store.load('a');assert.equal(store.getSnapshot().status,'ready');assert.equal(store.getSnapshot().books,original);
+  await retry;assert.equal(store.getSnapshot().books,original);assert.equal(store.getSnapshot().error,'');
 });
 
 test('a late response from the old account cannot refill the newly selected account',async()=>{
@@ -43,13 +76,14 @@ test('cancel followed by reloading the same account restarts work instead of sti
   assert.equal(calls,2);assert.equal(store.getSnapshot().status,'ready');assert.equal(store.getSnapshot().books[0].id,'new');
 });
 
-test('refresh clears displayed data, expiration clears books, and an owner mismatch requests a page refresh',async()=>{
+test('expiration and an owner mismatch clear retained books, and reset immediately clears a populated room',async()=>{
   let mode='success';
   const store=new StudyLibraryStore(async()=>{if(mode==='expired')throw {status:401};return [book('one',mode==='foreign'?'b':'a')];});
-  await store.load('a');mode='expired';const refresh=store.load('a');assert.deepEqual(store.getSnapshot().books,[]);await refresh;
-  assert.equal(store.getSnapshot().expired,true);assert.equal(store.getSnapshot().status,'error');
+  await store.load('a');const original=store.getSnapshot().books;mode='expired';const refresh=store.load('a');assert.equal(store.getSnapshot().books,original);await refresh;
+  assert.equal(store.getSnapshot().expired,true);assert.equal(store.getSnapshot().status,'error');assert.deepEqual(store.getSnapshot().books,[]);
+  mode='success';await store.load('a');
   mode='foreign';await store.load('a');assert.equal(store.getSnapshot().accountChanged,true);assert.deepEqual(store.getSnapshot().books,[]);
-  store.reset();assert.equal(store.getSnapshot().status,'idle');
+  mode='success';await store.load('a');store.reset();assert.equal(store.getSnapshot().status,'idle');assert.deepEqual(store.getSnapshot().books,[]);
 });
 
 const internal='http://127.0.0.1:8080',publicBase='https://api.booksome.top';

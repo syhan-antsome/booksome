@@ -3,15 +3,17 @@ import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.j
 import type { StudyMaterials } from './materials';
 import { canvasMap } from './materials';
 import { groundStudyObject } from './grounding';
+import { studyShelfSlots } from './shelves';
+export type { ShelfSlot } from './shelves';
 
-export type ShelfSlot = { x: number; y: number; z: number; width: number; maxHeight: number };
 export function box(parent: THREE.Object3D, size: [number, number, number], position: [number, number, number], material: THREE.Material, radius = .025) {
   const geometry = new RoundedBoxGeometry(...size, 4, Math.min(radius, ...size.map(n => n / 3)));
-  if (material.userData.physicalGrain || material.userData.physicalFloor) {
+  if (material.userData.physicalGrain || material.userData.physicalFloor || material.userData.physicalStone) {
     const p=geometry.attributes.position,n=geometry.attributes.normal,uv=geometry.attributes.uv;
     for(let i=0;i<p.count;i++) {
       const x=p.getX(i),y=p.getY(i),z=p.getZ(i),nx=Math.abs(n.getX(i)),ny=Math.abs(n.getY(i));
-      if(material.userData.physicalFloor) uv.setXY(i,x*.55,z*.55);
+      if(material.userData.physicalStone) { if(ny>.65)uv.setXY(i,x*.65,z*.65);else if(nx>.65)uv.setXY(i,z*.65,y*.65);else uv.setXY(i,x*.65,y*.65); }
+      else if(material.userData.physicalFloor) uv.setXY(i,x*.55,z*.55);
       else if(ny>.65) uv.setXY(i,x*.8,z*.8);
       else if(nx>.65) uv.setXY(i,(size[1]>.5?y:z)*.8,(size[1]>.5?z:y)*.8);
       else uv.setXY(i,(size[1]>.5?y:x)*.8,(size[1]>.5?x:y)*.8);
@@ -29,23 +31,23 @@ function sphere(parent: THREE.Object3D, size: [number, number, number], position
 export function makeRoom(root: THREE.Group, m: StudyMaterials) {
   box(root, [11.8, .26, 8.5], [0, -.14, 0], m.floor, .04);
   box(root, [11.8, 5.3, .22], [0, 2.65, -4.15], m.plaster, .04).castShadow = false;
+  const classic=new THREE.Group();classic.name='study-classic-window';root.add(classic);
   // One continuous wall with an actual opening avoids seams around the window.
   const wallShape=new THREE.Shape();wallShape.moveTo(-4.25,0);wallShape.lineTo(4.25,0);wallShape.lineTo(4.25,5.3);wallShape.lineTo(-4.25,5.3);wallShape.closePath();
   const opening=new THREE.Path();opening.moveTo(-.32,1.8);opening.lineTo(-.32,4.45);opening.lineTo(2.65,4.45);opening.lineTo(2.65,1.8);opening.closePath();wallShape.holes.push(opening);
   const wallGeometry=new THREE.ExtrudeGeometry(wallShape,{depth:.22,bevelEnabled:false});
   const wallUV=wallGeometry.attributes.uv,wallPosition=wallGeometry.attributes.position;
   for(let i=0;i<wallUV.count;i++)wallUV.setXY(i,wallPosition.getX(i)*.25,wallPosition.getY(i)*.25);
-  const wall=new THREE.Mesh(wallGeometry,m.plaster);wall.rotation.y=Math.PI/2;wall.position.x=-5.91;wall.castShadow=wall.receiveShadow=true;root.add(wall);
-  const garden = new THREE.Mesh(new THREE.PlaneGeometry(2.95, 2.65), new THREE.MeshBasicMaterial({ map: m.garden })); garden.rotation.y = Math.PI / 2; garden.position.set(-5.92, 3.125, -1.16); root.add(garden);
-  for (const z of [-2.65, .32]) box(root, [.2, 2.8, .11], [-5.62, 3.125, z], m.wood);
-  for (const y of [1.78, 3.125, 4.48]) box(root, [.2, .11, 3.1], [-5.62, y, -1.16], m.wood);
-  box(root, [.7, .14, 3.35], [-5.48, 1.8, -1.16], m.wood);
-  box(root, [.12, .18, 8.25], [-5.63, .13, 0], m.wood);
+  const wall=new THREE.Mesh(wallGeometry,m.plaster);wall.rotation.y=Math.PI/2;wall.position.x=-5.91;wall.castShadow=wall.receiveShadow=true;classic.add(wall);
+  const garden = new THREE.Mesh(new THREE.PlaneGeometry(2.95, 2.65), new THREE.MeshBasicMaterial({ map: m.garden })); garden.name='study-window-garden';garden.rotation.y = Math.PI / 2; garden.position.set(-5.92, 3.125, -1.16); classic.add(garden);
+  for (const z of [-2.65, .32]) box(classic, [.2, 2.8, .11], [-5.62, 3.125, z], m.wood);
+  for (const y of [1.78, 3.125, 4.48]) box(classic, [.2, .11, 3.1], [-5.62, y, -1.16], m.wood);
+  box(classic, [.7, .14, 3.35], [-5.48, 1.8, -1.16], m.wood);
+  box(classic, [.12, .18, 8.25], [-5.63, .13, 0], m.wood);
   box(root, [11.55, .18, .12], [0, .13, -4.01], m.wood);
-  return root;
+  return classic;
 }
 export function makeShelves(root: THREE.Group, m: StudyMaterials) {
-  const slots: ShelfSlot[] = [];
   const x = -1.45, width = 6.2, z = -3.49, depth = 1.04;
   box(root, [width-.22, 4.80, .085], [x, 2.42, z-depth/2+.05], m.wood);
   function roundedFrame(cx:number,w:number,h:number,d:number,base=.04,cabinet=true,bz=z) {
@@ -77,7 +79,6 @@ export function makeShelves(root: THREE.Group, m: StudyMaterials) {
     box(root, [1.49, .91, .045], [cx, .56, z + .515+forward], m.wood, .012);
     box(root, [.34, .007, .006], [cx, .95, z + .544+forward], new THREE.MeshStandardMaterial({color:'#a68a63',roughness:.8}), .002);
     if (col < 3) box(root, [.095, 3.81, depth], [cx + .775, 2.95, z], m.wood);
-    for (let row = 0; row < 4; row++) if(!((col===0&&row>0)||(col===2&&(row===0||row===3)))) slots.push({ x: cx - .55, y: 1.17 + row * .94, z: z + .24+forward, width: 1.15, maxHeight: row===3?.70:.80 });
   }
   for (let row = 0; row < 4; row++) {
     box(root, [width-1.55, .1, depth], [x+.775, 1.1 + row * .94, z], m.wood);
@@ -89,10 +90,8 @@ export function makeShelves(root: THREE.Group, m: StudyMaterials) {
   for (let row = 0; row < 4; row++) {
     const y = 1.1 + row * .94;
     box(root, [3.6, .13, .92], [ex, y, z], m.wood, .04);
-    if(row!==2) slots.push({ x: 2.06, y: y + .08, z: z + .2, width: 1.12, maxHeight: row===3?.86:.80 });
-    slots.push({ x: 3.67, y: y + .08, z: z + .2, width: 1.02, maxHeight: row===3?.57:.80 });
   }
-  return slots;
+  return studyShelfSlots();
 }
 export function makeDesk(root: THREE.Group, m: StudyMaterials) {
   const desk = new THREE.Group(); desk.position.set(-2.84, 0, 1.85); root.add(desk);
@@ -119,7 +118,7 @@ export function makeDesk(root: THREE.Group, m: StudyMaterials) {
   box(notebook, [.013, .005, .95], [.2,.042,0], m.coral, .001);
   const notebookCover=canvasMap(384,512,ctx=>{
     ctx.fillStyle='#f2ecdf';ctx.fillRect(0,0,384,512);ctx.textAlign='center';
-    ctx.fillStyle='#aa5038';ctx.font='500 25px "Pretendard",sans-serif';ctx.fillText('나의 독서 수첩',192,204);
+    ctx.fillStyle='#aa5038';ctx.font='500 25px "Pretendard",sans-serif';ctx.fillText('나의 책 목록',192,204);
     ctx.fillStyle='#55493d';ctx.font='600 42px "Pretendard",sans-serif';ctx.fillText('책과 기록',192,265);
     ctx.fillStyle='#c6b8a5';ctx.fillRect(100,307,184,2);
   });
@@ -187,11 +186,12 @@ export function makeDecor(root: THREE.Group, m: StudyMaterials) {
   cylinder(footstool, .35, .4, .1, [0,.68,0], m.wood);
   for (let i = 0; i < 3; i++) { const angle = i * Math.PI * 2 / 3; const leg = cylinder(footstool, .045, .07, .61, [Math.cos(angle) * .24, .32, Math.sin(angle) * .24], m.wood); leg.rotation.z = Math.cos(angle) * .15; }
   ottoman.name='floor-ottoman';
-  const board = box(root, [.13, 1.75, 1.62], [-5.62, 2.92, 1.3], m.wood, .03);
-  const pinSurface = new THREE.Mesh(new THREE.PlaneGeometry(1.46, 1.57), m.cork); pinSurface.rotation.y = Math.PI / 2; pinSurface.position.set(-5.54, 2.92, 1.3); root.add(pinSurface);
+  const pinBoard=new THREE.Group();pinBoard.name='study-pin-board';pinBoard.position.set(-5.62,2.92,1.3);root.add(pinBoard);
+  const board = box(pinBoard, [.13, 1.75, 1.62], [0,0,0], m.wood, .03);
+  const pinSurface = new THREE.Mesh(new THREE.PlaneGeometry(1.46, 1.57), m.cork); pinSurface.rotation.y = Math.PI / 2; pinSurface.position.set(.08,0,0); pinBoard.add(pinSurface);
   for (let i = 0; i < 4; i++) {
-    const note = box(root, [.015, .45 + (i % 2) * .17, .43], [-5.51, 2.48 + Math.floor(i / 2) * .76, .96 + (i % 2) * .66], m.ceramic, .001);
-    const pin = sphere(root, [.025, .025, .025], [-5.48, note.position.y + .16, note.position.z], m.coral); pin.name = 'note-pin';
+    const note = box(pinBoard, [.015, .45 + (i % 2) * .17, .43], [.11,-.44 + Math.floor(i / 2) * .76,-.34 + (i % 2) * .66], m.ceramic, .001);
+    const pin = sphere(pinBoard, [.025, .025, .025], [.14,note.position.y + .16,note.position.z], m.coral); pin.name = 'note-pin';
   }
   board.name = 'pin-board';
   function art(x: number, y: number, z: number, width: number, height: number, botanical = false) {
@@ -240,5 +240,5 @@ export function makeDecor(root: THREE.Group, m: StudyMaterials) {
     cylinder(deskFlowers,.005,.005,.29,[x,y-.145,z],stemMaterial);
     for(let f=0;f<7;f++)for(let p=0;p<5;p++) {const angle=p*Math.PI*2/5+f*.5,phi=f*2.4;dummy.position.set(x+Math.cos(phi)*.044+Math.cos(angle)*.023,y+Math.sin(f*1.6)*.034,z+Math.sin(phi)*.044+Math.sin(angle)*.023);dummy.scale.set(.021,.011,.033);dummy.rotation.set(Math.sin(f)*.6,angle,Math.cos(i+f)*.5);dummy.updateMatrix();petals.setMatrixAt(petal++,dummy.matrix);}
   }
-  return { rug,floorFrame,deskFlowers,ottoman,footstool };
+  return { rug,floorFrame,deskFlowers,ottoman,footstool,pinBoard };
 }

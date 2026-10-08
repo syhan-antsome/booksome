@@ -4,15 +4,14 @@ import { canvasMap } from './materials';
 import type { StudyBook } from './types';
 import type { ShelfSlot } from './furniture';
 import { StudyCoverPool } from './cover-textures';
+import {bookDimensions,packShelfBooks} from './shelf-layout';
 
 const palette = ['#c56e4e', '#d8c6a6', '#647d72', '#eee5d5', '#a98970', '#415955', '#d7aa74', '#7d858d'];
 export function makeStudyBook(book: StudyBook, covers:StudyCoverPool, invalidate:()=>void) {
   const hash=[...book.id].reduce((value,char)=>(value*31+char.charCodeAt(0))>>>0,0);
   const color = palette[hash % palette.length];
   const ink = [2, 5, 7].includes(hash % palette.length) ? '#eee9df' : '#342f29';
-  const height = .735 + (hash % 4) * .033;
-  const depth=height*2/3;
-  const width = book.totalPages ? Math.min(.21, Math.max(.07, book.totalPages * .00036)) : .12 + (hash % 4) * .026;
+  const {height,depth,width}=bookDimensions(book);
   function spineMap(background:string,textColor:string,artwork?:HTMLCanvasElement) {return canvasMap(128, 1024, ctx => {
     ctx.fillStyle = background; ctx.fillRect(0, 0, 128, 1024);
     if(artwork) {
@@ -61,27 +60,16 @@ export function makeStudyBook(book: StudyBook, covers:StudyCoverPool, invalidate
   return { mesh, width, height,depth };
 }
 
-export function populateBooks(parent: THREE.Group, books: StudyBook[], slots: ShelfSlot[], invalidate: () => void) {
+export function populateBooks(parent: THREE.Group, books: StudyBook[], slots: ShelfSlot[], invalidate: () => void,reserved:ReadonlySet<string>=new Set()) {
   const group = new THREE.Group(); parent.add(group); const targets: THREE.Mesh[] = [],covers=new StudyCoverPool();
-  // Fill neighboring books together so exposed covers do not dominate an otherwise empty room.
-  const shelfSlots=[...slots].sort((a,b)=>Math.round(b.y*10)-Math.round(a.y*10)||a.x-b.x);
-  const occupied = shelfSlots.map(() => 0);
-  let nextSlot=0;
   let deskHeight=0,underDeskHeight=0;
-  for (let i = 0; i < books.length; i++) {
-    const { mesh, width, height,depth } = makeStudyBook(books[i],covers,invalidate);
-    let slotIndex=nextSlot;
-    const unavailable=(index:number)=>!shelfSlots[index]||occupied[index]+width*Math.min(1,shelfSlots[index].maxHeight/height)+.04>shelfSlots[index].width;
-    for(let attempt=0;attempt<shelfSlots.length&&unavailable(slotIndex);attempt++)slotIndex=(slotIndex+1)%shelfSlots.length;
-    const slot = shelfSlots[slotIndex];
-    if (!slot || unavailable(slotIndex)) { disposeObject(mesh); continue; }
-    const scale=Math.min(1,slot.maxHeight/height),space=width*scale;
+  for (const {book,slot,offset,scale} of packShelfBooks(books,slots,reserved).placed) {
+    const {mesh,width,height,depth}=makeStudyBook(book,covers,invalidate),space=width*scale;
     const fittedHeight=height*scale;
     mesh.scale.setScalar(scale);
-    mesh.position.set(slot.x+occupied[slotIndex]+space/2,slot.y+fittedHeight/2,slot.z+.28-depth*scale/2);
+    mesh.position.set(slot.x+offset+space/2,slot.y+fittedHeight/2,slot.z+.28-depth*scale/2);
     mesh.rotation.y=0;
     mesh.userData.standing=true;mesh.userData.shelf=slot;mesh.userData.location='shelves';mesh.userData.pullDepth=depth*scale;mesh.userData.shelfPull=true;
-    occupied[slotIndex]+=space+.012;nextSlot=slotIndex;
     mesh.userData.invalidate = invalidate; group.add(mesh); targets.push(mesh);
   }
   // Desk volumes are views of the same registered books, not additional records.
