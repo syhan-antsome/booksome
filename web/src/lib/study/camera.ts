@@ -16,9 +16,7 @@ export function studyCameraPose(direction: [number, number, number], focus: [num
 }
 
 export function studyRoomPose(backdrop:StudyBackdrop) {
-  return backdrop==='new-york'
-    ?studyCameraPose([-16,3.0,22],[-1.3,1.6,.3],.79)
-    :studyCameraPose([14,8.8,15.9],[0,2,.1],.98);
+  return studyCameraPose([-16,backdrop==='forest'?4.0:3.0,22],[-1.3,1.6,.3],.79);
 }
 
 export function resizeStudyCamera(camera: THREE.PerspectiveCamera, width: number, height: number) {

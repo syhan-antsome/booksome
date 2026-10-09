@@ -16,7 +16,7 @@ export function normalizeRoomDocument(value:unknown):StudyRoomDocument {
     wood:enumValue(source.wood,['oak','walnut','ivory','ash'],'oak'),wall:enumValue(source.wall,['cream','sage','mist','clay'],'cream'),
     wallTexture:enumValue(source.wallTexture,['plaster','linen'],'plaster'),floor:enumValue(source.floor,['oak','walnut','herringbone'],'oak'),
     rugColor:enumValue(source.rugColor,['sand','sage','terracotta'],'sand'),rugPattern:enumValue(source.rugPattern,['woven','stripes','grid'],'woven'),
-    backdrop:enumValue(source.backdrop,['forest','new-york','tokyo','london'],'forest'),
+    backdrop:enumValue(source.backdrop,['forest','new-york','tokyo','london','seoul'],'forest'),
   };
   const validSlots=new Set([...studyShelfSlots(),...studyDeskSlots()].map(slot=>slot.id)),seenSlots=new Set<string>(),seenIds=new Set<string>(),decorations:StudyDecoration[]=[];
   for(const value of (Array.isArray(raw.decorations)?raw.decorations:[]).slice(0,216)) {

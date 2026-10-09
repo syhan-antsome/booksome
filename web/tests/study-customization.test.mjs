@@ -4,7 +4,6 @@ import test from 'node:test';
 import ts from 'typescript';
 import * as THREE from 'three';
 import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
-import {TrackballControls} from 'three/addons/controls/TrackballControls.js';
 
 const modules=new Map();
 async function moduleUrl(url){
@@ -23,10 +22,11 @@ const {makeRoom,makeShelves,makeDecor,makeDesk,makeOpenBook}=await load('furnitu
 const {studyDeskSlots,deskProtectedZones,deskBounds,decorationSurface}=await load('desk-layout');
 const {deskBodiesOverlap}=await load('desk-collision');
 const {BOOK_PULL_FRACTION}=await load('book-pull');
-const {makePenthouse}=await load('penthouse');
+const {makePenthouse,setStudyArchitecture}=await load('penthouse');
+const {sceneryOptions}=await load('scenery-options');
 const {blocksStudyPointer}=await load('pointer-surface');
 const {studyRoomPose,studyCameraPose,createStudyCamera,resizeStudyCamera}=await load('camera');
-const {createStudyControls,setStudyNavigation,resizeStudyControls}=await load('navigation-controls');
+const {createStudyControls,setStudyNavigation,resizeStudyControls,setStudyControlLimits,FOREST_ELEVATION,FOREST_MIN_EYE_Y}=await load('navigation-controls');
 const {StudyTheme}=await load('theme');
 const {CityBackdrop}=await load('city-backdrop');
 const {defaultStudySettings}=await load('types');
@@ -70,19 +70,17 @@ test('room, shelf and desk presets remain reachable with the penthouse angle lim
   }
 });
 
-test('only New York uses bounded upright rotation and both controller types support the existing pan mode',()=>{
+test('all landscapes keep the horizon upright, allow skyward views and support the existing pan mode',()=>{
   const camera=new THREE.PerspectiveCamera(),pose=studyRoomPose('forest');camera.position.copy(pose.eye);
-  for(const backdrop of ['forest','tokyo','london','new-york','forest','new-york']){
+  for(const {id:backdrop} of sceneryOptions){
     camera.up.set(.6,.8,0);
     const controls=createStudyControls(camera,null,backdrop,pose.target);
-    assert.equal(controls instanceof OrbitControls,backdrop==='new-york');
-    assert.equal(controls instanceof TrackballControls,backdrop!=='new-york');
-    if(backdrop==='new-york')assert.deepEqual(camera.up.toArray(),[0,1,0]);
-    else assert.deepEqual(camera.up.toArray(),[.6,.8,0]);
+    assert.ok(controls instanceof OrbitControls);assert.deepEqual(camera.up.toArray(),[0,1,0]);
+    if(backdrop==='forest')assert.ok(controls.maxPolarAngle>THREE.MathUtils.degToRad(120)&&controls.maxPolarAngle<=THREE.MathUtils.degToRad(135));else assert.equal(controls.maxPolarAngle,THREE.MathUtils.degToRad(135));
     for(const mode of ['pan','orbit']){
       setStudyNavigation(controls,mode);resizeStudyControls(controls);
       assert.equal(controls.mouseButtons.LEFT,mode==='pan'?THREE.MOUSE.PAN:THREE.MOUSE.ROTATE);
-      assert.equal(controls instanceof OrbitControls?controls.enableRotate:!controls.noRotate,mode==='orbit');
+      assert.equal(controls.enableRotate,mode==='orbit');
     }
   }
 });
@@ -264,60 +262,55 @@ test('theme changes reuse patterned textures and restore the original room mater
 });
 
 const photo=()=>new THREE.Texture({width:1672,height:941});
-test('New York stays spherical while flat city photos cover desktop and mobile, preserving room models and texture reuse',async()=>{
+test('every landscape loads its own spherical environment without viewport cropping or replacing room models',async()=>{
   const scene=new THREE.Scene(),room=new THREE.Group();scene.add(room);let requests=0,released=0;
-  const world=new CityBackdrop(scene,()=>{},async()=>{requests++;const texture=photo();texture.addEventListener('dispose',()=>released++);return texture;});
-  try {
-    for(const city of ['new-york','tokyo','london']) {
-      await world.set(city);const texture=scene.background;
-      assert.equal(texture.colorSpace,THREE.SRGBColorSpace);assert.equal(texture.mapping,city==='new-york'?THREE.CubeReflectionMapping:THREE.UVMapping);assert.equal(scene.fog,null);
-      for(const [width,height] of [[1440,900],[375,812],[1086,900]]) {
-        world.resize(width,height);
-        if(city==='new-york'){
-          assert.deepEqual(texture.repeat.toArray(),[1,1]);assert.deepEqual(texture.offset.toArray(),[0,0]);assert.equal(scene.backgroundRotation.y,.88);
-        }else{
-          const visibleAspect=1672*texture.repeat.x/(941*texture.repeat.y);
-          assert.ok(Math.abs(visibleAspect-width/height)<1e-8);assert.ok(texture.repeat.x<=1&&texture.repeat.y<=1);
-          assert.ok(Math.abs(texture.offset.x-(1-texture.repeat.x)/2)<1e-8);assert.equal(scene.backgroundRotation.y,0);
-        }
-      }
-      const before=requests;await world.set(city);assert.equal(requests,before);assert.equal(scene.background,texture);assert.ok(scene.children.includes(room));assert.equal(Boolean(scene.getObjectByName('study-panorama-sky')),city==='new-york');
+  const sources=[];
+  const world=new CityBackdrop(scene,()=>{},async source=>{sources.push(source);requests++;const texture=photo();texture.addEventListener('dispose',()=>released++);return texture;});
+  for(const option of sceneryOptions){
+    await world.set(option.id);const texture=scene.background;
+    assert.deepEqual(sources.slice(-2),[option.cubeFaces,option.panorama]);
+    assert.equal(texture.colorSpace,THREE.SRGBColorSpace);assert.equal(texture.mapping,THREE.CubeReflectionMapping);assert.equal(scene.fog,null);
+    for(const [width,height] of [[1440,900],[375,812],[1086,900]]){
+      world.resize(width,height);assert.deepEqual(texture.repeat.toArray(),[1,1]);assert.deepEqual(texture.offset.toArray(),[0,0]);assert.equal(scene.backgroundRotation.y,option.rotation);
     }
-    await world.set('forest');assert.equal(scene.background,null);assert.equal(released,4);assert.deepEqual(scene.backgroundRotation.toArray().slice(0,3),[0,0,0]);assert.deepEqual(scene.children,[room]);
-  }finally{world.dispose();}
+    const before=requests;await world.set(option.id);assert.equal(requests,before);assert.equal(scene.background,texture);
+    assert.ok(scene.children.includes(room));assert.equal(scene.children.filter(object=>object.name==='study-panorama-sky').length,1);
+  }
+  world.dispose();assert.equal(released,10);assert.equal(scene.background,null);assert.deepEqual(scene.children,[room]);assert.deepEqual(scene.backgroundRotation.toArray().slice(0,3),[0,0,0]);
 });
 
-test('late photograph loads cannot replace a newer city, refill the forest, or survive scene disposal',async()=>{
+test('late environments cannot replace newer cities or forest, or survive scene disposal',async()=>{
   const scene=new THREE.Scene(),pending=[],states=[];
   const world=new CityBackdrop(scene,state=>states.push(state),()=>new Promise(resolve=>pending.push(resolve)));
   let released=0;const watched=()=>{const texture=photo();texture.addEventListener('dispose',()=>released++);return texture;};
-  const first=world.set('new-york'),second=world.set('tokyo'),tokyo=watched();pending[2](tokyo);await second;
+  const first=world.set('new-york'),second=world.set('tokyo'),tokyo=watched();pending[2](tokyo);pending[3](watched());await second;
   pending[0](watched());pending[1](watched());await first;assert.equal(scene.background,tokyo);assert.equal(released,2);assert.deepEqual(states.at(-1),{mode:'tokyo',phase:'ready'});
-  const third=world.set('london');await world.set('forest');pending[3](watched());await third;
-  assert.equal(scene.background,null);assert.equal(released,4);assert.deepEqual(states.at(-1),{mode:'forest',phase:'ready'});
-  const fourth=world.set('new-york');world.dispose();const before=states.length;pending[4](watched());pending[5](watched());await fourth;
-  assert.equal(scene.background,null);assert.equal(released,6);assert.equal(states.length,before);
+  const third=world.set('london'),fourth=world.set('forest'),forest=watched();pending[6](forest);pending[7](watched());await fourth;
+  pending[4](watched());pending[5](watched());await third;
+  assert.equal(scene.background,forest);assert.equal(released,6);assert.deepEqual(states.at(-1),{mode:'forest',phase:'ready'});
+  const fifth=world.set('seoul');world.dispose();const before=states.length;pending[8](watched());pending[9](watched());await fifth;
+  assert.equal(scene.background,null);assert.equal(released,10);assert.equal(states.length,before);
 });
 
-test('a failed city photo retains a usable room and can be explicitly retried without automatic request loops',async()=>{
-  const scene=new THREE.Scene(),room=new THREE.Group(),states=[];scene.add(room);let requests=0;
-  const world=new CityBackdrop(scene,state=>states.push(state),async()=>{if(++requests===1)throw new Error('image unavailable');return photo();});
-  await world.set('london');assert.deepEqual(states.at(-1),{mode:'london',phase:'error'});assert.ok(scene.background.isColor);assert.deepEqual(scene.children,[room]);
-  await world.set('london');assert.equal(requests,1);
-  await world.set('london',true);assert.equal(requests,2);assert.ok(scene.background.isTexture);assert.deepEqual(states.at(-1),{mode:'london',phase:'ready'});world.dispose();
+test('a failed environment keeps a usable room and retries only on an explicit request',async()=>{
+  const scene=new THREE.Scene(),room=new THREE.Group(),states=[];scene.add(room);let requests=0,fail=true;
+  const world=new CityBackdrop(scene,state=>states.push(state),async source=>{requests++;if(Array.isArray(source)&&fail)throw new Error('image unavailable');return photo();});
+  await world.set('forest');assert.deepEqual(states.at(-1),{mode:'forest',phase:'error'});assert.ok(scene.background.isColor);assert.deepEqual(scene.children,[room]);
+  await world.set('forest');assert.equal(requests,2);
+  fail=false;await world.set('forest',true);assert.equal(requests,4);assert.ok(scene.background.isTexture);assert.deepEqual(states.at(-1),{mode:'forest',phase:'ready'});world.dispose();
 });
 
-test('a partial panoramic load releases its cube, and a complete environment releases both textures and its joining mesh',async()=>{
+test('a partial panorama releases its cube, and a complete environment releases both textures and joining mesh',async()=>{
   const scene=new THREE.Scene(),room=new THREE.Group();scene.add(room);let fail=true,released=0;
   const world=new CityBackdrop(scene,()=>{},async source=>{
     if(!Array.isArray(source)&&fail)throw new Error('panorama reference unavailable');
     const texture=Array.isArray(source)?new THREE.CubeTexture(Array.from({length:6},()=>({width:1254,height:1254}))):photo();
     texture.addEventListener('dispose',()=>released++);return texture;
   });
-  await world.set('new-york');assert.equal(released,1);assert.ok(scene.background.isColor);assert.deepEqual(scene.children,[room]);
-  fail=false;await world.set('new-york',true);const sky=scene.getObjectByName('study-panorama-sky');assert.ok(sky);let geometryReleased=0,materialReleased=0;
+  await world.set('seoul');assert.equal(released,1);assert.ok(scene.background.isColor);assert.deepEqual(scene.children,[room]);
+  fail=false;await world.set('seoul',true);const sky=scene.getObjectByName('study-panorama-sky');assert.ok(sky);let geometryReleased=0,materialReleased=0;
   sky.geometry.addEventListener('dispose',()=>geometryReleased++);sky.material.addEventListener('dispose',()=>materialReleased++);
-  await world.set('forest');assert.equal(scene.background,null);assert.equal(scene.getObjectByName('study-panorama-sky'),undefined);assert.equal(released,3);assert.equal(geometryReleased,1);assert.equal(materialReleased,1);assert.deepEqual(scene.children,[room]);world.dispose();
+  world.dispose();assert.equal(scene.background,null);assert.equal(scene.getObjectByName('study-panorama-sky'),undefined);assert.equal(released,3);assert.equal(geometryReleased,1);assert.equal(materialReleased,1);assert.deepEqual(scene.children,[room]);
 });
 
 test('saved city choices migrate safely and changing the scenery preserves decoration identity through undo and reload',()=>{
@@ -332,7 +325,7 @@ test('saved city choices migrate safely and changing the scenery preserves decor
   reopened.setOwner('b');assert.equal(reopened.getSnapshot().document.settings.backdrop,'forest');
 });
 
-function roomMaterials(){return {...Object.fromEntries(['floor','facade','wood','fabric','plaster','ceramic','cork','coral','rug'].map(name=>[name,new THREE.MeshStandardMaterial()])),garden:new THREE.Texture()};}
+function roomMaterials(){return {...Object.fromEntries(['floor','facade','wood','fabric','plaster','ceramic','cork','coral','rug','treeBark'].map(name=>[name,new THREE.MeshStandardMaterial()])),garden:new THREE.Texture()};}
 test('the penthouse has connected structural slabs, supported terrace rails, real lower storeys and no synthetic reading books',()=>{
   const root=new THREE.Group(),m=roomMaterials(),house=makePenthouse(root,m);house.visible=true;root.updateMatrixWorld(true);
   const bounds=new THREE.Box3().setFromObject(house,true),slabs=[];let glass=0,lowerShadows=0,books=0;
@@ -347,7 +340,7 @@ test('the penthouse has connected structural slabs, supported terrace rails, rea
   assert.equal(side.isMesh,true);assert.equal(side.material.transparent,false);
   assert.ok(sideBounds.min.y<slabs.at(-1).max.y&&sideBounds.max.y>slabs[0].min.y);
   assert.ok(sideBounds.min.z<-4.2&&sideBounds.max.z>4.2);
-  const terrace=house.getObjectByName('penthouse-terrace');assert.ok(new THREE.Box3().setFromObject(terrace,true).min.y<0);assert.ok(terrace.children.some(object=>object.name==='penthouse-glass'));
+  const terrace=house.getObjectByName('penthouse-terrace');assert.ok(new THREE.Box3().setFromObject(terrace,true).min.y<0);assert.ok(terrace.getObjectByName('penthouse-glass'));
   house.visible=false;house.traverse(object=>{if(object.isMesh)assert.equal(blocksStudyPointer(object),false);});
   disposeObject(root);
 });
@@ -364,7 +357,7 @@ test('rear windows match front windows on all six storeys and have real room dep
     assert.equal(blocksStudyPointer(window),false);
     const sample=outside.clone();sample.x+=window.geometry.parameters.width*.2;
     ray.set(sample.add(new THREE.Vector3(0,0,-20)),new THREE.Vector3(0,0,1));
-    const hits=ray.intersectObject(house,true);assert.ok(hits[0].object===window);
+    const hits=ray.intersectObject(house,true).filter(hit=>{for(let object=hit.object;object;object=object.parent)if(!object.visible)return false;return true;});assert.ok(hits[0].object===window);
     const interior=hits.find(hit=>blocksStudyPointer(hit.object));
     assert.ok(interior.object.parent===window.parent);assert.ok(interior.point.z-outside.z>1);
   });
@@ -415,9 +408,76 @@ test('real shelf book models remain reachable in the focused camera and through 
   }finally{layer?.covers.dispose();disposeObject(root);restore();}
 });
 
-test('New York has a grounded penthouse overview and other cities retain their original room pose',()=>{
+test('all city overviews preserve the proven penthouse composition and the forest keeps its familiar room composition',()=>{
   const ny=studyRoomPose('new-york'),forest=studyRoomPose('forest');
   assert.ok(ny.eye.x<0&&ny.eye.y>4.8&&ny.eye.y<5.18&&ny.eye.z>0);assert.equal(ny.zoom,.79);
-  assert.deepEqual(studyRoomPose('tokyo'),forest);assert.deepEqual(studyRoomPose('london'),forest);
+  for(const city of ['tokyo','london','seoul'])assert.deepEqual(studyRoomPose(city),ny);
+  assert.ok(forest.eye.y>ny.eye.y&&forest.eye.y<7);assert.equal(forest.zoom,.79);
   assert.ok(Math.abs(ny.eye.distanceTo(ny.target)-32)<1e-8);
+});
+
+test('the treehouse has a supporting trunk, forks and cradle without changing the personal room or creating ground geometry',()=>{
+  const restore=canvasEnvironment(),root=new THREE.Group();
+  try{
+    const m=roomMaterials(),house=makePenthouse(root,m),shelves=makeShelves(root,m),desk=makeDesk(root,m);
+    const woodColor=m.wood.color.clone(),facadeColor=m.facade.color.clone(),notebook=desk.notebook;
+    const tree=house.getObjectByName('study-treehouse'),lower=house.getObjectByName('penthouse-lower-storeys');
+    const rails=house.getObjectByName('penthouse-terrace-rails'),upper=house.getObjectByName('penthouse-upper-frame'),beam=[];
+    upper.traverse(object=>{if(object.userData.architecturalBeam)beam.push(object);});
+    for(const option of [...sceneryOptions,...sceneryOptions].reverse()){
+      setStudyArchitecture(house,option.id);root.updateMatrixWorld(true);
+      const forest=option.id==='forest';assert.equal(tree.visible,forest);assert.equal(lower.visible,!forest);assert.equal(rails.visible,!forest);
+      assert.equal(house.userData.lowerStoreys,forest?0:6);assert.equal(desk.notebook,notebook);assert.deepEqual(shelves,studyShelfSlots());
+      assert.ok(m.wood.color.equals(woodColor));assert.ok(m.facade.color.equals(facadeColor));
+      for(const item of beam)assert.equal(item.material,forest?tree.userData.wood:house.userData.architecture.facade);
+      assert.notEqual(tree.userData.wood,m.wood);
+    }
+    setStudyArchitecture(house,'forest');root.updateMatrixWorld(true);
+    assert.equal(house.getObjectByName('woodland-ground'),undefined);assert.equal(tree.userData.height,18);
+    const trunk=tree.getObjectByName('treehouse-trunk'),cradle=tree.getObjectByName('treehouse-deck-cradle');
+    assert.ok(new THREE.Box3().setFromObject(trunk,true).min.y<-17.9);
+    const fork=tree.children.filter(object=>object.name==='treehouse-support-branch');assert.equal(fork.length,4);
+    for(const branch of fork){
+      assert.ok(new THREE.Box3().setFromObject(branch,true).intersectsBox(new THREE.Box3().setFromObject(trunk,true)));
+      const tip=new THREE.Vector3(...branch.userData.end),radius=branch.geometry.parameters.radiusTop;
+      assert.ok(cradle.children.some(beam=>new THREE.Box3().setFromObject(beam,true).distanceToPoint(tip)<radius));
+      assert.ok(new THREE.Box3().setFromObject(branch,true).max.y<-.27);
+    }
+    const crown=tree.getObjectByName('treehouse-crown');crown.computeBoundingBox();
+    const crownBounds=new THREE.Box3().setFromObject(crown,true);assert.ok(crownBounds.max.z<-4.36);assert.equal(crown.count,900);
+  }finally{disposeObject(root);restore();}
+});
+
+test('treehouse camera can look at the sky while staying above the forest ground after panning and zooming',()=>{
+  const camera=createStudyCamera(),pose=studyRoomPose('forest');camera.position.copy(pose.eye);
+  const controls=createStudyControls(camera,null,'forest',pose.target);
+  for(const zoom of [.65,.79,1.45,1.8,3.6])for(const height of [-.35,0,1.6,6.25]){
+    camera.zoom=zoom;const shift=new THREE.Vector3(0,height-controls.target.y,0);camera.position.add(shift);controls.target.add(shift);
+    setStudyControlLimits(controls,'forest');controls.update();
+    for(let i=0;i<12;i++){
+      controls.rotateUp(-Math.PI*20);controls.rotateLeft(Math.PI/3);
+      assert.ok(camera.position.y>=FOREST_MIN_EYE_Y-1e-8);assert.ok(camera.up.distanceTo(new THREE.Vector3(0,1,0))<1e-8);
+      const elevation=THREE.MathUtils.radToDeg(Math.asin(camera.position.clone().sub(controls.target).normalize().y));
+      assert.ok(elevation>=FOREST_ELEVATION.min-1e-8&&elevation<=-30);assert.equal(camera.zoom,zoom);
+      if(height===6.25)assert.ok(Math.abs(elevation+45)<1e-8);
+      controls.rotateUp(Math.PI*20);assert.ok(Math.abs(THREE.MathUtils.radToDeg(Math.asin(camera.position.clone().sub(controls.target).normalize().y))-30)<1e-8);
+    }
+  }
+  setStudyControlLimits(controls,'new-york');assert.equal(controls.maxPolarAngle,THREE.MathUtils.degToRad(135));
+});
+
+test('Seoul saves and reloads in the existing account document without changing colors or shelf and desk props',()=>{
+  const storage=memory(),store=new StudyCustomizationStore(()=>storage);store.setOwner('a');store.begin('a');
+  const document={settings:{...defaultStudySettings,backdrop:'seoul',wood:'walnut',rugColor:'sage'},decorations:[prop(slots[0]),{id:'desk-lamp',type:'desk-lamp',slotId:'desk-back-right',page:0,color:2,rotation:3}]};
+  store.update('a',document);store.save('a');
+  const reopened=new StudyCustomizationStore(()=>storage);reopened.setOwner('a');assert.deepEqual(reopened.getSnapshot().document,document);
+  reopened.begin('a');reopened.update('a',{...document,settings:{...document.settings,backdrop:'forest'}});reopened.cancel('a');assert.deepEqual(reopened.getSnapshot().document,document);
+  reopened.setOwner('b');assert.deepEqual(reopened.getSnapshot().document,defaultRoomDocument);
+});
+
+test('tree crown disposal releases instance buffers as well as the shared geometry and material',()=>{
+  const root=new THREE.Group(),geometry=new THREE.PlaneGeometry(.1,.2),material=new THREE.MeshStandardMaterial(),leaves=new THREE.InstancedMesh(geometry,material,3);
+  root.add(leaves);let instances=0,geometries=0,materials=0;
+  leaves.addEventListener('dispose',()=>instances++);geometry.addEventListener('dispose',()=>geometries++);material.addEventListener('dispose',()=>materials++);
+  disposeObject(root);assert.deepEqual([instances,geometries,materials],[1,1,1]);
 });

@@ -65,10 +65,10 @@ export function CustomizationPanel({panelRef,...props}:PanelProps) {
         <fieldset className={styles.propColors}><legend>포인트 색상</legend>{[['#d97750','코랄'],['#6f8977','세이지'],['#7b8797','블루 그레이']].map(([color,name])=><button key={color} style={{backgroundColor:color}} type="button" aria-label={name} aria-pressed={settings.accent===color} onClick={()=>change('accent',color)}/>)}</fieldset>
       </div>
       <div role="tabpanel" aria-labelledby="study-scenery-tab" id="study-scenery-tools" hidden={tab!=='scenery'}>
-        <p className={styles.sceneryIntro}>나의 서재가 머무는 풍경.<br/>마음에 드는 도시를 골라보세요.</p>
-        <div className={styles.sceneryCards}>{sceneryOptions.map(item=><button key={item.id} type="button" aria-pressed={settings.backdrop===item.id} onClick={()=>{change('backdrop',item.id);if(settings.backdrop!==item.id&&(item.id==='new-york'||settings.backdrop==='new-york'))props.onSceneryView(item.id);}}><SceneryThumbnail city={item.id}/><strong>{item.name}</strong><span>{item.description}</span></button>)}</div>
-        <p className={styles.help}>창밖과 도시, 서재의 빛이 함께 달라져요. 회전하면서 풍경을 살펴보세요.</p>
-        {props.backdropPhase&&props.backdropPhase!=='ready'?<p role="status" className={styles.sceneryStatus}>{props.backdropPhase==='loading'?'도시 풍경을 불러오고 있어요…':<>풍경을 불러오지 못했어요. <button type="button" onClick={props.onRetryScenery}>다시 불러오기</button></>}</p>:null}
+        <p className={styles.sceneryIntro}>나의 서재가 머무는 풍경.<br/>도시의 창가부터 숲속까지.</p>
+        <div className={styles.sceneryCards}>{sceneryOptions.map(item=><button key={item.id} type="button" aria-pressed={settings.backdrop===item.id} onClick={()=>change('backdrop',item.id)}><SceneryThumbnail city={item.id}/><strong>{item.name}</strong><span>{item.description}</span></button>)}</div>
+        <p className={styles.help}>창밖과 주변 풍경, 서재의 빛이 함께 달라져요. 회전하면서 살펴보세요.</p>
+        {props.backdropPhase&&props.backdropPhase!=='ready'?<p role="status" className={styles.sceneryStatus}>{props.backdropPhase==='loading'?'풍경을 불러오고 있어요…':<>풍경을 불러오지 못했어요. <button type="button" onClick={props.onRetryScenery}>다시 불러오기</button></>}</p>:null}
         <button className={styles.sceneryView} type="button" onClick={()=>props.onSceneryView()}>서재와 풍경 함께 보기</button>
       </div>
     </div>

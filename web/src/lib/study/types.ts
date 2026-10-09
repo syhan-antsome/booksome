@@ -1,5 +1,5 @@
 export type StudyView = 'room' | 'shelves' | 'desk';
-export type StudyBackdrop='forest'|'new-york'|'tokyo'|'london';
+export type StudyBackdrop='forest'|'new-york'|'tokyo'|'london'|'seoul';
 export type StudyBook = { id: string; title: string; author: string; totalPages: number | null; status: 'reading' | 'finished'; coverUrl: string | null; currentPage: number };
 export type StudySettings = {
   plants: boolean; rug: boolean; light: number; accent: string;

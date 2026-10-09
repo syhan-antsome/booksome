@@ -55,7 +55,7 @@ export function VirtualStudy() {
   useEffect(() => { latest.current = {content, settings,navigation,editor:editorState,deskBooks:books}; });
   const [ready, setReady] = useState(false), [error, setError] = useState(''), [retry, setRetry] = useState(0);
   const [backdropStatus,setBackdropStatus]=useState<BackdropStatus|null>(null);
-  const backdropPhase=settings.backdrop!=='forest'&&backdropStatus?.mode===settings.backdrop?backdropStatus.phase:null;
+  const backdropPhase=backdropStatus?.mode===settings.backdrop?backdropStatus.phase:null;
   const [view, setView] = useState<StudyView>('room'), [selected, setSelected] = useState<StudyBook | null>(null);
   const visibleSelection=selected?books.find(book=>book.id===selected.id)??null:null;
   const [libraryOpen, setLibraryOpen] = useState(false);
@@ -129,7 +129,7 @@ export function VirtualStudy() {
       {ready&&loadingBooks&&books.length===0 ? <div className={styles.empty} role="status"><p>{checking?'로그인을 확인하고 있어요…':'내 책을 책장에 놓고 있어요…'}</p></div> : null}
       {ready&&!loadingBooks&&bookError&&books.length===0 ? <div className={styles.empty} role="alert"><p>{bookError}</p>{expired?<Link href="/login?next=%2Fstudy">다시 로그인하기</Link>:<button type="button" onClick={reload}>{accountChanged?'새로고침':'다시 불러오기'}</button>}</div> : null}
       {ready&&!customizing&&!loadingBooks&&!bookError&&books.length===0 ? <div className={styles.empty}><p>{signedIn?'첫 책을 기다리는 나의 공간.':'나의 책으로 채워갈 서재.'}</p>{signedIn?<ReaderLink href="/library/add">첫 책 등록하기</ReaderLink>:<Link href="/login?next=%2Fstudy">로그인하고 내 서재 채우기</Link>}</div> : null}
-      {ready&&!customizing&&backdropPhase&&backdropPhase!=='ready'?<div className={styles.backdropNotice} role="status">{backdropPhase==='loading'?'도시 풍경을 불러오고 있어요…':<>풍경을 불러오지 못했어요. <button type="button" onClick={()=>engine.current?.retryBackdrop()}>다시 불러오기</button></>}</div>:null}
+      {ready&&!customizing&&backdropPhase&&backdropPhase!=='ready'?<div className={styles.backdropNotice} role="status">{backdropPhase==='loading'?'풍경을 불러오고 있어요…':<>풍경을 불러오지 못했어요. <button type="button" onClick={()=>engine.current?.retryBackdrop()}>다시 불러오기</button></>}</div>:null}
     </main>
     <nav className={styles.views} aria-label="서재 시점">{([['room', '전체'], ['shelves', '책장'], ['desk', '책상']] as const).map(([key, label]) => <button key={key} type="button" aria-pressed={view === key} onClick={() => changeView(key)} disabled={!ready}>{label}</button>)}</nav>
     <div className={styles.navigation} aria-label="화면 조작">

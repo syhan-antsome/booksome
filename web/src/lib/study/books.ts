@@ -87,6 +87,7 @@ export function disposeObject(object: THREE.Object3D) {
   object.traverse(child => {
     child.userData.disposed = true;
     if (!(child instanceof THREE.Mesh)) return;
+    if(child instanceof THREE.InstancedMesh)child.dispose();
     geometries.add(child.geometry);
     for (const material of Array.isArray(child.material) ? child.material : [child.material]) { materials.add(material); for (const value of Object.values(material)) if (value instanceof THREE.Texture&&!value.userData.studyCover) textures.add(value); }
   });

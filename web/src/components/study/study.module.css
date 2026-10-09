@@ -12,8 +12,8 @@
 .session { display:flex;align-items:center; }
 .session :global(.header-login) { border:0;background:none;color:#78685b;padding:13px 8px;min-height:44px;font-size:14px; }
 .main { height:100%; }
-.study:not([data-backdrop=forest]) .header { background:linear-gradient(180deg,#fffaf2f0,#fffaf2a0 75%,#fffaf200); }
-.study:not([data-backdrop=forest]) .caption { color:#fff0dd;text-shadow:0 1px 7px #263844; }
+.study .header { background:linear-gradient(180deg,#fffaf2f0,#fffaf2a0 75%,#fffaf200); }
+.study .caption { color:#fff0dd;text-shadow:0 1px 7px #263844; }
 .canvas { width:100%; height:100%; touch-action:none; }
 .canvas canvas { display:block; width:100%; height:100%; }
 .canvas[data-navigation=pan] canvas { cursor:grab; }
@@ -186,7 +186,7 @@
   .customTabs { margin:0 16px 8px; }
   .customBody { padding:0 16px 8px; }
   .sceneryIntro,.customBody[data-mode=scenery] .help { display:none; }
-  .sceneryCards { grid-template-columns:repeat(4,minmax(0,1fr));gap:5px; }
+  .sceneryCards { grid-template-columns:repeat(5,minmax(0,1fr));gap:5px; }
   .sceneryCards button { align-items:center;min-height:68px;padding:5px;gap:5px;border-radius:10px; }
   .sceneryCards strong { font-size:12px; }
   .sceneryCards span { display:none; }

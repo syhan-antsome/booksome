@@ -1,5 +1,4 @@
 import * as THREE from 'three';
-import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
@@ -8,12 +7,12 @@ import { GTAOPass } from 'three/addons/postprocessing/GTAOPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { canvasMap, disposeStudyMaterials, loadStudyMaterials } from './materials';
 import { makeDecor, makeDesk, makeOpenBook, makeRoom, makeShelves, makeTrailingPlant } from './furniture';
-import {makePenthouse} from './penthouse';
+import {makePenthouse,setStudyArchitecture} from './penthouse';
 import {blocksStudyPointer} from './pointer-surface';
 import { disposeObject, populateBooks } from './books';
 import { BOOK_PULL_FRACTION, BookPullMotion } from './book-pull';
 import { createStudyCamera, resizeStudyCamera, studyCameraPose, studyRoomPose,studyViewSize } from './camera';
-import {createStudyControls,resizeStudyControls,setStudyNavigation} from './navigation-controls';
+import {createStudyControls,resizeStudyControls,setStudyNavigation,setStudyControlLimits} from './navigation-controls';
 import { DeskBookFlash } from './desk-book-flash';
 import { deskBodiesOverlap, resolveDeskCollisions, type DeskBody } from './desk-collision';
 import { groundStudyObject } from './grounding';
@@ -39,12 +38,12 @@ export function createStudyScene(container: HTMLElement, initialBooks: StudyBook
   renderer.domElement.tabIndex = 0;
   renderer.domElement.setAttribute('aria-label', '서재 화면. 왼쪽 드래그로 둘러보고 오른쪽 드래그로 화면을 이동합니다. 방향키로도 이동할 수 있습니다. 책상 위 책 목록을 누르면 책과 독서 기록을 볼 수 있습니다.');
   const scene = new THREE.Scene(), root = new THREE.Group(); scene.add(root);
-  const world=new CityBackdrop(scene,status=>{container.dataset.backgroundPhase=status.phase;container.dataset.backgroundPhoto=status.phase==='ready'&&status.mode!=='forest'?status.mode:'';container.dataset.backgroundProjection=status.mode==='new-york'?'panorama':'plate';onBackdropStatus(status);invalidate();});
+  const world=new CityBackdrop(scene,status=>{container.dataset.backgroundPhase=status.phase;container.dataset.backgroundPhoto=status.phase==='ready'?status.mode:'';container.dataset.backgroundProjection='panorama';onBackdropStatus(status);invalidate();});
   const camera = createStudyCamera();
   const initialPose=studyRoomPose(initialSettings.backdrop);
   camera.position.copy(initialPose.eye);camera.zoom=initialPose.zoom;
-  // Keep the penthouse upright and bounded; other rooms retain free trackball rotation.
-  let controls=createStudyControls(camera,renderer.domElement,initialSettings.backdrop,initialPose.target);
+  // Keep every landscape level while preserving unlimited horizontal rotation.
+  const controls=createStudyControls(camera,renderer.domElement,initialSettings.backdrop,initialPose.target);
   const pmrem = new THREE.PMREMGenerator(renderer); const environment = new RoomEnvironment(); const environmentTarget = pmrem.fromScene(environment, .04); environment.dispose(); pmrem.dispose(); scene.environment = environmentTarget.texture; scene.environmentIntensity = .35;
   const sky = new THREE.HemisphereLight('#fff9ef', '#b7ad98', 1.05); scene.add(sky);
   const sun = new THREE.DirectionalLight('#fff0d5', 2.8); sun.position.set(-10, 5.5, -3.4); sun.target.position.set(2, 0, 2); sun.castShadow = true; sun.shadow.mapSize.set(2048, 2048); sun.shadow.camera.left = -9; sun.shadow.camera.right = 9; sun.shadow.camera.top = 9; sun.shadow.camera.bottom = -9; sun.shadow.camera.near = .5; sun.shadow.camera.far = 35; sun.shadow.bias = -.0003; sun.shadow.normalBias = .025; sun.shadow.radius = 5; sun.shadow.blurSamples = 8; scene.add(sun, sun.target);
@@ -105,7 +104,7 @@ export function createStudyScene(container: HTMLElement, initialBooks: StudyBook
     container.dataset.pixelRatio=renderer.getPixelRatio().toFixed(2);
     if (container.clientWidth >= 800) composer.render(); else renderer.render(scene, camera);
     viewAngles.setFromVector3(viewOffset.copy(camera.position).sub(controls.target));
-    container.dataset.frames = String(++renderedFrames); container.dataset.targetY=controls.target.y.toFixed(3);container.dataset.zoom=camera.zoom.toFixed(3);container.dataset.polar=viewAngles.phi.toFixed(3);container.dataset.azimuth=viewAngles.theta.toFixed(3);container.dataset.upY=camera.up.y.toFixed(3);container.dataset.eyeY=viewOffset.y.toFixed(3);
+    container.dataset.frames = String(++renderedFrames); container.dataset.targetY=controls.target.y.toFixed(3);container.dataset.zoom=camera.zoom.toFixed(3);container.dataset.polar=viewAngles.phi.toFixed(3);container.dataset.azimuth=viewAngles.theta.toFixed(3);container.dataset.upY=camera.up.y.toFixed(3);container.dataset.eyeY=viewOffset.y.toFixed(3);container.dataset.cameraY=camera.position.y.toFixed(3);
     container.dataset.selectedBook=bookMotion.selectedId?bookModels.get(bookMotion.selectedId)?.object.userData.book.id??'':'';
     container.dataset.selectedInstance=bookMotion.selectedId??'';
     container.dataset.pullProgress=bookMotion.selectedId?bookMotion.amount(bookMotion.selectedId).toFixed(3):'0.000';
@@ -127,8 +126,8 @@ export function createStudyScene(container: HTMLElement, initialBooks: StudyBook
   function tick(now: number) {
     frame = 0; if (disposed || graphicsLost || document.hidden) return; ticking = true;
     if (tween) { const t = motion.matches ? 1 : Math.min(1, (now - tween.start) / 650), eased = 1 - Math.pow(1 - t, 3); camera.position.lerpVectors(tween.from, tween.to, eased); controls.target.lerpVectors(tween.fromTarget, tween.toTarget, eased); camera.up.copy(tween.fromUp).applyQuaternion(upTween.identity().slerp(tween.upRotation,eased)); camera.zoom = tween.zoom + (tween.toZoom - tween.zoom) * eased; camera.updateProjectionMatrix(); if (t === 1) { tween = null; controls.enabled = true; } }
-    controls.update();
     const correction = boundedTarget.copy(controls.target).clamp(targetMin, targetMax).sub(controls.target); controls.target.add(correction); camera.position.add(correction);
+    setStudyControlLimits(controls,settings.backdrop);controls.update();
     const booksMoving=bookMotion.update(now);
     for(const [id,model] of bookModels)model.object.position.copy(model.rest).addScaledVector(model.pull,bookMotion.amount(id));
     resolveDeskProps();
@@ -167,7 +166,7 @@ export function createStudyScene(container: HTMLElement, initialBooks: StudyBook
   const observer = new ResizeObserver(resize); observer.observe(container); resize();
   function setNavigation(mode: 'orbit' | 'pan') { controls.update(); navigation = mode;setStudyNavigation(controls,mode); container.dataset.navigation = mode; }
   function setView(view: StudyView) { controls.update(); activeView = view; const p = positions[view]; const zoom = view === 'shelves' && container.clientWidth < 700 ? 1.45 : p.zoom; const fromUp=camera.up.clone().normalize(); tween = { from: camera.position.clone(), to: p.eye.clone(), fromTarget: controls.target.clone(), toTarget: p.target.clone(), fromUp, upRotation:new THREE.Quaternion().setFromUnitVectors(fromUp,new THREE.Vector3(0,1,0)), zoom: camera.zoom, toZoom: zoom, start: performance.now() }; controls.enabled = false; invalidate(); container.dataset.view = view; }
-  function setSceneryView(backdrop=settings.backdrop){positions.room=studyRoomPose(backdrop);setView('room');if(tween&&backdrop!=='new-york')tween.toZoom=.78;}
+  function setSceneryView(backdrop=settings.backdrop){positions.room=studyRoomPose(backdrop);setView('room');}
   function setBooks(next: StudyBook[],nextDeskBooks:StudyBook[]=next) {
     books = next;deskBooks=nextDeskBooks; if (!materials) return;
     const reserved=new Set(decorations.map(item=>item.slotId)),packed=packShelfBooks(books,slots,reserved);
@@ -292,31 +291,25 @@ export function createStudyScene(container: HTMLElement, initialBooks: StudyBook
     container.dataset.floorPlacements=JSON.stringify(placements);
   }
   function setSettings(next: StudySettings) {
-    const wasPenthouse=settings.backdrop==='new-york';
+    const previousBackdrop=settings.backdrop;
     settings={...next,backdrop:next.backdrop??'forest'};plants.visible=settings.plants;if(decor)decor.rug.visible=settings.rug;groundFloorDecor();
-    const isPenthouse=settings.backdrop==='new-york';
-    if(isPenthouse!==(controls instanceof OrbitControls)){
-      const target=controls.target.clone(),enabled=controls.enabled;
-      controls.removeEventListener('change',invalidate);controls.removeEventListener('start',invalidate);controls.removeEventListener('end',invalidate);controls.dispose();
-      controls=createStudyControls(camera,renderer.domElement,settings.backdrop,target);controls.enabled=enabled;
-      setStudyNavigation(controls,navigation);
-      controls.addEventListener('change',invalidate);controls.addEventListener('start',invalidate);controls.addEventListener('end',invalidate);
-    }
-    if(penthouse)penthouse.visible=isPenthouse;if(classicWindow)classicWindow.visible=!isPenthouse;
-    if(decor){decor.pinBoard.position.set(isPenthouse?-5.18:-5.62,isPenthouse?2.90:2.92,isPenthouse?-3.94:1.30);decor.pinBoard.rotation.y=isPenthouse?-Math.PI/2:0;decor.pinBoard.scale.setScalar(isPenthouse?.74:1);}
-    positions.room=studyRoomPose(settings.backdrop);container.dataset.penthouse=String(isPenthouse);
+    setStudyControlLimits(controls,settings.backdrop);
+    if(classicWindow)classicWindow.visible=false;
+    if(decor){decor.pinBoard.position.set(-5.18,2.90,-3.94);decor.pinBoard.rotation.y=-Math.PI/2;decor.pinBoard.scale.setScalar(.74);}
+    positions.room=studyRoomPose(settings.backdrop);container.dataset.penthouse=String(settings.backdrop!=='forest');container.dataset.architecture=settings.backdrop==='forest'?'treehouse':'penthouse';
     const atmosphere=sceneryOptions.find(item=>item.id===settings.backdrop)!;
     if(materials){materials.coral.color.set(settings.accent);materials.cushion.color.set(settings.accent);theme?.apply(settings);world.set(settings.backdrop);}
-    const garden=root.getObjectByName('study-window-garden');if(garden)garden.visible=settings.backdrop==='forest';ground.visible=settings.backdrop==='forest';
+    if(penthouse)setStudyArchitecture(penthouse,settings.backdrop);
+    const garden=root.getObjectByName('study-window-garden');if(garden)garden.visible=false;ground.visible=false;
     sun.color.set(atmosphere.sun);sun.intensity=(.7+settings.light/100*1.8)*atmosphere.sunScale;
-    daylight.intensity=settings.backdrop==='forest'?settings.light/100*350:0;
+    daylight.intensity=settings.backdrop==='forest'?settings.light/100*180:0;
     sky.color.set(atmosphere.ambient);sky.groundColor.set(atmosphere.ground);sky.intensity=(.32+settings.light/100*.26)*atmosphere.skyScale;
     fill.color.set(atmosphere.ambient);scene.environmentIntensity=settings.backdrop==='tokyo'?.24:.35;
-    fill.intensity=isPenthouse?.24:.34;sky.intensity*=isPenthouse?.8:1;sun.shadow.radius=isPenthouse?3.5:16;
-    renderer.toneMappingExposure=isPenthouse?.75:.85;
+    fill.intensity=.24;sky.intensity*=.8;sun.shadow.radius=settings.backdrop==='forest'?6:3.5;
+    renderer.toneMappingExposure=atmosphere.exposure;
     updateDeskLighting();
-    container.dataset.backdrop=settings.backdrop;container.dataset.windowBackdrop=garden?.visible?'forest':settings.backdrop;invalidate();
-    if(materials&&wasPenthouse!==isPenthouse&&activeView==='room')setSceneryView(settings.backdrop);
+    container.dataset.backdrop=settings.backdrop;container.dataset.windowBackdrop=settings.backdrop;invalidate();
+    if(materials&&previousBackdrop!==settings.backdrop&&activeView==='room')setSceneryView(settings.backdrop);
   }
   function cancelDeskFlash() { deskFlash?.effect.dispose();deskFlash=null; }
   function updateDeskLighting(){

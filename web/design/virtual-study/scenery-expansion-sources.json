@@ -1,0 +1,50 @@
+[
+  {
+    "id": "tokyo",
+    "version": "v2",
+    "scene": "Tokyo skyline seen from the 35th floor of a residential tower in Shiba, with Tokyo Tower glowing warm orange toward the central forward view, layered contemporary office towers, dense Japanese low-rise neighborhoods, distant Tokyo Bay and long evening streets. Blue hour just after sunset: navy-blue sky still visibly luminous, delicate pale violet horizon, richly resolved windows and warm restrained city lights. Real photographic exposure with visible detailed buildings, never pitch black, no overwhelming neon.",
+    "panoramaSource": "exec-3d60475d-47b6-4f42-8288-73eedd834da1.png",
+    "detailSources": {
+      "px": "exec-4f77c0ff-f2d1-44f6-8856-5400709edcee.png",
+      "nx": "exec-8bc0dd14-05b7-414e-831a-f0776612eb25.png",
+      "pz": "exec-c76f8e91-2acc-4061-ba79-938d039112df.png",
+      "nz": "exec-e3293982-f3b3-4c2d-a360-2c3718cc6535.png"
+    }
+  },
+  {
+    "id": "london",
+    "version": "v2",
+    "scene": "London skyline viewed from a 30th-floor residential tower beside the River Thames on the South Bank. The winding Thames and Westminster, a recognizable distant Elizabeth Tower, London Eye, St Pauls and the Shard positioned naturally in different directions around the city, fine brick and stone architecture with contemporary glass towers. Clear calm morning, softly warm side sunlight and cool mist at the far horizon, detailed rooftops and streets, subtle clouds and a natural soft blue sky. No fog obscuring the city.",
+    "panoramaSource": "exec-f14c83c2-7fdd-45f5-8b25-3a3b2176642b.png",
+    "detailSources": {
+      "px": "exec-3d5882b9-f5d6-423e-88cb-75df71376e45.png",
+      "nx": "exec-7f577e37-9594-403d-9123-0ec595fca7e9.png",
+      "pz": "exec-24a86645-f200-4fa4-89d9-7517def8006a.png",
+      "nz": "exec-e49aa637-1524-4c92-97bc-a4a68eecf7db.png"
+    }
+  },
+  {
+    "id": "seoul",
+    "version": "v1",
+    "scene": "Seoul from a 35th-floor apartment tower on the south bank of the Han River, facing north toward the broad river, elegant bridges and Namsan Hill with N Seoul Tower in the central forward view. Modern Korean residential and office towers, distant mountains, dense neighborhoods extending around the full panorama, the distant Lotte World Tower far to one side, balanced plausible city arrangement. A beautiful late-afternoon sunset, warm honey sunlight, blue shadows, pale peach-blue sky and subtle clouds. Natural restrained photographic color, not a saturated orange filter.",
+    "panoramaSource": "exec-28389bc9-ee1a-4b15-b2e2-4c10ad4d0539.png",
+    "detailSources": {
+      "px": "exec-d7a4baba-8e98-4c6d-9219-3ced610cc8bd.png",
+      "nx": "exec-986cd425-fcc9-4a1f-8274-efdf4f252446.png",
+      "pz": "exec-78ca2875-9321-456c-b797-804f6ed4c9e3.png",
+      "nz": "exec-0b01438c-72ef-4b44-a79a-15d07ba14952.png"
+    }
+  },
+  {
+    "id": "forest",
+    "version": "v1",
+    "scene": "A peaceful temperate woodland seen from eye height 3 meters above the forest floor at the edge of a woodland clearing. Mature tall deciduous trees, graceful trunks, moss, fern, grasses and naturally layered green foliage surround the viewer in every direction. A small open clearing near the viewer with realistic earthy ground underfoot, trunks mainly 8 to 25 meters away, continuous forest floor extending into distance. Morning sunlight filters gently through leaves with realistic soft bright patches, overhead branches open to a pale sky. This is a grounded forest location, not an aerial view, no city, no houses, no lake.",
+    "panoramaSource": "exec-0fa48d07-5f00-4fd2-82ff-015e565b203e.png",
+    "detailSources": {
+      "px": "exec-52acc189-7d0d-4a49-951d-94ed806dd9a4.png",
+      "nx": "exec-13bbfead-72d4-472e-9da9-d42e18048bde.png",
+      "pz": "exec-2c396cf0-65c6-4001-8aa7-85cd2e3af3d5.png",
+      "nz": "exec-4c92e368-f231-4e24-b457-38add6978aab.png"
+    }
+  }
+]

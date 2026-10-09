@@ -26,7 +26,9 @@ export function makePanoramaSky(detail:THREE.Texture,reference:THREE.Texture,rot
       }`,
     side:THREE.BackSide,depthWrite:false,depthTest:true,toneMapped:false,allowOverride:false,
   });
-  const mesh=new THREE.Mesh(new THREE.BoxGeometry(2,2,2),material);mesh.name='study-panorama-sky';mesh.frustumCulled=false;mesh.renderOrder=10000;mesh.matrixAutoUpdate=false;
+  // Draw the far environment before the room and its translucent surfaces.
+  // It writes no depth, so both glass and the forest clearing can blend over it.
+  const mesh=new THREE.Mesh(new THREE.BoxGeometry(2,2,2),material);mesh.name='study-panorama-sky';mesh.frustumCulled=false;mesh.renderOrder=-10000;mesh.matrixAutoUpdate=false;
   mesh.onBeforeRender=(_renderer,_scene,camera)=>{mesh.matrixWorld.copyPosition(camera.matrixWorld);};
   return mesh;
 }

@@ -1,13 +1,17 @@
 import * as THREE from 'three';
 import {box} from './furniture';
 import type {StudyMaterials} from './materials';
+import type {StudyBackdrop} from './types';
+import {sceneryOptions} from './scenery-options';
+import {makeTreehouse} from './treehouse';
 
 const LOWER_STOREYS=6,STOREY_HEIGHT=3.48;
 
 /** The penthouse floor and six lower storeys belong to one building.
  * The remaining storeys are outside the framed view, not a floating platform. */
 export function makePenthouse(parent:THREE.Group,m:StudyMaterials) {
-  const group=new THREE.Group();group.name='study-new-york-penthouse';group.visible=false;parent.add(group);
+  const group=new THREE.Group();group.name='study-panoramic-room';group.visible=false;parent.add(group);
+  const facade=m.facade.clone();
   const bronze=new THREE.MeshStandardMaterial({color:'#39372f',roughness:.34,metalness:.72});
   const glass=new THREE.MeshPhysicalMaterial({color:'#bed2ce',transparent:true,opacity:.075,roughness:.19,metalness:.2,clearcoat:1,clearcoatRoughness:.12,side:THREE.DoubleSide,depthWrite:false});
   const lowerGlass=glass.clone();lowerGlass.opacity=.23;lowerGlass.color.set('#8dadae');
@@ -43,16 +47,16 @@ export function makePenthouse(parent:THREE.Group,m:StudyMaterials) {
   // Solid floor slabs continue through the terrace and into every facade bay.
   for(let row=0;row<=LOWER_STOREYS;row++) {
     const y=-.40-row*STOREY_HEIGHT;
-    rect(below,[14.97,.42,8.72],[-1.365,y,0],m.facade).name='penthouse-floor-slab';
+    rect(below,[14.97,.42,8.72],[-1.365,y,0],facade).name='penthouse-floor-slab';
     rect(below,[14.97,.055,.055],[-1.365,y+.255,4.385],bronze);
     rect(rear,[14.97,.055,.055],[-1.365,y+.255,-4.385],bronze);
     rect(below,[.055,.055,8.72],[-8.875,y+.255,0],bronze);
   }
   for(let row=0;row<LOWER_STOREYS;row++) {
     const bottom=-.61-(row+1)*STOREY_HEIGHT,top=-.61-row*STOREY_HEIGHT,height=3.07,cy=(bottom+top)/2+.18;
-    for(const x of xs)rect(below,[.30,STOREY_HEIGHT,.42],[x,(bottom+top)/2,4.14],m.facade);
-    for(const x of xs)rect(rear,[.30,STOREY_HEIGHT,.42],[x,(bottom+top)/2,-4.14],m.facade);
-    for(const z of zs)rect(below,[.42,STOREY_HEIGHT,.30],[-8.65,(bottom+top)/2,z],m.facade);
+    for(const x of xs)rect(below,[.30,STOREY_HEIGHT,.42],[x,(bottom+top)/2,4.14],facade);
+    for(const x of xs)rect(rear,[.30,STOREY_HEIGHT,.42],[x,(bottom+top)/2,-4.14],facade);
+    for(const z of zs)rect(below,[.42,STOREY_HEIGHT,.30],[-8.65,(bottom+top)/2,z],facade);
     for(let bay=0;bay<xs.length-1;bay++) {
       const x=(xs[bay]+xs[bay+1])/2,w=xs[bay+1]-xs[bay]-.33;
       // Match front and rear glazing, with real room depth rather than a window decal.
@@ -89,22 +93,23 @@ export function makePenthouse(parent:THREE.Group,m:StudyMaterials) {
   }
   // Keep the opposite side as the original solid, windowless exterior wall.
   const facadeHeight=LOWER_STOREYS*STOREY_HEIGHT+.01,facadeCenter=-.40-LOWER_STOREYS*STOREY_HEIGHT/2+.01;
-  rect(below,[.16,facadeHeight,8.55],[6.04,facadeCenter,0],m.facade).name='penthouse-side-facade';
+  rect(below,[.16,facadeHeight,8.55],[6.04,facadeCenter,0],facade).name='penthouse-side-facade';
 
   const terrace=new THREE.Group();terrace.name='penthouse-terrace';group.add(terrace);
-  rect(terrace,[2.94,.24,8.5],[-7.375,-.12,0],m.facade,true);
+  rect(terrace,[2.94,.24,8.5],[-7.375,-.12,0],facade,true);
   const seam=new THREE.MeshStandardMaterial({color:'#817c72',roughness:1});
   for(let z=-4;z<=4;z+=.85)rect(terrace,[2.87,.003,.009],[-7.375,.006,z],seam);
   for(const x of [-8.1,-7.3,-6.5])rect(terrace,[.009,.003,8.40],[x,.006,0],seam);
+  const rails=new THREE.Group();rails.name='penthouse-terrace-rails';terrace.add(rails);
   // Glass safety rails sit on the same slab as the apartment.
   for(const z of [-4.19,4.19]) {
-    pane(terrace,2.86,1.18,[-7.37,.64,z],0);
-    rect(terrace,[2.90,.045,.055],[-7.37,1.24,z],bronze);
+    pane(rails,2.86,1.18,[-7.37,.64,z],0);
+    rect(rails,[2.90,.045,.055],[-7.37,1.24,z],bronze);
   }
-  pane(terrace,8.38,1.18,[-8.81,.64,0],Math.PI/2);
-  rect(terrace,[.055,.045,8.40],[-8.81,1.24,0],bronze);
-  for(const z of [-4.19,-1.4,1.4,4.19])rect(terrace,[.055,1.24,.055],[-8.81,.62,z],bronze);
-  for(const z of [-4.19,4.19])rect(terrace,[.055,1.24,.055],[-5.98,.62,z],bronze);
+  pane(rails,8.38,1.18,[-8.81,.64,0],Math.PI/2);
+  rect(rails,[.055,.045,8.40],[-8.81,1.24,0],bronze);
+  for(const z of [-4.19,-1.4,1.4,4.19])rect(rails,[.055,1.24,.055],[-8.81,.62,z],bronze);
+  for(const z of [-4.19,4.19])rect(rails,[.055,1.24,.055],[-5.98,.62,z],bronze);
   // A compact outdoor reading seat and table, all grounded on the terrace.
   box(terrace,[1.24,.25,1.08],[-7.34,.58,1.93],m.fabric,.09);
   box(terrace,[1.24,.78,.18],[-7.34,.96,1.46],m.fabric,.07);
@@ -115,20 +120,20 @@ export function makePenthouse(parent:THREE.Group,m:StudyMaterials) {
 
   const upper=new THREE.Group();upper.name='penthouse-upper-frame';group.add(upper);
   const roof=new THREE.Group();roof.name='penthouse-roof';upper.add(roof);
-  box(roof,[12.25,.36,8.70],[.05,5.41,0],m.facade,.025);
+  box(roof,[12.25,.36,8.70],[.05,5.41,0],facade,.025);
   const ceiling=new THREE.Mesh(new THREE.PlaneGeometry(11.82,8.30),m.plaster);ceiling.rotation.x=Math.PI/2;ceiling.position.set(0,5.222,0);roof.add(ceiling);
   for(const x of [-4.8,-1.4,2.0,4.8])for(const z of [-2.5,2.5]){
     const light=new THREE.Mesh(new THREE.CylinderGeometry(.07,.07,.012,20),glow);light.position.set(x,5.212,z);roof.add(light);
   }
   // A structural pier separates the glazed bays; the board is on the rear wall.
-  box(upper,[.56,5.3,.46],[-5.99,2.65,1.30],m.facade,.022);
-  for(const [x,z] of [[-5.99,-4.15],[-5.99,4.25],[6.0,4.25],[6.0,-4.15]])box(upper,[.32,5.3,.32],[x,2.65,z],m.facade,.018);
+  box(upper,[.56,5.3,.46],[-5.99,2.65,1.30],facade,.022);
+  for(const [x,z] of [[-5.99,-4.15],[-5.99,4.25],[6.0,4.25],[6.0,-4.15]])box(upper,[.32,5.3,.32],[x,2.65,z],facade,.018);
   // The front is an architectural cutaway; the rear and terrace roof retain
   // their real structure while the bookshelf remains visible and clickable.
-  box(upper,[12.31,.38,1.00],[.05,5.37,-3.88],m.facade,.025);
-  box(upper,[12.31,.34,.42],[.05,5.39,4.25],m.facade,.02).name='penthouse-front-lintel';
-  box(upper,[.76,.34,8.73],[5.83,5.39,0],m.facade,.02);
-  box(upper,[2.97,.34,8.73],[-7.37,5.39,0],m.facade,.025);
+  box(upper,[12.31,.38,1.00],[.05,5.37,-3.88],facade,.025);
+  box(upper,[12.31,.34,.42],[.05,5.39,4.25],facade,.02).name='penthouse-front-lintel';
+  box(upper,[.76,.34,8.73],[5.83,5.39,0],facade,.02);
+  box(upper,[2.97,.34,8.73],[-7.37,5.39,0],facade,.025);
   box(upper,[.17,.17,8.38],[-5.84,5.13,0],bronze,.01);
   for(const [start,end] of [[-4.04,1.05],[1.55,4.08]]) {
     const w=end-start,z=(start+end)/2;pane(upper,w,5.06,[-5.96,2.57,z],Math.PI/2);
@@ -148,6 +153,26 @@ export function makePenthouse(parent:THREE.Group,m:StudyMaterials) {
   for(const z of [-2.75,0,2.75]){
     const lamp=new THREE.Mesh(new THREE.CylinderGeometry(.09,.09,.012,24),glow);lamp.position.set(-7.34,5.205,z);upper.add(lamp);
   }
+  const treehouse=makeTreehouse(group,m);
+  group.userData.architecture={facade,bronze,glass,lowerGlass,inside,glow,canopyLamp,wood:treehouse.userData.wood,floor:treehouse.userData.wood};
+  upper.traverse(object=>{if(object instanceof THREE.Mesh&&object.material===facade)object.userData.architecturalBeam=true;});
   group.userData.floor=40;group.userData.lowerStoreys=LOWER_STOREYS;
   return group;
+}
+
+/** Change only the building shell; personal furniture, books and props survive. */
+export function setStudyArchitecture(group:THREE.Group,backdrop:StudyBackdrop){
+  const palette=sceneryOptions.find(item=>item.id===backdrop)!,forest=palette.architecture==='treehouse';
+  const a=group.userData.architecture as {facade:THREE.MeshStandardMaterial;bronze:THREE.MeshStandardMaterial;glass:THREE.MeshPhysicalMaterial;lowerGlass:THREE.MeshPhysicalMaterial;inside:THREE.MeshStandardMaterial;glow:THREE.MeshStandardMaterial;canopyLamp:THREE.PointLight;wood:THREE.MeshStandardMaterial;floor:THREE.MeshStandardMaterial};
+  group.visible=true;a.facade.color.set(palette.stone);a.bronze.color.set(palette.metal);
+  a.glass.color.set(palette.ambient);a.lowerGlass.color.set(palette.sky);
+  a.inside.emissiveIntensity=backdrop==='tokyo'?.30:.12;
+  a.glow.emissiveIntensity=backdrop==='tokyo'?3:1.7;a.canopyLamp.intensity=backdrop==='tokyo'?12:forest?4:7;
+  group.getObjectByName('penthouse-lower-storeys')!.visible=!forest;
+  group.getObjectByName('penthouse-terrace-rails')!.visible=!forest;
+  group.getObjectByName('study-treehouse')!.visible=forest;
+  group.getObjectByName('penthouse-upper-frame')!.traverse(object=>{if(object instanceof THREE.Mesh&&object.userData.architecturalBeam)object.material=forest?a.wood:a.facade;});
+  const deck=group.getObjectByName('penthouse-terrace')!.children[0] as THREE.Mesh;
+  deck.material=forest?a.floor:a.facade;
+  group.userData.backdrop=backdrop;group.userData.floor=forest?1:40;group.userData.lowerStoreys=forest?0:LOWER_STOREYS;
 }
