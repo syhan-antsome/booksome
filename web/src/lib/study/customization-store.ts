@@ -1,6 +1,7 @@
 import {defaultStudySettings,type StudySettings} from './types';
-import {findDecor,type StudyDecoration} from './decor-catalog';
+import {findDecor,decorSupportsSurface,type StudyDecoration} from './decor-catalog';
 import {studyShelfSlots} from './shelves';
+import {studyDeskSlots,decorationSurface} from './desk-layout';
 
 export type StudyRoomDocument={settings:StudySettings;decorations:StudyDecoration[]};
 export const defaultRoomDocument:StudyRoomDocument={settings:defaultStudySettings,decorations:[]};
@@ -17,14 +18,16 @@ export function normalizeRoomDocument(value:unknown):StudyRoomDocument {
     rugColor:enumValue(source.rugColor,['sand','sage','terracotta'],'sand'),rugPattern:enumValue(source.rugPattern,['woven','stripes','grid'],'woven'),
     backdrop:enumValue(source.backdrop,['forest','new-york','tokyo','london'],'forest'),
   };
-  const validSlots=new Set(studyShelfSlots().map(slot=>slot.id)),seenSlots=new Set<string>(),seenIds=new Set<string>(),decorations:StudyDecoration[]=[];
+  const validSlots=new Set([...studyShelfSlots(),...studyDeskSlots()].map(slot=>slot.id)),seenSlots=new Set<string>(),seenIds=new Set<string>(),decorations:StudyDecoration[]=[];
   for(const value of (Array.isArray(raw.decorations)?raw.decorations:[]).slice(0,216)) {
     if(!value||typeof value!=='object')continue;
     const item=value as Record<string,unknown>,catalog=typeof item.type==='string'?findDecor(item.type):undefined;
     if(!catalog||typeof item.id!=='string'||!/^[\w-]{1,80}$/.test(item.id)||typeof item.slotId!=='string'||!validSlots.has(item.slotId)||!Number.isInteger(item.page)||(item.page as number)<0||(item.page as number)>999)continue;
-    const location=`${item.page}:${item.slotId}`;if(seenSlots.has(location)||seenIds.has(item.id))continue;
+    const surface=decorationSurface(item.slotId),page=surface==='desk'?0:item.page as number;
+    if(!decorSupportsSurface(catalog.id,surface))continue;
+    const location=`${page}:${item.slotId}`;if(seenSlots.has(location)||seenIds.has(item.id))continue;
     seenSlots.add(location);seenIds.add(item.id);
-    decorations.push({id:item.id,type:catalog.id,slotId:item.slotId,page:item.page as number,color:Number.isInteger(item.color)&&Number(item.color)>=0&&Number(item.color)<3?Number(item.color):0,rotation:Number.isInteger(item.rotation)&&Number(item.rotation)>=0&&Number(item.rotation)<4?Number(item.rotation):0});
+    decorations.push({id:item.id,type:catalog.id,slotId:item.slotId,page,color:Number.isInteger(item.color)&&Number(item.color)>=0&&Number(item.color)<3?Number(item.color):0,rotation:Number.isInteger(item.rotation)&&Number(item.rotation)>=0&&Number(item.rotation)<4?Number(item.rotation):0});
   }
   return {settings,decorations};
 }

@@ -14,15 +14,18 @@ async function moduleUrl(url){
   const target='data:text/javascript;base64,'+Buffer.from(source).toString('base64');modules.set(url.href,target);return target;
 }
 const load=async name=>import(await moduleUrl(new URL(`../src/lib/study/${name}.ts`,import.meta.url)));
-const {decorCatalog}=await load('decor-catalog');
+const {decorCatalog,decorForSurface}=await load('decor-catalog');
 const {studyShelfSlots}=await load('shelves');
 const {buildShelfPages,packShelfBooks}=await load('shelf-layout');
-const {makeDecoration,fitDecoration}=await load('decor-models');
+const {makeDecoration,fitDecoration,fitDeskDecoration}=await load('decor-models');
 const {disposeObject,populateBooks}=await load('books');
-const {makeRoom,makeShelves}=await load('furniture');
+const {makeRoom,makeShelves,makeDecor,makeDesk,makeOpenBook}=await load('furniture');
+const {studyDeskSlots,deskProtectedZones,deskBounds,decorationSurface}=await load('desk-layout');
+const {deskBodiesOverlap}=await load('desk-collision');
+const {BOOK_PULL_FRACTION}=await load('book-pull');
 const {makePenthouse}=await load('penthouse');
 const {blocksStudyPointer}=await load('pointer-surface');
-const {studyRoomPose,studyCameraPose}=await load('camera');
+const {studyRoomPose,studyCameraPose,createStudyCamera,resizeStudyCamera}=await load('camera');
 const {createStudyControls,setStudyNavigation,resizeStudyControls}=await load('navigation-controls');
 const {StudyTheme}=await load('theme');
 const {CityBackdrop}=await load('city-backdrop');
@@ -142,10 +145,40 @@ function canvasEnvironment() {
   const context=new Proxy({measureText:value=>({width:value.length*20}),createLinearGradient:()=>({addColorStop(){}}),createRadialGradient:()=>({addColorStop(){}})}, {get:(object,key)=>key in object?object[key]:()=>{}});
   const original=global.document;global.document={createElement:()=>({width:0,height:0,getContext:()=>context})};return()=>{global.document=original;};
 }
+test('all 24 cubbies start available and built-in room decor stays outside shelf interiors',()=>{
+  const restore=canvasEnvironment(),root=new THREE.Group();
+  try{
+    makeDecor(root,roomMaterials());root.updateMatrixWorld(true);
+    assert.equal(slots.length,24);assert.equal(new Set(slots.map(slot=>slot.id)).size,24);
+    assert.equal(buildShelfPages([],[])[0].emptySlots.length,24);assert.equal(defaultRoomDocument.decorations.length,0);
+    for(const slot of slots){
+      const interior=new THREE.Box3(new THREE.Vector3(slot.x,slot.y,slot.z-.49),new THREE.Vector3(slot.x+slot.width,slot.y+slot.maxHeight,slot.z+.28));
+      root.traverse(object=>{if(object.isMesh)assert.equal(interior.intersectsBox(new THREE.Box3().setFromObject(object,true)),false,`built-in decoration occupies ${slot.id}`);});
+    }
+  }finally{disposeObject(root);restore();}
+});
+
+test('previously saved decorations keep their slot IDs while six former default-decor cubbies become usable',()=>{
+  const newlyAvailable=['main-0-1','main-0-2','main-0-3','main-2-0','main-2-3','side-0-2'];
+  const historicalSlots=['main-0-0','main-1-0','main-1-1','main-1-2','main-1-3','main-2-1','main-2-2','main-3-0','main-3-1','main-3-2','main-3-3','side-0-0','side-0-1','side-0-3','side-1-0','side-1-1','side-1-2','side-1-3'];
+  const document={settings:defaultStudySettings,decorations:historicalSlots.map((slotId,index)=>({id:`saved-${index}`,type:'fern',slotId,page:0,color:1,rotation:2}))};
+  const storage=memory();storage.setItem(roomStorageKey('reader'),JSON.stringify({version:2,document}));
+  const store=new StudyCustomizationStore(()=>storage);store.setOwner('reader');
+  assert.deepEqual(store.getSnapshot().document,document);
+  const pages=buildShelfPages([],store.getSnapshot().document.decorations);
+  assert.equal(pages.length,1);assert.deepEqual(pages[0].emptySlots.map(slot=>slot.id).sort(),newlyAvailable.sort());
+  for(const slotId of newlyAvailable){
+    const slot=slots.find(slot=>slot.id===slotId);assert.ok(slot);
+    const reserved=new Set(slots.filter(other=>other.id!==slotId).map(slot=>slot.id));
+    assert.equal(packShelfBooks(books.slice(0,1),slots,reserved).placed[0]?.slot.id,slotId);
+    assert.equal(normalizeRoomDocument({settings:defaultStudySettings,decorations:[prop(slot)]}).decorations.length,1);
+  }
+});
+
 test('every actual decoration model rests on and fits the smallest cubby at all four rotations',()=>{
   const restore=canvasEnvironment(),slot=slots.reduce((smallest,slot)=>slot.maxHeight<smallest.maxHeight?slot:smallest);
   try {
-    for(const entry of decorCatalog)for(let rotation=0;rotation<4;rotation++) {
+    for(const entry of decorForSurface('shelves'))for(let rotation=0;rotation<4;rotation++) {
       const object=makeDecoration({...prop(slot),type:entry.id,rotation});fitDecoration(object,slot);
       const bounds=new THREE.Box3().setFromObject(object,true),label=`${entry.id} rotation ${rotation}`;
       assert.ok(Math.abs(bounds.min.y-slot.y-.004)<1e-6,label);
@@ -154,6 +187,66 @@ test('every actual decoration model rests on and fits the smallest cubby at all 
       assert.ok(bounds.max.z<=slot.z+.201&&bounds.min.z>=slot.z-.49,label);
       const before=bounds.clone();fitDecoration(object,slot);assert.ok(new THREE.Box3().setFromObject(object,true).min.distanceTo(before.min)<1e-6,label+' repeated fit');
       disposeObject(object);
+    }
+  }finally{restore();}
+});
+
+test('desk slots fit all supported objects at all rotations without covering functional books, the notebook or book pull paths',()=>{
+  const restore=canvasEnvironment(),root=new THREE.Group(),m=roomMaterials();let layer;
+  function boundsOf(object){const bounds=new THREE.Box3();object.traverse(child=>{if(child.isMesh&&!child.userData.collisionIgnore)bounds.expandByObject(child,true);});return bounds;}
+  function body(object,id){const bounds=boundsOf(object),size=bounds.getSize(new THREE.Vector3()),center=bounds.getCenter(new THREE.Vector3());return {id,x:center.x,z:center.z,width:size.x,depth:size.z,bottom:bounds.min.y,top:bounds.max.y};}
+  try{
+    const desk=makeDesk(root,m),open=makeOpenBook(root,m);layer=populateBooks(root,books.slice(0,6),slots,()=>{});root.updateMatrixWorld(true);
+    assert.equal(desk.desk.children.filter(child=>child.userData.openNotebook).length,1);assert.equal(desk.notebook.userData.openNotebook,true);
+    const volumes=layer.targets.filter(object=>object.userData.location==='desk'),rest=volumes.map(object=>object.position.clone());
+    assert.equal(volumes.length,5);assert.ok(volumes.some(object=>object.position.y<1));
+    const fixed=[body(open,'open'),body(desk.notebook,'notebook')];assert.equal(deskBodiesOverlap(fixed[0],fixed[1]),false);
+    for(const entry of decorCatalog)for(const slot of studyDeskSlots())for(let rotation=0;rotation<4;rotation++){
+      const object=makeDecoration({id:'test-prop',type:entry.id,slotId:slot.id,page:0,color:0,rotation});fitDeskDecoration(object,slot);root.add(object);root.updateMatrixWorld(true);
+      const propBody=body(object,entry.id),bounds=boundsOf(object),label=`${entry.id} ${slot.id} rotation ${rotation}`;
+      assert.ok(Math.abs(bounds.min.y-slot.y-.004)<1e-6,label);
+      assert.ok(bounds.min.x>=slot.x+.049&&bounds.max.x<=slot.x+slot.width-.049&&bounds.min.z>=slot.z+.049&&bounds.max.z<=slot.z+slot.depth-.049,label);
+      assert.ok(bounds.max.y<=slot.y+slot.maxHeight-.069,label);
+      assert.ok(bounds.min.x>=deskBounds.minX&&bounds.max.x<=deskBounds.maxX&&bounds.min.z>=deskBounds.minZ&&bounds.max.z<=deskBounds.maxZ,label);
+      for(const zone of deskProtectedZones)assert.equal(deskBodiesOverlap(propBody,zone),false,label+' reserved region');
+      for(const amount of [0,.5,1]){
+        volumes.forEach((volume,index)=>{volume.position.copy(rest[index]).addScaledVector(new THREE.Vector3(0,0,volume.userData.pullDepth??volume.userData.depth).multiplyScalar(BOOK_PULL_FRACTION).applyQuaternion(volume.quaternion),amount);});root.updateMatrixWorld(true);
+        for(const obstacle of [...fixed,...volumes.map((volume,index)=>body(volume,`book-${index}`))])assert.equal(deskBodiesOverlap(propBody,obstacle),false,label+' book motion');
+      }
+      if(entry.category==='조명')assert.ok(object.userData.light?.isPointLight);
+      root.remove(object);disposeObject(object);
+    }
+  }finally{layer?.covers.dispose();disposeObject(root);restore();}
+});
+
+test('desk placements stay global across shelf pages without consuming a book cubby or clearing saved shelf props',()=>{
+  const desktop={id:'desk-cup',type:'mug',slotId:'desk-front-middle',page:0,color:0,rotation:0},shelf=prop(slots[0]);
+  const plain=buildShelfPages(books,[shelf]),pages=buildShelfPages(books,[shelf,desktop]);
+  assert.equal(pages.length,plain.length);
+  pages.forEach((page,index)=>{assert.deepEqual(page.books,plain[index].books);assert.deepEqual(page.emptySlots,plain[index].emptySlots);assert.ok(page.decorations.includes(desktop));});
+  assert.equal(pages[0].decorations.filter(item=>decorationSurface(item.slotId)==='shelves').length,1);
+  const document={settings:defaultStudySettings,decorations:[shelf,desktop]},storage=memory(),store=new StudyCustomizationStore(()=>storage);
+  store.setOwner('reader');store.begin('reader');store.update('reader',document);assert.equal(store.save('reader'),true);
+  const reopened=new StudyCustomizationStore(()=>storage);reopened.setOwner('reader');assert.deepEqual(reopened.getSnapshot().document,document);
+  reopened.begin('reader');reopened.update('reader',{...document,decorations:[shelf,{...desktop,color:1}]});reopened.undo('reader');assert.deepEqual(reopened.getSnapshot().document,document);
+  reopened.update('reader',{...document,decorations:[shelf]});reopened.cancel('reader');assert.deepEqual(reopened.getSnapshot().document,document);
+});
+
+test('desktop-only props, protected positions and duplicate desk locations cannot enter the saved room',()=>{
+  const mug={id:'cup',type:'mug',slotId:'desk-front-middle',page:8,color:0,rotation:0};
+  const normalized=normalizeRoomDocument({settings:defaultStudySettings,decorations:[prop(slots[0]),mug,{...mug,id:'duplicate',page:0},{...mug,id:'shelf-cup',slotId:slots[1].id},{...mug,id:'book-zone',slotId:'desk-open-book'}]});
+  assert.equal(normalized.decorations.length,2);assert.equal(normalized.decorations[1].page,0);
+  assert.equal(decorForSurface('desk').length,17);assert.equal(decorForSurface('shelves').length,14);
+});
+
+test('changing shelf pages keeps the same real recent books on and below the desk',()=>{
+  const restore=canvasEnvironment();
+  try{
+    for(const page of buildShelfPages(books,[])){
+      const root=new THREE.Group(),layer=populateBooks(root,page.books,slots,()=>{},new Set(),books);
+      assert.deepEqual(layer.targets.filter(object=>object.userData.location==='desk').map(object=>object.userData.book.id),books.slice(1,6).map(book=>book.id));
+      assert.deepEqual(layer.targets.filter(object=>object.userData.location==='shelves').map(object=>object.userData.book.id),page.books.map(book=>book.id));
+      layer.covers.dispose();disposeObject(root);
     }
   }finally{restore();}
 });
@@ -245,10 +338,59 @@ test('the penthouse has connected structural slabs, supported terrace rails, rea
   const bounds=new THREE.Box3().setFromObject(house,true),slabs=[];let glass=0,lowerShadows=0,books=0;
   house.traverse(object=>{if(object.name==='penthouse-floor-slab')slabs.push(new THREE.Box3().setFromObject(object,true));if(object.name==='penthouse-glass'){glass++;assert.equal(blocksStudyPointer(object),false);}if(object.userData.book)books++;});
   house.getObjectByName('penthouse-lower-storeys').traverse(object=>{if(object.isMesh&&object.castShadow)lowerShadows++;});
-  assert.equal(slabs.length,4);assert.ok(bounds.min.y<-10);assert.ok(bounds.max.y>5.4);assert.equal(books,0);assert.equal(lowerShadows,0);assert.ok(glass>=20);
+  assert.equal(house.userData.lowerStoreys,6);assert.equal(slabs.length,7);assert.ok(bounds.min.y<-21);assert.ok(bounds.max.y>5.4);assert.equal(books,0);assert.equal(lowerShadows,0);assert.ok(glass>=62);
   for(const slab of slabs)assert.ok(slab.min.x<-8.8&&slab.max.x>6.0);
+  for(let row=1;row<slabs.length;row++)assert.ok(Math.abs(slabs[row-1].getCenter(new THREE.Vector3()).y-slabs[row].getCenter(new THREE.Vector3()).y-3.48)<1e-6);
+  const rear=house.getObjectByName('penthouse-rear-facade'),rearBounds=new THREE.Box3().setFromObject(rear,true);
+  assert.equal(rear.isGroup,true);assert.ok(rearBounds.min.y<slabs.at(-1).max.y&&rearBounds.max.y>slabs[0].min.y);
+  const side=house.getObjectByName('penthouse-side-facade'),sideBounds=new THREE.Box3().setFromObject(side,true);
+  assert.equal(side.isMesh,true);assert.equal(side.material.transparent,false);
+  assert.ok(sideBounds.min.y<slabs.at(-1).max.y&&sideBounds.max.y>slabs[0].min.y);
+  assert.ok(sideBounds.min.z<-4.2&&sideBounds.max.z>4.2);
   const terrace=house.getObjectByName('penthouse-terrace');assert.ok(new THREE.Box3().setFromObject(terrace,true).min.y<0);assert.ok(terrace.children.some(object=>object.name==='penthouse-glass'));
   house.visible=false;house.traverse(object=>{if(object.isMesh)assert.equal(blocksStudyPointer(object),false);});
+  disposeObject(root);
+});
+
+test('rear windows match front windows on all six storeys and have real room depth behind transparent glazing',()=>{
+  const root=new THREE.Group(),house=makePenthouse(root,roomMaterials()),front=[],rear=[],ray=new THREE.Raycaster();house.visible=true;root.updateMatrixWorld(true);
+  house.traverse(object=>{if(object.name==='penthouse-glass'&&object.parent.userData.facade)(object.parent.userData.facade==='rear'?rear:front).push(object);});
+  assert.equal(front.length,24);assert.equal(rear.length,24);
+  const counts=Array(6).fill(0);
+  rear.forEach((window,index)=>{
+    const outside=window.getWorldPosition(new THREE.Vector3()),opposite=front[index].getWorldPosition(new THREE.Vector3());
+    assert.ok(Math.abs(outside.x-opposite.x)<1e-9&&Math.abs(outside.y-opposite.y)<1e-9&&Math.abs(outside.z+opposite.z)<1e-9);
+    assert.deepEqual(window.geometry.parameters,front[index].geometry.parameters);assert.ok(window.material===front[index].material);counts[window.parent.userData.storey]++;
+    assert.equal(blocksStudyPointer(window),false);
+    const sample=outside.clone();sample.x+=window.geometry.parameters.width*.2;
+    ray.set(sample.add(new THREE.Vector3(0,0,-20)),new THREE.Vector3(0,0,1));
+    const hits=ray.intersectObject(house,true);assert.ok(hits[0].object===window);
+    const interior=hits.find(hit=>blocksStudyPointer(hit.object));
+    assert.ok(interior.object.parent===window.parent);assert.ok(interior.point.z-outside.z>1);
+  });
+  assert.deepEqual(counts,[4,4,4,4,4,4]);disposeObject(root);
+});
+
+test('the extended lower edge stays below landscape viewports after panning the room upward and rotating',()=>{
+  const root=new THREE.Group(),m=roomMaterials(),house=makePenthouse(root,m),slabs=[];house.visible=true;root.updateMatrixWorld(true);
+  house.traverse(object=>{if(object.name==='penthouse-floor-slab')slabs.push(object);});
+  const bottomSlab=slabs.at(-1),edge=new THREE.Box3().setFromObject(bottomSlab,true),target=studyRoomPose('new-york').target;target.y=-.35;
+  const camera=createStudyCamera(),ray=new THREE.Raycaster();camera.zoom=.65;
+  for(const [width,height] of [[1512,770],[1536,1024],[1920,1080]]){
+    resizeStudyCamera(camera,width,height);
+    for(const polar of [Math.PI/3,1.461,Math.PI/2,Math.PI*3/4])for(let yaw=0;yaw<24;yaw++){
+      camera.position.setFromSpherical(new THREE.Spherical(32,polar,yaw*Math.PI/12)).add(target);camera.lookAt(target);camera.updateMatrixWorld();
+      for(const x of [edge.min.x+.002,edge.max.x-.002])for(const z of [edge.min.z+.002,edge.max.z-.002]){
+        const worldPoint=new THREE.Vector3(x,edge.max.y,z),point=worldPoint.clone().project(camera);
+        if(Math.abs(point.x)>1||point.y<-1)continue;
+        // A far corner may project into the viewport while nearer opaque floors
+        // and walls occlude it. Transparent glazing does not count as occlusion.
+        ray.setFromCamera(new THREE.Vector2(point.x,point.y),camera);
+        const hit=ray.intersectObject(house,true).find(hit=>blocksStudyPointer(hit.object));
+        assert.ok(hit&&hit.object!==bottomSlab&&hit.distance<camera.position.distanceTo(worldPoint)-.01,`lower edge exposed at ${width}x${height}, polar=${polar}, yaw=${yaw}`);
+      }
+    }
+  }
   disposeObject(root);
 });
 

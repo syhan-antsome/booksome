@@ -1,6 +1,7 @@
 import {STUDY_PAGE_SIZE,type StudyBook} from './types';
 import {studyShelfSlots,type ShelfSlot} from './shelves';
 import type {StudyDecoration} from './decor-catalog';
+import {decorationSurface} from './desk-layout';
 
 export function bookDimensions(book:StudyBook) {
   const hash=[...book.id].reduce((value,char)=>(value*31+char.charCodeAt(0))>>>0,0),height=.735+(hash%4)*.033;
@@ -22,12 +23,13 @@ export function packShelfBooks(books:StudyBook[],slots:ShelfSlot[],reserved:Read
 }
 export type StudyShelfPage={books:StudyBook[];decorations:StudyDecoration[];emptySlots:ShelfSlot[]};
 export function buildShelfPages(books:StudyBook[],decorations:StudyDecoration[]):StudyShelfPage[] {
-  const slots=studyShelfSlots(),lastDecorPage=Math.max(0,...decorations.map(item=>item.page)),pages:StudyShelfPage[]=[];
+  const slots=studyShelfSlots(),shelfDecorations=decorations.filter(item=>decorationSurface(item.slotId)==='shelves'),deskDecorations=decorations.filter(item=>decorationSurface(item.slotId)==='desk');
+  const lastDecorPage=Math.max(0,...shelfDecorations.map(item=>item.page)),pages:StudyShelfPage[]=[];
   let remaining=books,page=0;
   do {
-    const props=decorations.filter(item=>item.page===page),reserved=new Set(props.map(item=>item.slotId));
+    const props=shelfDecorations.filter(item=>item.page===page),reserved=new Set(props.map(item=>item.slotId));
     const packed=packShelfBooks(remaining.slice(0,STUDY_PAGE_SIZE),slots,reserved),placed=packed.placed.map(item=>item.book);
-    pages.push({books:placed,decorations:props,emptySlots:slots.filter(slot=>!reserved.has(slot.id)&&!packed.occupied.has(slot.id))});
+    pages.push({books:placed,decorations:[...props,...deskDecorations],emptySlots:slots.filter(slot=>!reserved.has(slot.id)&&!packed.occupied.has(slot.id))});
     remaining=remaining.slice(placed.length);page++;
   }while(remaining.length||page<=lastDecorPage);
   return pages;

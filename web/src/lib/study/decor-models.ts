@@ -4,6 +4,7 @@ import {canvasMap} from './materials';
 import {groundStudyObject} from './grounding';
 import {findDecor,type StudyDecoration} from './decor-catalog';
 import type {ShelfSlot} from './shelves';
+import {decorationSurface,type DeskSlot} from './desk-layout';
 
 function surface(color:string,wood=false) {
   const map=canvasMap(128,128,ctx=>{
@@ -91,7 +92,21 @@ export function makeDecoration(item:StudyDecoration):THREE.Group {
   group.userData.decoration=item;
   if(entry.category==='화분')makePlant(group,item.type,material);
   else if(entry.category==='액자')makeFrame(group,item.type,material);
-  else if(item.type==='ceramic-vase') {
+  else if(item.type==='desk-lamp'){
+    add(group,new THREE.CylinderGeometry(.30,.34,.07,32),material,[0,.035,0]);
+    const curve=new THREE.CatmullRomCurve3([new THREE.Vector3(0,.07,0),new THREE.Vector3(0,.7,0),new THREE.Vector3(.22,1.1,0),new THREE.Vector3(.26,1.25,0)]);
+    add(group,new THREE.TubeGeometry(curve,24,.035,8,false),material);
+    add(group,new THREE.LatheGeometry([[.39,0],[.36,.11],[.22,.34],[.08,.42]].map(([x,y])=>new THREE.Vector2(x,y)),40),material,[.26,1.0,0]);
+    add(group,new THREE.CircleGeometry(.365,32),new THREE.MeshStandardMaterial({color:'#fff3cb',emissive:'#ffd597',emissiveIntensity:.8,side:THREE.DoubleSide}),[.26,1.01,0]).rotation.x=Math.PI/2;
+  }else if(item.type==='mug'){
+    add(group,new THREE.LatheGeometry([[.13,0],[.17,.03],[.18,.29],[.165,.3],[.155,.05]].map(([x,y])=>new THREE.Vector2(x,y)),32),material);
+    add(group,new THREE.TorusGeometry(.115,.025,10,28),material,[.2,.16,0]);
+    add(group,new THREE.CylinderGeometry(.151,.151,.008,32),new THREE.MeshStandardMaterial({color:'#634634',roughness:.35}),[0,.26,0]);
+  }else if(item.type==='pencil-cup'){
+    add(group,new THREE.CylinderGeometry(.135,.115,.3,32),material,[0,.15,0]);
+    const pencil=surface('#bb986b',true);
+    for(let i=0;i<5;i++){const pen=add(group,new THREE.CylinderGeometry(.011,.014,.49,12),pencil,[-.09+i*.044,.42,(i%2)*.05]);pen.rotation.z=(i-2)*.11;}
+  }else if(item.type==='ceramic-vase') {
     const profile=[[.11,0],[.20,.05],[.22,.20],[.15,.37],[.10,.49],[.11,.52],[.08,.52],[.08,.47]].map(([x,y])=>new THREE.Vector2(x,y));
     add(group,new THREE.LatheGeometry(profile,40),material);
     add(group,new THREE.CylinderGeometry(.083,.083,.008,24),new THREE.MeshStandardMaterial({color:'#6b5b48',roughness:1}),[0,.46,0]);
@@ -122,6 +137,10 @@ export function makeDecoration(item:StudyDecoration):THREE.Group {
     const flame=ball(group,new THREE.MeshStandardMaterial({color:'#ffe1a7',emissive:'#ffbb67',emissiveIntensity:1.2}),[.028,.065,.028],[0,.40,0]);flame.rotation.z=.12;
   }
   group.rotation.y=item.rotation*Math.PI/2;
+  if(decorationSurface(item.slotId)==='desk'&&entry.category==='조명'){
+    const light=new THREE.PointLight('#ffdb9a',1,item.type==='candle'?1.6:3.2,2);
+    light.position.set(item.type==='desk-lamp'?.26:0,item.type==='desk-lamp'?.93:.34,0);group.add(light);group.userData.light=light;
+  }
   return group;
 }
 
@@ -132,5 +151,15 @@ export function fitDecoration(object:THREE.Group,slot:ShelfSlot) {
   const scale=Math.min(1,(slot.width-.18)/size.x,(slot.maxHeight-.07)/size.y,.68/size.z);
   object.scale.setScalar(scale);object.updateMatrixWorld(true);bounds.setFromObject(object,true);const center=bounds.getCenter(new THREE.Vector3());
   object.position.x=slot.x+slot.width/2-center.x;object.position.z=slot.z+.20-bounds.max.z;
+  groundStudyObject(object,slot.y,.004);
+}
+
+/** Keep the entire silhouette inside a protected tabletop spot at every rotation. */
+export function fitDeskDecoration(object:THREE.Group,slot:DeskSlot){
+  object.position.set(0,0,0);object.scale.setScalar(1);object.updateMatrixWorld(true);
+  const bounds=new THREE.Box3().setFromObject(object,true),size=bounds.getSize(new THREE.Vector3());
+  object.scale.setScalar(Math.min(1,(slot.width-.10)/size.x,(slot.depth-.10)/size.z,(slot.maxHeight-.07)/size.y));object.updateMatrixWorld(true);
+  bounds.setFromObject(object,true);const center=bounds.getCenter(new THREE.Vector3());
+  object.position.x=slot.x+slot.width/2-center.x;object.position.z=slot.z+slot.depth/2-center.z;
   groundStudyObject(object,slot.y,.004);
 }

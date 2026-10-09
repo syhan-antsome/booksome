@@ -4,6 +4,7 @@ import type { StudyMaterials } from './materials';
 import { canvasMap } from './materials';
 import { groundStudyObject } from './grounding';
 import { studyShelfSlots } from './shelves';
+import {deskBounds} from './desk-layout';
 export type { ShelfSlot } from './shelves';
 
 export function box(parent: THREE.Object3D, size: [number, number, number], position: [number, number, number], material: THREE.Material, radius = .025) {
@@ -100,19 +101,7 @@ export function makeDesk(root: THREE.Group, m: StudyMaterials) {
   for (const x of [-2.1, 2.1]) box(desk, [.34, 1.67, 1.83], [x, .835, 0], m.wood, .045);
   box(desk, [4.2, .24, .12], [0, 1.50, -.82], m.wood);
   box(desk, [1.30, .12, 1.40], [1.16, .64, -.12], m.wood, .035);
-  const lamp = new THREE.Group(); lamp.name='desk-lamp';lamp.position.set(-1.86, 1.9, .63); desk.add(lamp);
-  cylinder(lamp, .3, .34, .07, [0, .035, 0], m.coral);
-  const tube = new THREE.CatmullRomCurve3([new THREE.Vector3(0, .07, 0), new THREE.Vector3(0, .7, 0), new THREE.Vector3(.22, 1.1, 0), new THREE.Vector3(.26, 1.25, 0)]);
-  lamp.add(new THREE.Mesh(new THREE.TubeGeometry(tube, 24, .035, 8, false), m.coral));
-  const shade = new THREE.Mesh(new THREE.LatheGeometry([new THREE.Vector2(.39, 0), new THREE.Vector2(.36, .11), new THREE.Vector2(.22, .34), new THREE.Vector2(.08, .42)], 48), m.coral); shade.position.set(.26, 1.0, 0); lamp.add(shade);
-  const diffuser = new THREE.Mesh(new THREE.CircleGeometry(.365, 48), new THREE.MeshStandardMaterial({ color: '#fff3cb', emissive: '#ffd597', emissiveIntensity: .8, side: THREE.DoubleSide })); diffuser.rotation.x = Math.PI / 2; diffuser.position.set(.26, 1.01, 0); lamp.add(diffuser);
-  const lampLight = new THREE.PointLight('#ffdb9a', 6, 4); lampLight.position.set(.26, .93, 0); lamp.add(lampLight);
-  // Ceramic mug with a real hole and handle.
-  const mugGroup=new THREE.Group();mugGroup.name='desk-mug';mugGroup.position.set(-.9,1.9,.4);desk.add(mugGroup);
-  const mug = new THREE.Mesh(new THREE.LatheGeometry([new THREE.Vector2(.13, 0), new THREE.Vector2(.17, .03), new THREE.Vector2(.18, .29), new THREE.Vector2(.165, .3), new THREE.Vector2(.155, .05)], 40), m.ceramic); mug.castShadow = true; mugGroup.add(mug);
-  const handle = new THREE.Mesh(new THREE.TorusGeometry(.115, .025, 10, 28), m.ceramic); handle.position.set(.2,.16,0); mugGroup.add(handle);
-  cylinder(mugGroup, .151, .151, .008, [0,.26,0], new THREE.MeshStandardMaterial({ color: '#634634', roughness: .35 }));
-  const notebook=new THREE.Group();notebook.name='desk-notebook';notebook.position.set(1.72,1.94,.42);desk.add(notebook);
+  const notebook=new THREE.Group();notebook.name='desk-notebook';notebook.position.set(2.0,1.94,.42);desk.add(notebook);
   notebook.userData.openNotebook=true;
   box(notebook, [.70, .075, .95], [0,0,0], m.ceramic, .025);
   box(notebook, [.013, .005, .95], [.2,.042,0], m.coral, .001);
@@ -124,10 +113,7 @@ export function makeDesk(root: THREE.Group, m: StudyMaterials) {
   });
   const notebookLabel=new THREE.Mesh(new THREE.PlaneGeometry(.52,.70),new THREE.MeshStandardMaterial({map:notebookCover,roughness:.94}));
   notebookLabel.rotation.x=-Math.PI/2;notebookLabel.position.set(-.045,.04,0);notebook.add(notebookLabel);
-  const pencilPot=new THREE.Group();pencilPot.name='pencil-pot';pencilPot.position.set(-2.16,1.9,-.62);desk.add(pencilPot);
-  cylinder(pencilPot, .135, .115, .3, [0,.14,0], new THREE.MeshStandardMaterial({ color: '#a8b4a0', roughness: .75 }));
-  for (let i = 0; i < 5; i++) { const pen = cylinder(pencilPot, .011, .014, .49, [-.09 + i * .044,.41,(i % 2) * .05], m.wood); pen.rotation.z = (i - 2) * .11; }
-  return { desk, lampLight, notebook, props:[lamp,pencilPot,mugGroup,notebook], bounds:{minX:-5.19,maxX:-.49,minZ:.855,maxZ:2.845} };
+  return { desk, notebook, bounds:deskBounds };
 }
 export function makeOpenBook(root: THREE.Group, m: StudyMaterials) {
   const group = new THREE.Group(); group.position.set(-2.2, 1.95, 1.87); group.rotation.y = -.12; root.add(group);
@@ -205,7 +191,6 @@ export function makeDecor(root: THREE.Group, m: StudyMaterials) {
     const canvas = new THREE.Mesh(new THREE.PlaneGeometry(width, height), new THREE.MeshStandardMaterial({ map, roughness: .85 })); canvas.position.z=.039; frame.add(canvas);
     return frame;
   }
-  art(-.67,1.57,-2.91,.72,.79); art(2.75,3.38,-2.99,.65,.82,true);
   const floorFrame=art(5.13,.74,-1.35,.79,1.2,true);floorFrame.rotation.x=-.09;floorFrame.rotation.y=-.12;
   floorFrame.name='floor-frame';groundStudyObject(floorFrame);
   // A real folding support makes the freestanding frame believable from behind.
@@ -225,20 +210,5 @@ export function makeDecor(root: THREE.Group, m: StudyMaterials) {
     support.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),direction.normalize());
     sphere(floorFrame,[.035,.035,.025],[x,.27,-.055],m.wood);
   }
-  // Mushroom lamps and tactile ceramics in deliberately unfilled cubbies.
-  for (const [x, y] of [[-3.78, 2.10], [-.68, 3.98]]) {
-    cylinder(root, .105, .12, .26, [x, y + .14, x< -2?-2.04:-3.1], m.ceramic);
-    sphere(root, [.32, .19, .32], [x, y + .37, x< -2?-2.04:-3.1], m.ceramic);
-  }
-  const deskFlowers=new THREE.Group();deskFlowers.name='desk-flowers';root.add(deskFlowers);
-  const vase = new THREE.Mesh(new THREE.LatheGeometry([new THREE.Vector2(.1, 0), new THREE.Vector2(.21, .13), new THREE.Vector2(.17, .35), new THREE.Vector2(.075, .43)], 40), m.coral); vase.position.set(-.75, 1.89, 1.58); vase.castShadow = true; deskFlowers.add(vase);
-  const petals=new THREE.InstancedMesh(new THREE.SphereGeometry(1,10,8),m.ceramic,14*7*5);petals.castShadow=petals.receiveShadow=true;deskFlowers.add(petals);
-  const dummy=new THREE.Object3D();let petal=0;
-  const stemMaterial=new THREE.MeshStandardMaterial({color:'#7f8e66',roughness:.8});
-  for (let i = 0; i < 14; i++) {
-    const a=i*2.4,x=-.75+Math.cos(a)*.15,z=1.58+Math.sin(a)*.14,y=2.38+(i%4)*.043;
-    cylinder(deskFlowers,.005,.005,.29,[x,y-.145,z],stemMaterial);
-    for(let f=0;f<7;f++)for(let p=0;p<5;p++) {const angle=p*Math.PI*2/5+f*.5,phi=f*2.4;dummy.position.set(x+Math.cos(phi)*.044+Math.cos(angle)*.023,y+Math.sin(f*1.6)*.034,z+Math.sin(phi)*.044+Math.sin(angle)*.023);dummy.scale.set(.021,.011,.033);dummy.rotation.set(Math.sin(f)*.6,angle,Math.cos(i+f)*.5);dummy.updateMatrix();petals.setMatrixAt(petal++,dummy.matrix);}
-  }
-  return { rug,floorFrame,deskFlowers,ottoman,footstool,pinBoard };
+  return { rug,floorFrame,ottoman,footstool,pinBoard };
 }

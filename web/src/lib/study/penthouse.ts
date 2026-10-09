@@ -2,7 +2,9 @@ import * as THREE from 'three';
 import {box} from './furniture';
 import type {StudyMaterials} from './materials';
 
-/** The penthouse floor and three visible storeys belong to one building.
+const LOWER_STOREYS=6,STOREY_HEIGHT=3.48;
+
+/** The penthouse floor and six lower storeys belong to one building.
  * The remaining storeys are outside the framed view, not a floating platform. */
 export function makePenthouse(parent:THREE.Group,m:StudyMaterials) {
   const group=new THREE.Group();group.name='study-new-york-penthouse';group.visible=false;parent.add(group);
@@ -36,36 +38,43 @@ export function makePenthouse(parent:THREE.Group,m:StudyMaterials) {
   }
 
   const below=new THREE.Group();below.name='penthouse-lower-storeys';group.add(below);
+  const rear=new THREE.Group();rear.name='penthouse-rear-facade';below.add(rear);
   const xs=[-8.67,-5.97,-2.05,2.02,5.96],zs=[-4.16,-.07,4.16];
   // Solid floor slabs continue through the terrace and into every facade bay.
-  for(let row=0;row<=3;row++) {
-    const y=-.40-row*3.48;
+  for(let row=0;row<=LOWER_STOREYS;row++) {
+    const y=-.40-row*STOREY_HEIGHT;
     rect(below,[14.97,.42,8.72],[-1.365,y,0],m.facade).name='penthouse-floor-slab';
     rect(below,[14.97,.055,.055],[-1.365,y+.255,4.385],bronze);
+    rect(rear,[14.97,.055,.055],[-1.365,y+.255,-4.385],bronze);
     rect(below,[.055,.055,8.72],[-8.875,y+.255,0],bronze);
   }
-  for(let row=0;row<3;row++) {
-    const bottom=-.61-(row+1)*3.48,top=-.61-row*3.48,height=3.07,cy=(bottom+top)/2+.18;
-    for(const x of xs)rect(below,[.30,3.48,.42],[x,(bottom+top)/2,4.14],m.facade);
-    for(const z of zs)rect(below,[.42,3.48,.30],[-8.65,(bottom+top)/2,z],m.facade);
+  for(let row=0;row<LOWER_STOREYS;row++) {
+    const bottom=-.61-(row+1)*STOREY_HEIGHT,top=-.61-row*STOREY_HEIGHT,height=3.07,cy=(bottom+top)/2+.18;
+    for(const x of xs)rect(below,[.30,STOREY_HEIGHT,.42],[x,(bottom+top)/2,4.14],m.facade);
+    for(const x of xs)rect(rear,[.30,STOREY_HEIGHT,.42],[x,(bottom+top)/2,-4.14],m.facade);
+    for(const z of zs)rect(below,[.42,STOREY_HEIGHT,.30],[-8.65,(bottom+top)/2,z],m.facade);
     for(let bay=0;bay<xs.length-1;bay++) {
       const x=(xs[bay]+xs[bay+1])/2,w=xs[bay+1]-xs[bay]-.33;
-      // Recessed, noninteractive apartment rooms give real depth through glass.
-      rect(below,[w,height,.10],[x,cy,2.22],inside);
-      rect(below,[w,.10,1.65],[x,bottom+.44,3.11],m.floor);
-      rect(below,[w,.12,1.65],[x,top+.18,3.11],inside);
-      rect(below,[.10,height,1.65],[x-w/2,cy,3.11],lining);
-      rect(below,[.10,height,1.65],[x+w/2,cy,3.11],lining);
-      rect(below,[w*.50,.28,.55],[x,bottom+.62,2.81],m.wood);
-      rect(below,[w*.56,.32,.63],[x,bottom+.92,2.81],m.fabric);
-      rect(below,[w*.56,.49,.12],[x,bottom+1.24,2.54],m.fabric);
-      rect(below,[.18,.75,.20],[x+w*.32,bottom+.865,2.70],m.wood);
-      rect(below,[.035,.13,.035],[x+w*.32,bottom+1.305,2.70],bronze);
-      const shade=new THREE.Mesh(new THREE.CylinderGeometry(.12,.22,.22,20,1,true),glow);shade.position.set(x+w*.32,bottom+1.47,2.70);below.add(shade);
-      for(const sign of [-1,1])drape(below,w*.18,height-.12,[x+sign*w*.38,cy,3.98]);
-      pane(below,w,height,[x,cy,4.17],0,lowerGlass);
-      for(const xx of [x-w/2,x,x+w/2])rect(below,[.048,height,.07],[xx,cy,4.19],bronze);
-      for(const yy of [cy-height/2,cy+height/2])rect(below,[w,.05,.07],[x,yy,4.19],bronze);
+      // Match front and rear glazing, with real room depth rather than a window decal.
+      for(const facing of ['front','rear'] as const){
+        const room=new THREE.Group();room.name='penthouse-lower-apartment';room.userData.facade=facing;room.userData.storey=row;
+        room.position.x=x;room.rotation.y=facing==='rear'?Math.PI:0;(facing==='rear'?rear:below).add(room);
+        rect(room,[w,height,.10],[0,cy,2.22],inside);
+        rect(room,[w,.10,1.65],[0,bottom+.44,3.11],m.floor);
+        rect(room,[w,.12,1.65],[0,top+.18,3.11],inside);
+        rect(room,[.10,height,1.65],[-w/2,cy,3.11],lining);
+        rect(room,[.10,height,1.65],[w/2,cy,3.11],lining);
+        rect(room,[w*.50,.28,.55],[0,bottom+.62,2.81],m.wood);
+        rect(room,[w*.56,.32,.63],[0,bottom+.92,2.81],m.fabric);
+        rect(room,[w*.56,.49,.12],[0,bottom+1.24,2.54],m.fabric);
+        rect(room,[.18,.75,.20],[w*.32,bottom+.865,2.70],m.wood);
+        rect(room,[.035,.13,.035],[w*.32,bottom+1.305,2.70],bronze);
+        const shade=new THREE.Mesh(new THREE.CylinderGeometry(.12,.22,.22,20,1,true),glow);shade.position.set(w*.32,bottom+1.47,2.70);room.add(shade);
+        for(const sign of [-1,1])drape(room,w*.18,height-.12,[sign*w*.38,cy,3.98]);
+        pane(room,w,height,[0,cy,4.17],0,lowerGlass);
+        for(const xx of [-w/2,0,w/2])rect(room,[.048,height,.07],[xx,cy,4.19],bronze);
+        for(const yy of [cy-height/2,cy+height/2])rect(room,[w,.05,.07],[0,yy,4.19],bronze);
+      }
     }
     for(let bay=0;bay<zs.length-1;bay++) {
       const z=(zs[bay]+zs[bay+1])/2,w=zs[bay+1]-zs[bay]-.33;
@@ -78,9 +87,9 @@ export function makePenthouse(parent:THREE.Group,m:StudyMaterials) {
       for(const zz of [z-w/2,z,z+w/2])rect(below,[.07,height,.048],[-8.72,cy,zz],bronze);
     }
   }
-  // Underside and the rear elevation close the building when freely rotated.
-  rect(below,[14.95,10.45,.16],[-1.365,-5.61,-4.22],m.facade);
-  rect(below,[.16,10.45,8.55],[6.04,-5.61,0],m.facade);
+  // Keep the opposite side as the original solid, windowless exterior wall.
+  const facadeHeight=LOWER_STOREYS*STOREY_HEIGHT+.01,facadeCenter=-.40-LOWER_STOREYS*STOREY_HEIGHT/2+.01;
+  rect(below,[.16,facadeHeight,8.55],[6.04,facadeCenter,0],m.facade).name='penthouse-side-facade';
 
   const terrace=new THREE.Group();terrace.name='penthouse-terrace';group.add(terrace);
   rect(terrace,[2.94,.24,8.5],[-7.375,-.12,0],m.facade,true);
@@ -139,6 +148,6 @@ export function makePenthouse(parent:THREE.Group,m:StudyMaterials) {
   for(const z of [-2.75,0,2.75]){
     const lamp=new THREE.Mesh(new THREE.CylinderGeometry(.09,.09,.012,24),glow);lamp.position.set(-7.34,5.205,z);upper.add(lamp);
   }
-  group.userData.floor=40;group.userData.lowerStoreys=3;
+  group.userData.floor=40;group.userData.lowerStoreys=LOWER_STOREYS;
   return group;
 }

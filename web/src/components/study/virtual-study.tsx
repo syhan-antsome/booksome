@@ -13,9 +13,10 @@ import { useStudyLibrary } from './use-study-library';
 import {useStudyCustomization} from './use-study-customization';
 import {CustomizationPanel} from './customization-panel';
 import {MouseButtonIcon} from './mouse-button-icon';
-import {findDecor,type DecorType,type StudyDecoration} from '@/lib/study/decor-catalog';
+import {findDecor,decorSupportsSurface,type DecorType,type StudyDecoration} from '@/lib/study/decor-catalog';
 import {buildShelfPages} from '@/lib/study/shelf-layout';
 import {studyShelfSlots} from '@/lib/study/shelves';
+import {studyDeskSlots,decorationSurface,type DecorSurface} from '@/lib/study/desk-layout';
 import {sceneryOptions} from '@/lib/study/scenery-options';
 import styles from './study.module.css';
 
@@ -40,12 +41,18 @@ export function VirtualStudy() {
   const content=shelfPlan[shelfPage],displayedBooks=content.books;
   const appliedContent=useRef<typeof content|null>(null),pendingBook=useRef<{id:string;ownerId:string|null}|null>(null);
   const [selectedType,setSelectedType]=useState<DecorType|null>(null),[selectedDecorId,setSelectedDecorId]=useState<string|null>(null),[placing,setPlacing]=useState(false),[saveNotice,setSaveNotice]=useState('');
+  const [decorSurface,setDecorSurface]=useState<DecorSurface>('shelves');
   const selectedDecoration=customizing?room.document.decorations.find(item=>item.id===selectedDecorId)??null:null;
-  const eligibleSlots=useMemo(()=>{const current=placing&&selectedDecoration?.page===shelfPage?studyShelfSlots().find(slot=>slot.id===selectedDecoration.slotId):undefined;return current?[...content.emptySlots,current]:content.emptySlots;},[content.emptySlots,placing,selectedDecoration,shelfPage]);
+  const eligibleSlots=useMemo(()=>{
+    const all=decorSurface==='desk'?studyDeskSlots():studyShelfSlots();
+    const available=decorSurface==='desk'?all.filter(slot=>!room.document.decorations.some(item=>item.slotId===slot.id)):content.emptySlots;
+    const current=placing&&selectedDecoration&&decorationSurface(selectedDecoration.slotId)===decorSurface&&(decorSurface==='desk'||selectedDecoration.page===shelfPage)?all.find(slot=>slot.id===selectedDecoration.slotId):undefined;
+    return current?[...available,current]:available;
+  },[decorSurface,room.document.decorations,content.emptySlots,placing,selectedDecoration,shelfPage]);
   const [navigation, setNavigation] = useState<'orbit' | 'pan'>('orbit');
-  const editorState={active:customizing,placing:customizing&&placing,selectedId:selectedDecoration?.id??null,label:findDecor(selectedType??'')?.name??''};
-  const latest = useRef({content, settings,navigation,editor:editorState});
-  useEffect(() => { latest.current = {content, settings,navigation,editor:editorState}; });
+  const editorState={active:customizing,placing:customizing&&placing,selectedId:selectedDecoration?.id??null,label:findDecor(selectedType??'')?.name??'',surface:decorSurface};
+  const latest = useRef({content, settings,navigation,editor:editorState,deskBooks:books});
+  useEffect(() => { latest.current = {content, settings,navigation,editor:editorState,deskBooks:books}; });
   const [ready, setReady] = useState(false), [error, setError] = useState(''), [retry, setRetry] = useState(0);
   const [backdropStatus,setBackdropStatus]=useState<BackdropStatus|null>(null);
   const backdropPhase=settings.backdrop!=='forest'&&backdropStatus?.mode===settings.backdrop?backdropStatus.phase:null;
@@ -68,7 +75,7 @@ export function VirtualStudy() {
         () => { if (active) setError('그래픽 화면이 중단됐어요. 다시 열거나 기존 서재를 이용해주세요.'); },
         notebookHint.current,decorationHints.current,id=>decorActions.current.place(id),id=>decorActions.current.select(id),status=>{if(active)setBackdropStatus(status);}
       );
-      room.setContent(latest.current.content.books,latest.current.content.decorations);appliedContent.current=latest.current.content;
+      room.setContent(latest.current.content.books,latest.current.content.decorations,latest.current.deskBooks);appliedContent.current=latest.current.content;
       room.setNavigation(latest.current.navigation); engine.current = room;
       room.setDecorationEditor(latest.current.editor);
       return room.ready.then(() => { if (active) setReady(true); });
@@ -77,23 +84,25 @@ export function VirtualStudy() {
   }, [retry,router]);
   useEffect(() => {
     const scene=engine.current;if(!scene)return;
-    if(appliedContent.current!==content){scene.setContent(content.books,content.decorations);appliedContent.current=content;}
+    if(appliedContent.current!==content){scene.setContent(content.books,content.decorations,books);appliedContent.current=content;}
     if(pendingBook.current&&pendingBook.current.ownerId!==ownerId)pendingBook.current=null;
     if(ready&&pendingBook.current&&displayedBooks.some(book=>book.id===pendingBook.current?.id)){
       scene.selectBook(pendingBook.current.id);pendingBook.current=null;
     }
-  }, [content,displayedBooks,ready,ownerId]);
+  }, [content,displayedBooks,books,ready,ownerId]);
   useEffect(() => { engine.current?.setSettings(settings); }, [settings]);
-  useEffect(()=>{engine.current?.setDecorationEditor({active:customizing,placing:customizing&&placing,selectedId:selectedDecoration?.id??null,label:findDecor(selectedType??'')?.name??''});},[customizing,placing,selectedDecoration,selectedType,ready]);
+  useEffect(()=>{engine.current?.setDecorationEditor({active:customizing,placing:customizing&&placing,selectedId:selectedDecoration?.id??null,label:findDecor(selectedType??'')?.name??'',surface:decorSurface});},[customizing,placing,selectedDecoration,selectedType,decorSurface,ready]);
   useEffect(()=>{decorActions.current={place:placeDecoration,select:selectDecoration};});
   function changeSettings(next:StudySettings){room.update({...room.document,settings:next});}
-  function beginCustomizing(){room.begin();setSelectedType(null);setSelectedDecorId(null);setPlacing(false);engine.current?.clearSelection();changeView('shelves');}
+  function beginCustomizing(){room.begin();setSelectedType(null);setSelectedDecorId(null);setPlacing(false);engine.current?.clearSelection();const surface=view==='desk'?'desk':'shelves';setDecorSurface(surface);changeView(surface==='desk'?'desk':'shelves');}
   function finishCustomizing(save:boolean){if(save&&!room.save())return;if(!save)room.cancel();if(save)setSaveNotice('꾸미기를 저장했어요');setSelectedType(null);setSelectedDecorId(null);setPlacing(false);customButton.current?.focus();}
   function chooseDecoration(type:DecorType|null){setSelectedType(type);setSelectedDecorId(null);setPlacing(Boolean(type));}
-  function selectDecoration(id:string|null){const item=room.document.decorations.find(item=>item.id===id);if(item&&!room.editing)room.begin();setSelectedDecorId(item?.id??null);setSelectedType(item?.type??null);setPlacing(false);}
+  function changeDecorSurface(surface:DecorSurface){if(surface!==decorSurface&&(!placing||!selectedDecoration||!decorSupportsSurface(selectedDecoration.type,surface))){setSelectedType(null);setSelectedDecorId(null);setPlacing(false);}setDecorSurface(surface);changeView(surface==='desk'?'desk':'shelves');}
+  function selectDecoration(id:string|null){const item=room.document.decorations.find(item=>item.id===id);if(item){const surface=decorationSurface(item.slotId);if(!room.editing)room.begin();if(!room.editing||surface!==decorSurface)changeView(surface==='desk'?'desk':'shelves');setDecorSurface(surface);}setSelectedDecorId(item?.id??null);setSelectedType(item?.type??null);setPlacing(false);}
   function placeDecoration(slotId:string){
-    if(!customizing||!selectedType||!eligibleSlots.some(slot=>slot.id===slotId))return;
-    const item:StudyDecoration=selectedDecoration?{...selectedDecoration,slotId,page:shelfPage}:{id:crypto.randomUUID(),type:selectedType,slotId,page:shelfPage,color:0,rotation:0};
+    if(!customizing||!selectedType||!decorSupportsSurface(selectedType,decorSurface)||!eligibleSlots.some(slot=>slot.id===slotId))return;
+    const page=decorSurface==='desk'?0:shelfPage;
+    const item:StudyDecoration=selectedDecoration?{...selectedDecoration,slotId,page}:{id:crypto.randomUUID(),type:selectedType,slotId,page,color:0,rotation:0};
     room.update({...room.document,decorations:selectedDecoration?room.document.decorations.map(previous=>previous.id===item.id?item:previous):[...room.document.decorations,item]});setSelectedDecorId(item.id);setPlacing(false);
   }
   function editDecoration(change:Partial<StudyDecoration>){if(selectedDecoration)room.update({...room.document,decorations:room.document.decorations.map(item=>item.id===selectedDecoration.id?{...item,...change}:item)});}
@@ -129,8 +138,8 @@ export function VirtualStudy() {
     </div>
     <div className={styles.caption}><span>{loadingBooks?'내 서재를 확인하는 중…':signedIn&&books.length?`내 서재의 책 · ${books.length}권`:bookError?'내 책을 불러오지 못했어요':signedIn?'내 서재의 책 · 0권':'로그인하면 나의 책이 놓여요'}</span>{bookError&&books.length>0?<span role="status">최근 변경을 확인하지 못했어요. <button type="button" onClick={reload}>다시 확인</button></span>:null}<Link href="/library" onNavigate={prepareNotebookNavigation}>책 목록 · 독서 기록</Link></div>
     {saveNotice?<div className={styles.saveNotice} role="status">{saveNotice}</div>:null}
-    {pages>1?<nav className={styles.shelfPages} aria-label="책장 페이지"><button type="button" aria-label="이전 책장" disabled={shelfPage===0||!ready} onClick={()=>changeShelfPage(shelfPage-1)}>←</button><span aria-live="polite">책장 {shelfPage+1} / {pages}</span><button type="button" aria-label="다음 책장" disabled={shelfPage===pages-1||!ready} onClick={()=>changeShelfPage(shelfPage+1)}>→</button></nav>:null}
-    {customizing?<CustomizationPanel panelRef={customPanel} document={room.document} signedIn={signedIn} dirty={room.dirty} canUndo={room.canUndo} error={room.error} selectedType={selectedType} selected={selectedDecoration} placing={placing} available={eligibleSlots} placed={content.decorations} onSelectPlaced={selectDecoration} onChoose={chooseDecoration} onPlace={placeDecoration} onMove={()=>setPlacing(true)} onRemove={removeDecoration} onRotate={()=>selectedDecoration&&editDecoration({rotation:(selectedDecoration.rotation+1)%4})} onColor={color=>editDecoration({color})} onSettings={changeSettings} onSceneryView={previewScenery} backdropPhase={backdropPhase} onRetryScenery={()=>engine.current?.retryBackdrop()} onUndo={()=>{room.undo();chooseDecoration(null);}} onCancel={()=>finishCustomizing(false)} onSave={()=>finishCustomizing(true)}/>:null}
+    {pages>1&&!(customizing&&decorSurface==='desk')?<nav className={styles.shelfPages} aria-label="책장 페이지"><button type="button" aria-label="이전 책장" disabled={shelfPage===0||!ready} onClick={()=>changeShelfPage(shelfPage-1)}>←</button><span aria-live="polite">책장 {shelfPage+1} / {pages}</span><button type="button" aria-label="다음 책장" disabled={shelfPage===pages-1||!ready} onClick={()=>changeShelfPage(shelfPage+1)}>→</button></nav>:null}
+    {customizing?<CustomizationPanel panelRef={customPanel} document={room.document} signedIn={signedIn} dirty={room.dirty} canUndo={room.canUndo} error={room.error} surface={decorSurface} onSurface={changeDecorSurface} selectedType={selectedType} selected={selectedDecoration} placing={placing} available={eligibleSlots} placed={(decorSurface==='desk'?room.document.decorations:content.decorations).filter(item=>decorationSurface(item.slotId)===decorSurface)} onSelectPlaced={selectDecoration} onChoose={chooseDecoration} onPlace={placeDecoration} onMove={()=>setPlacing(true)} onRemove={removeDecoration} onRotate={()=>selectedDecoration&&editDecoration({rotation:(selectedDecoration.rotation+1)%4})} onColor={color=>editDecoration({color})} onSettings={changeSettings} onSceneryView={previewScenery} backdropPhase={backdropPhase} onRetryScenery={()=>engine.current?.retryBackdrop()} onUndo={()=>{room.undo();chooseDecoration(null);}} onCancel={()=>finishCustomizing(false)} onSave={()=>finishCustomizing(true)}/>:null}
     <Dialog open={libraryOpen} title="서재의 책" onClose={() => setLibraryOpen(false)}>
       {signedIn ? <button className={styles.loadMine} disabled={loadingBooks||refreshingBooks} type="button" onClick={reload}>{loadingBooks ? '내 책을 가져오는 중…' : refreshingBooks?'최신 책 확인 중…':'내 책 새로고침'}</button> : checking ? <p className={styles.help}>로그인을 확인하고 있어요…</p> : <Link className={styles.loadMine} href="/login?next=%2Fstudy">로그인하고 내 책 불러오기</Link>}
       {bookError ? <p className={styles.bookError} role="alert">{bookError}</p> : null}

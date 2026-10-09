@@ -19,15 +19,16 @@ import { deskBodiesOverlap, resolveDeskCollisions, type DeskBody } from './desk-
 import { groundStudyObject } from './grounding';
 import { NotebookCue } from './notebook-cue';
 import type { StudyBackdrop,StudyBook, StudySettings, StudyView } from './types';
-import {makeDecoration,fitDecoration} from './decor-models';
+import {makeDecoration,fitDecoration,fitDeskDecoration} from './decor-models';
+import {studyDeskSlots,decorationSurface,isDeskSlot,type DecorSurface} from './desk-layout';
 import type {StudyDecoration} from './decor-catalog';
 import {packShelfBooks} from './shelf-layout';
 import {StudyTheme} from './theme';
 import {CityBackdrop,type BackdropStatus} from './city-backdrop';
 import {sceneryOptions} from './scenery-options';
 
-export type DecorationEditor={active:boolean;placing:boolean;selectedId:string|null;label:string};
-export type StudyScene = { ready: Promise<void>; setView: (view: StudyView) => void;setSceneryView:(backdrop?:StudyBackdrop)=>void;retryBackdrop:()=>void; setNavigation: (mode: 'orbit' | 'pan') => void; setBooks: (books: StudyBook[]) => void; setContent:(books:StudyBook[],decorations:StudyDecoration[])=>void;setDecorationEditor:(editor:DecorationEditor)=>void; setSettings: (settings: StudySettings) => void; selectBook: (id: string) => StudyView | null; clearSelection: () => void; dispose: () => void };
+export type DecorationEditor={active:boolean;placing:boolean;selectedId:string|null;label:string;surface:DecorSurface};
+export type StudyScene = { ready: Promise<void>; setView: (view: StudyView) => void;setSceneryView:(backdrop?:StudyBackdrop)=>void;retryBackdrop:()=>void; setNavigation: (mode: 'orbit' | 'pan') => void; setBooks: (books: StudyBook[]) => void; setContent:(books:StudyBook[],decorations:StudyDecoration[],deskBooks?:StudyBook[])=>void;setDecorationEditor:(editor:DecorationEditor)=>void; setSettings: (settings: StudySettings) => void; selectBook: (id: string) => StudyView | null; clearSelection: () => void; dispose: () => void };
 
 export function createStudyScene(container: HTMLElement, initialBooks: StudyBook[], initialSettings: StudySettings, onSelect: (book: StudyBook | null) => void, onOpenBook: (book: StudyBook) => void, onOpenNotebook: () => void, onContextLost: () => void, notebookHint?: HTMLAnchorElement | null,decorationHints?:HTMLElement|null,onChooseSlot:(id:string)=>void=()=>{},onChooseDecoration:(id:string|null)=>void=()=>{},onBackdropStatus:(status:BackdropStatus)=>void=()=>{}): StudyScene {
   const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: 'high-performance' });
@@ -75,7 +76,8 @@ export function createStudyScene(container: HTMLElement, initialBooks: StudyBook
   const targetMin = new THREE.Vector3(-5.5, -.35, -3.9), targetMax = new THREE.Vector3(5.5, 6.25, 3.7), boundedTarget = new THREE.Vector3();
   const viewOffset = new THREE.Vector3(), viewAngles = new THREE.Spherical(), upTween = new THREE.Quaternion();
   let slots: ReturnType<typeof makeShelves> = [], bookLayer: ReturnType<typeof populateBooks> | null = null;
-  let decorations:StudyDecoration[]=[],editor:DecorationEditor={active:false,placing:false,selectedId:null,label:''},bookLayoutKey='',hintKey='';
+  let deskBooks=initialBooks;
+  let decorations:StudyDecoration[]=[],editor:DecorationEditor={active:false,placing:false,selectedId:null,label:'',surface:'shelves'},bookLayoutKey='',hintKey='';
   let theme:StudyTheme|null=null;
   const decorationModels=new Map<string,{object:THREE.Group;key:string}>(),hintGroup=new THREE.Group();root.add(hintGroup);
   const hintButtons=new Map<string,HTMLButtonElement>(),hintAnchor=new THREE.Vector3();
@@ -166,17 +168,17 @@ export function createStudyScene(container: HTMLElement, initialBooks: StudyBook
   function setNavigation(mode: 'orbit' | 'pan') { controls.update(); navigation = mode;setStudyNavigation(controls,mode); container.dataset.navigation = mode; }
   function setView(view: StudyView) { controls.update(); activeView = view; const p = positions[view]; const zoom = view === 'shelves' && container.clientWidth < 700 ? 1.45 : p.zoom; const fromUp=camera.up.clone().normalize(); tween = { from: camera.position.clone(), to: p.eye.clone(), fromTarget: controls.target.clone(), toTarget: p.target.clone(), fromUp, upRotation:new THREE.Quaternion().setFromUnitVectors(fromUp,new THREE.Vector3(0,1,0)), zoom: camera.zoom, toZoom: zoom, start: performance.now() }; controls.enabled = false; invalidate(); container.dataset.view = view; }
   function setSceneryView(backdrop=settings.backdrop){positions.room=studyRoomPose(backdrop);setView('room');if(tween&&backdrop!=='new-york')tween.toZoom=.78;}
-  function setBooks(next: StudyBook[]) {
-    books = next; if (!materials) return;
+  function setBooks(next: StudyBook[],nextDeskBooks:StudyBook[]=next) {
+    books = next;deskBooks=nextDeskBooks; if (!materials) return;
     const reserved=new Set(decorations.map(item=>item.slotId)),packed=packShelfBooks(books,slots,reserved);
-    const key=JSON.stringify(packed.placed.map(({book,slot,offset,scale})=>[book.id,book.title,book.author,book.totalPages,book.coverUrl,slot.id,offset,scale]));
-    if(bookLayer&&bookLayoutKey===key){const byId=new Map(books.map(book=>[book.id,book]));for(const model of bookModels.values())model.object.userData.book=byId.get(model.object.userData.book.id);syncDecorationHints();return;}
+    const key=JSON.stringify([packed.placed.map(({book,slot,offset,scale})=>[book.id,book.title,book.author,book.totalPages,book.coverUrl,slot.id,offset,scale]),deskBooks.slice(0,6).map(book=>[book.id,book.title,book.author,book.totalPages,book.coverUrl])]);
+    if(bookLayer&&bookLayoutKey===key){const byId=new Map([...deskBooks,...books].map(book=>[book.id,book]));for(const model of bookModels.values())model.object.userData.book=byId.get(model.object.userData.book.id);syncDecorationHints();return;}
     bookLayoutKey=key;cancelDeskFlash();
     for(const model of bookModels.values())model.object.position.copy(model.rest);
     bookModels.clear();bookMotion.reset();
     if(openBook){openBook.userData.coverBinding=null;const cover=openBook.userData.coverMaterial as THREE.MeshStandardMaterial;cover.map=null;cover.color.set('#d8c6a6');cover.needsUpdate=true;}
     if (bookLayer) { root.remove(bookLayer.group); disposeObject(bookLayer.group);bookLayer.covers.dispose(); }
-    bookLayer = populateBooks(root, books, slots, invalidate,reserved);
+    bookLayer = populateBooks(root, books, slots, invalidate,reserved,deskBooks);
     function register(object:THREE.Object3D,depth:number) {
       const pull=new THREE.Vector3(0,0,(object.userData.pullDepth??depth)*BOOK_PULL_FRACTION);
       if(!object.userData.shelfPull)pull.applyQuaternion(object.quaternion);
@@ -184,7 +186,7 @@ export function createStudyScene(container: HTMLElement, initialBooks: StudyBook
     }
     bookLayer.targets.forEach(object=>register(object,object.userData.depth));
     if (openBook) {
-      const book=books[0],object=openBook;
+      const book=deskBooks[0],object=openBook;
       object.visible=Boolean(book);object.userData.book=book;object.userData.location='desk';
       object.userData.coverStatus=book?.coverUrl?'loading':'missing';
       if(book){
@@ -211,20 +213,21 @@ export function createStudyScene(container: HTMLElement, initialBooks: StudyBook
     container.dataset.shelfBooks=String(bookLayer.targets.filter(object=>object.userData.location==='shelves').length);
     syncDecorationHints();
   }
-  function setContent(next:StudyBook[],props:StudyDecoration[]) {
-    decorations=props;setBooks(next);if(!materials)return;
+  function setContent(next:StudyBook[],props:StudyDecoration[],nextDeskBooks:StudyBook[]=next) {
+    decorations=props;setBooks(next,nextDeskBooks);if(!materials)return;
     const ids=new Set(props.map(item=>item.id));
     for(const [id,model] of decorationModels)if(!ids.has(id)){root.remove(model.object);disposeObject(model.object);decorationModels.delete(id);}
     for(const item of props) {
-      const slot=slots.find(slot=>slot.id===item.slotId);if(!slot)continue;
+      const slot=[...slots,...studyDeskSlots()].find(slot=>slot.id===item.slotId);if(!slot)continue;
       const key=JSON.stringify([item.type,item.color,item.rotation,item.slotId]),previous=decorationModels.get(item.id);
       if(previous?.key===key){previous.object.userData.decoration=item;continue;}
       if(previous){root.remove(previous.object);disposeObject(previous.object);}
-      const object=makeDecoration(item);fitDecoration(object,slot);root.add(object);decorationModels.set(item.id,{object,key});
+      const object=makeDecoration(item);if(isDeskSlot(slot))fitDeskDecoration(object,slot);else fitDecoration(object,slot);root.add(object);decorationModels.set(item.id,{object,key});
     }
-    root.updateMatrixWorld(true);updateDecorationSelection();syncDecorationHints();
+    root.updateMatrixWorld(true);updateDeskLighting();resolveDeskProps();updateDecorationSelection();syncDecorationHints();
     const occupied=new Set(bookLayer?.targets.filter(object=>object.userData.shelf).map(object=>object.userData.shelf.id));
     container.dataset.decorationCount=String(decorationModels.size);container.dataset.decorationBookOverlap=String(props.filter(item=>occupied.has(item.slotId)).length);
+    container.dataset.deskDecorationCount=String(props.filter(item=>decorationSurface(item.slotId)==='desk').length);
     container.dataset.decorations=JSON.stringify(props.map(item=>({id:item.id,type:item.type,slot:item.slotId,color:item.color,rotation:item.rotation})));
     invalidate();
   }
@@ -243,20 +246,23 @@ export function createStudyScene(container: HTMLElement, initialBooks: StudyBook
     if(!materials)return;
     const occupied=new Set(bookLayer?.targets.filter(object=>object.userData.shelf).map(object=>object.userData.shelf.id));
     const reserved=new Set(decorations.filter(item=>item.id!==editor.selectedId).map(item=>item.slotId));
-    const available=editor.active&&editor.placing?slots.filter(slot=>!occupied.has(slot.id)&&!reserved.has(slot.id)):[];
-    const key=JSON.stringify([editor.label,available.map(slot=>slot.id)]);if(key===hintKey)return;hintKey=key;
+    const candidates=editor.surface==='desk'?studyDeskSlots():slots;
+    const available=editor.active&&editor.placing?candidates.filter(slot=>!occupied.has(slot.id)&&!reserved.has(slot.id)):[];
+    const key=JSON.stringify([editor.surface,editor.label,available.map(slot=>slot.id)]);if(key===hintKey)return;hintKey=key;
     hintButtons.clear();decorationHints?.replaceChildren();disposeObject(hintGroup);hintGroup.clear();
     for(const slot of available) {
-      const plane=new THREE.Mesh(new THREE.PlaneGeometry(slot.width-.08,slot.maxHeight-.06),new THREE.MeshBasicMaterial({color:'#eb7955',transparent:true,opacity:.10,depthWrite:false}));
-      plane.position.set(slot.x+slot.width/2,slot.y+slot.maxHeight/2,slot.z+.30);plane.userData.shelfHint=slot.id;hintGroup.add(plane);
+      const plane=new THREE.Mesh(new THREE.PlaneGeometry(slot.width-.08,isDeskSlot(slot)?slot.depth-.08:slot.maxHeight-.06),new THREE.MeshBasicMaterial({color:'#eb7955',transparent:true,opacity:.10,depthWrite:false}));
+      if(isDeskSlot(slot)){plane.rotation.x=-Math.PI/2;plane.position.set(slot.x+slot.width/2,slot.y+.018,slot.z+slot.depth/2);}else plane.position.set(slot.x+slot.width/2,slot.y+slot.maxHeight/2,slot.z+.30);
+      plane.userData.shelfHint=slot.id;hintGroup.add(plane);
       if(decorationHints){const button=document.createElement('button');button.type='button';button.textContent='+';button.setAttribute('aria-label',`${slot.label}에 ${editor.label||'소품'} 놓기`);button.dataset.slot=slot.id;button.addEventListener('click',()=>onChooseSlot(slot.id));decorationHints.append(button);hintButtons.set(slot.id,button);}
     }
     container.dataset.availableDecorSlots=String(available.length);invalidate();
   }
   function updateDecorationHints() {
     for(const [id,button] of hintButtons) {
-      const slot=slots.find(slot=>slot.id===id)!;
-      hintAnchor.set(slot.x+slot.width/2,slot.y+slot.maxHeight/2,slot.z+.32).project(camera);
+      const slot=[...slots,...studyDeskSlots()].find(slot=>slot.id===id)!;
+      if(isDeskSlot(slot))hintAnchor.set(slot.x+slot.width/2,slot.y+.018,slot.z+slot.depth/2);else hintAnchor.set(slot.x+slot.width/2,slot.y+slot.maxHeight/2,slot.z+.32);
+      hintAnchor.project(camera);
       const visible=hintAnchor.z>=-1&&hintAnchor.z<=1&&Math.abs(hintAnchor.x)<.94&&Math.abs(hintAnchor.y)<.92&&interactiveObject(hintAnchor.x,hintAnchor.y)?.userData.shelfHint===id;
       button.hidden=!visible;
       if(visible){button.style.left=`${(hintAnchor.x+1)*container.clientWidth/2}px`;button.style.top=`${(1-hintAnchor.y)*container.clientHeight/2}px`;}
@@ -308,36 +314,40 @@ export function createStudyScene(container: HTMLElement, initialBooks: StudyBook
     fill.color.set(atmosphere.ambient);scene.environmentIntensity=settings.backdrop==='tokyo'?.24:.35;
     fill.intensity=isPenthouse?.24:.34;sky.intensity*=isPenthouse?.8:1;sun.shadow.radius=isPenthouse?3.5:16;
     renderer.toneMappingExposure=isPenthouse?.75:.85;
-    if(desk)desk.lampLight.intensity=10-settings.light/100*4+atmosphere.lamp;
+    updateDeskLighting();
     container.dataset.backdrop=settings.backdrop;container.dataset.windowBackdrop=garden?.visible?'forest':settings.backdrop;invalidate();
     if(materials&&wasPenthouse!==isPenthouse&&activeView==='room')setSceneryView(settings.backdrop);
   }
   function cancelDeskFlash() { deskFlash?.effect.dispose();deskFlash=null; }
+  function updateDeskLighting(){
+    const intensity=10-settings.light/100*4+sceneryOptions.find(item=>item.id===settings.backdrop)!.lamp;
+    for(const {object} of decorationModels.values()){
+      const light=object.userData.light as THREE.PointLight|undefined,item=object.userData.decoration as StudyDecoration;
+      if(light)light.intensity=intensity*(item.type==='desk-lamp'?1:item.type==='mushroom'?.45:.10);
+    }
+  }
   function resolveDeskProps() {
-    if(!desk||!decor)return;
+    if(!desk)return;
     root.updateMatrixWorld(true);
     const box=new THREE.Box3(),size=new THREE.Vector3(),center=new THREE.Vector3();
     function body(object:THREE.Object3D,id:string):DeskBody {
       box.makeEmpty();object.traverse(child=>{if(child instanceof THREE.Mesh&&!child.userData.collisionIgnore)box.expandByObject(child);});box.getSize(size);box.getCenter(center);
       return {id,x:center.x,z:center.z,width:size.x,depth:size.z,bottom:box.min.y,top:box.max.y};
     }
-    const objects=[...desk.props,decor.deskFlowers];
-    const props=objects.map(object=>body(object,object.name));
-    const obstacles=[...bookModels.entries()].filter(([,model])=>model.object.userData.location==='desk').map(([id,model])=>body(model.object,id));
-    const placed=resolveDeskCollisions(props,obstacles,desk.bounds);
-    let moved=0,overlaps=0;
+    const objects=[...decorationModels.values()].filter(model=>decorationSurface(model.object.userData.decoration.slotId)==='desk').map(model=>model.object);
+    const props=objects.map(object=>body(object,object.userData.decoration.id));
+    const obstacles=[body(desk.notebook,'desk-notebook'),...[...bookModels.entries()].filter(([,model])=>model.object.userData.location==='desk').map(([id,model])=>body(model.object,id))];
+    let overlaps=0;
     const collisionPairs: { prop: DeskBody; obstacle: DeskBody }[]=[];
-    placed.forEach((next,i)=>{
-      const dx=next.x-props[i].x,dz=next.z-props[i].z;
-      if(Math.hypot(dx,dz)>.00001){objects[i].position.x+=dx;objects[i].position.z+=dz;moved++;}
+    props.forEach((next,i)=>{
       overlaps+=obstacles.filter(other=>deskBodiesOverlap(next,other)).length;
-      overlaps+=placed.slice(0,i).filter(other=>deskBodiesOverlap(next,other)).length;
-      [...obstacles,...placed.slice(0,i)].filter(other=>deskBodiesOverlap(next,other)).forEach(other=>collisionPairs.push({prop:next,obstacle:other}));
+      overlaps+=props.slice(0,i).filter(other=>deskBodiesOverlap(next,other)).length;
+      [...obstacles,...props.slice(0,i)].filter(other=>deskBodiesOverlap(next,other)).forEach(other=>collisionPairs.push({prop:next,obstacle:other}));
     });
     container.dataset.deskCollisions=String(overlaps);
     container.dataset.deskCollisionPairs=JSON.stringify(collisionPairs);
-    container.dataset.deskPushes=String(Number(container.dataset.deskPushes??0)+moved);
-    container.dataset.deskProps=JSON.stringify(placed.map(({id,x,z})=>({id,x:Number(x.toFixed(3)),z:Number(z.toFixed(3))})));
+    container.dataset.deskPushes='0';
+    container.dataset.deskProps=JSON.stringify(props.map(({id,x,z})=>({id,x:Number(x.toFixed(3)),z:Number(z.toFixed(3))})));
   }
   function activateBook(book:StudyBook,object?:THREE.Object3D) {
     if(deskFlash)return;
@@ -462,8 +472,6 @@ export function createStudyScene(container: HTMLElement, initialBooks: StudyBook
     groundStudyObject(mainPlant);
     const terracePlant=model(widePlant.scene,2.65,-7.35,.003,-2.0,.2,penthouse);terracePlant.name='penthouse-terrace-plant';groundStudyObject(terracePlant);
     makeTrailingPlant(plants,m,[-5.27,1.88,-1.0],Math.PI/2,1.0);
-    makeTrailingPlant(plants,m,[-3.76,4.02,-2.0],0,.83);
-    makeTrailingPlant(plants,m,[5.24,4.08,-3.12],0,.83);
     const chair=model(chairAsset.scene,2.6,-3.12,.015,3.32,-.62);
     readingChair=chair;chair.name='reading-chair';
     chair.traverse(child=>{if(child instanceof THREE.Mesh){const material=child.material as THREE.MeshStandardMaterial;const name=material.name;if(name==='chair_oak')chairFeet=child;child.material=name==='throw_wool'?m.blanket:name==='chair_oak'?m.wood:name==='chair_accent'?m.cushion:m.fabric;}});
@@ -499,7 +507,7 @@ export function createStudyScene(container: HTMLElement, initialBooks: StudyBook
     container.dataset.floorFrameBottom=new THREE.Box3().setFromObject(decor.floorFrame).min.y.toFixed(4);
     container.dataset.floorPlacements=JSON.stringify(finalFloorBodies);
     container.dataset.decorOverlap=String(new THREE.Box3().setFromObject(mainPlant).intersectsBox(new THREE.Box3().setFromObject(decor.floorFrame)));
-    setContent(books,decorations); setSettings(settings);camera.position.copy(positions.room.eye);camera.zoom=positions.room.zoom;controls.target.copy(positions.room.target);camera.updateProjectionMatrix();controls.update();container.dataset.ready = 'true'; container.dataset.view = activeView; invalidate();
+    setContent(books,decorations,deskBooks); setSettings(settings);camera.position.copy(positions.room.eye);camera.zoom=positions.room.zoom;controls.target.copy(positions.room.target);camera.updateProjectionMatrix();controls.update();container.dataset.ready = 'true'; container.dataset.view = activeView; invalidate();
   })();
   function dispose() { disposed = true; window.clearTimeout(cueTimer);notebookCue?.dispose();notebookCue=null;
     glassSurfaces.length=0;hiddenGlass.length=0;

@@ -14,7 +14,13 @@ export const decorCatalog=[
   {id:'moon',name:'달의 조각',category:'오브제',colors:['#e7dfcf','#c59373','#91a298']},
   {id:'mushroom',name:'버섯 조명',category:'조명',colors:['#eee0c8','#bc7456','#809889']},
   {id:'candle',name:'조용한 촛불',category:'조명',colors:['#e9dfc9','#c58a6b','#a7b5a2']},
+  {id:'desk-lamp',name:'독서 스탠드',category:'조명',colors:['#d97750','#6f8977','#7b8797']},
+  {id:'mug',name:'따뜻한 머그컵',category:'오브제',colors:['#eee4cf','#bd795c','#80958a']},
+  {id:'pencil-cup',name:'연필꽂이',category:'오브제',colors:['#a8b4a0','#bd795c','#eee4cf']},
 ] as const;
 export type DecorType=(typeof decorCatalog)[number]['id'];
 export type StudyDecoration={id:string;type:DecorType;slotId:string;page:number;color:number;rotation:number};
 export const findDecor=(id:string)=>decorCatalog.find(item=>item.id===id);
+export const decorSupportsSurface=(type:DecorType,surface:DecorSurface)=>surface==='desk'||!['desk-lamp','mug','pencil-cup'].includes(type);
+export const decorForSurface=(surface:DecorSurface)=>decorCatalog.filter(item=>decorSupportsSurface(item.id,surface));
+import type {DecorSurface} from './desk-layout';

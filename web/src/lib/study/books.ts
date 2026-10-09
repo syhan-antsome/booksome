@@ -60,7 +60,7 @@ export function makeStudyBook(book: StudyBook, covers:StudyCoverPool, invalidate
   return { mesh, width, height,depth };
 }
 
-export function populateBooks(parent: THREE.Group, books: StudyBook[], slots: ShelfSlot[], invalidate: () => void,reserved:ReadonlySet<string>=new Set()) {
+export function populateBooks(parent: THREE.Group, books: StudyBook[], slots: ShelfSlot[], invalidate: () => void,reserved:ReadonlySet<string>=new Set(),deskBooks:StudyBook[]=books) {
   const group = new THREE.Group(); parent.add(group); const targets: THREE.Mesh[] = [],covers=new StudyCoverPool();
   let deskHeight=0,underDeskHeight=0;
   for (const {book,slot,offset,scale} of packShelfBooks(books,slots,reserved).placed) {
@@ -73,8 +73,8 @@ export function populateBooks(parent: THREE.Group, books: StudyBook[], slots: Sh
     mesh.userData.invalidate = invalidate; group.add(mesh); targets.push(mesh);
   }
   // Desk volumes are views of the same registered books, not additional records.
-  for(let i=1;i<Math.min(books.length,6);i++) {
-    const {mesh,width}=makeStudyBook(books[i],covers,invalidate);mesh.rotation.z=Math.PI/2;
+  for(let i=1;i<Math.min(deskBooks.length,6);i++) {
+    const {mesh,width}=makeStudyBook(deskBooks[i],covers,invalidate);mesh.rotation.z=Math.PI/2;
     if(i<4){mesh.rotation.y=-.13;mesh.position.set(-4.18,1.95+deskHeight+width/2,1.16);deskHeight+=width+.008;}
     else {mesh.position.set(-1.72,.71+underDeskHeight+width/2,1.75);underDeskHeight+=width+.008;}
     mesh.userData.location='desk';group.add(mesh);targets.push(mesh);
