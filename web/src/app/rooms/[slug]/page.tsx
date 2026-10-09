@@ -6,7 +6,7 @@ import { ArrowIcon } from '@/components/arrow-icon';
 import { BookCover } from '@/components/book-cover';
 import { ContentState } from '@/components/content-state';
 import { PageShell } from '@/components/page-shell';
-import { ConversationLink } from '@/components/portal-session';
+import styles from '@/components/reading-experience.module.css';
 import { RoomDiscussion } from '@/components/room-discussion';
 import { getRoom as fetchRoom, getRoomPosts, roomCover } from '@/lib/api';
 
@@ -26,11 +26,10 @@ export default async function RoomPage({ params }: Props) {
   const room = result.data;
   const posts = await getRoomPosts(room.id);
   return <PageShell active="rooms" stickyHeader>
-    <div className="container breadcrumb"><Link href="/rooms">책 이야기</Link><span aria-hidden="true">/</span><span>{room.title}</span></div>
-    <section className="room-detail-hero container"><BookCover className="room-detail-hero__cover" src={roomCover(room)} title={room.title} /><div>
-      <p className="room-detail-hero__label">공개 책 이야기{room.author ? ` · ${room.author}` : ''}</p><h1>{room.title}</h1>{room.subtitle ? <strong>{room.subtitle}</strong> : null}{room.description ? <p>{room.description}</p> : null}
-      <ConversationLink slug={room.slug} /><p className="room-detail-hero__hint">읽기는 누구나, 글과 댓글은 로그인 후 남길 수 있어요.</p>
-    </div></section>
-    <RoomDiscussion key={room.id} roomId={room.id} slug={room.slug} initialPosts={posts.data ?? []} initialError={Boolean(posts.error)} />
+    <div className={styles.publicPage}>
+      <div className={styles.bookContext}><div className={styles.contextInner}><Link className={styles.backLink} href="/rooms">← 책 이야기</Link><BookCover className={styles.contextCover} src={roomCover(room)} title={room.title} /><div><strong>{room.title}</strong>{room.author ? <p>{room.author}</p> : null}</div><Link className={styles.contextLibrary} href="/library">나의 책 목록 <span aria-hidden="true">↗</span></Link></div></div>
+      <RoomDiscussion key={room.id} title={room.title} roomId={room.id} slug={room.slug} initialPosts={posts.data ?? []} initialError={Boolean(posts.error)} />
+      {room.description || room.subtitle ? <details className={styles.roomAbout}><summary>이 책 이야기 공간 소개</summary>{room.subtitle ? <strong>{room.subtitle}</strong> : null}{room.description ? <p>{room.description}</p> : null}</details> : null}
+    </div>
   </PageShell>;
 }
